@@ -4,6 +4,7 @@ import AirDraw from './pages/AirDraw';
 import FruitNinja from './pages/FruitNinja';
 import HillClimbGame from './pages/HillClimbGame';
 import FlappyBird from './pages/FlappyBird';
+import MobControlGame from './pages/MobControlGame';
 import GestureCursor from './components/GestureCursor';
 
 /**
@@ -12,7 +13,7 @@ import GestureCursor from './components/GestureCursor';
  */
 function ConditionalCursor() {
   const location = useLocation();
-  const pagesWithOwnCamera = ['/air-draw', '/fruit-ninja', '/hill-climb', '/flappy-bird'];
+  const pagesWithOwnCamera = ['/air-draw', '/fruit-ninja', '/hill-climb', '/flappy-bird', '/mob-control'];
   const hasOwnCamera = pagesWithOwnCamera.some(p => location.pathname.startsWith(p));
 
   if (hasOwnCamera) return null;
@@ -29,6 +30,7 @@ export default function App() {
         <Route path="/fruit-ninja" element={<FruitNinja />} />
         <Route path="/hill-climb" element={<HillClimbGame />} />
         <Route path="/flappy-bird" element={<FlappyBird />} />
+        <Route path="/mob-control" element={<MobControlGame />} />
       </Routes>
     </Router>
   );

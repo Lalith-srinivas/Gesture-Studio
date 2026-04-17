@@ -83,6 +83,22 @@ export default function Home() {
           </p>
         </Link>
         
+        {/* Mob Control Card */}
+        <Link 
+          to="/mob-control"
+          className="group relative flex flex-col items-center justify-center p-8 py-12 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 overflow-hidden transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_0_40px_-10px_rgba(236,72,153,0.3)] hover:border-pink-500/50"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-pink-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          
+          <div className="w-16 h-16 mb-6 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center text-3xl shadow-lg shadow-pink-500/25 group-hover:scale-110 transition-transform duration-500">
+            👥
+          </div>
+          <h2 className="text-xl font-bold mb-2 group-hover:text-pink-300 transition-colors">Mob Control</h2>
+          <p className="text-zinc-400 text-center text-xs font-medium">
+            Guide the crowd through multiplier gates!
+          </p>
+        </Link>
+
       </div>
     </div>
   );
