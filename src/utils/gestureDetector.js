@@ -17,6 +17,7 @@ export const GESTURES = {
   PAN: 'PAN',       // ✊ closed fist
   STOP: 'STOP',     // ✋ open hand
   PINCH: 'PINCH',   // 🤏 thumb + index
+  ROCK: 'ROCK',     // 🤟 index + pinky (horns)
   NONE: 'NONE',
 };
 
@@ -46,7 +47,7 @@ function landmarkDistance(a, b) {
  * Returns true if thumb and index tips are close together.
  */
 function isPinch(lm) {
-  return landmarkDistance(lm[4], lm[8]) < 0.045;
+  return landmarkDistance(lm[4], lm[8]) < 0.07;
 }
 
 /**
@@ -91,7 +92,12 @@ export function detectGesture(landmarks) {
     return GESTURES.STOP;
   }
 
-  // 3. Two fingers: index + middle up
+  // 3. Rock / Horns 🤟: index + pinky up, middle + ring down
+  if (indexExtended && !middleExtended && !ringExtended && pinkyExtended) {
+    return GESTURES.ROCK;
+  }
+
+  // 4. Two fingers: index + middle up
   if (indexExtended && middleExtended && !ringExtended && !pinkyExtended) {
     return GESTURES.ERASE;
   }
@@ -119,6 +125,7 @@ export function getGestureLabel(gesture) {
     [GESTURES.PAN]:   { emoji: '✊',  label: 'Pan',   color: 'text-amber-400'  },
     [GESTURES.STOP]:  { emoji: '✋',  label: 'Stop',  color: 'text-rose-400'   },
     [GESTURES.PINCH]: { emoji: '🤏',  label: 'Pinch', color: 'text-emerald-400' },
+    [GESTURES.ROCK]:  { emoji: '🤟',  label: 'Rock',  color: 'text-orange-400'  },
     [GESTURES.NONE]:  { emoji: '—',   label: 'None',  color: 'text-zinc-500'   },
   };
   return labels[gesture] ?? labels[GESTURES.NONE];

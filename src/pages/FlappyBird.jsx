@@ -17,19 +17,21 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useHandTracking } from "../hooks/useHandTracking";
 import { GESTURES } from "../utils/gestureDetector";
+import { playPinchSound, playFailSound, resumeAudio } from "../utils/soundEffects";
 
 /* ─── Constants ─────────────────────────────────────────── */
 const BASE_W = 480;
 const BASE_H = 640;
 
-const GRAVITY = 0.5;
-const FLAP_FORCE = -9.5;
-const PIPE_SPEED = 2.8;
-const PIPE_INTERVAL = 1500; // ms
-const PIPE_GAP = 160;
+const GRAVITY = 0.32;
+const FLAP_FORCE = -8.0;
+const PIPE_SPEED = 2.5;
+const PIPE_INTERVAL = 1600; // ms
+const PIPE_GAP = 175;
 const PIPE_WIDTH = 64;
 const BIRD_RADIUS = 18;
 const GROUND_H = 72;
+const MAX_FALL_SPEED = 10; // terminal velocity cap
 
 /* ─── Helpers ────────────────────────────────────────────── */
 function getScale(canvas) {
@@ -93,6 +95,7 @@ export default function FlappyBird({ onReady }) {
 
   /* ── triggerFlap — PUBLIC API for gesture integration ── */
   const triggerFlap = useCallback(() => {
+    resumeAudio();
     const s = stateRef.current;
     if (!s) return;
     if (s.phase === "idle") {
@@ -100,6 +103,7 @@ export default function FlappyBird({ onReady }) {
       setUiState("playing");
     }
     if (s.phase === "playing") {
+      playPinchSound();
       s.bird.vy = FLAP_FORCE * s.scale;
     }
   }, []);
@@ -160,13 +164,14 @@ export default function FlappyBird({ onReady }) {
   function update(now) {
     const s = stateRef.current;
     if (!s || s.phase !== "playing") return;
-    const dt = Math.min((now - lastTimeRef.current) / 16.67, 3); // cap at 3x
+    const dt = Math.min((now - lastTimeRef.current) / 16.67, 2); // cap at 2x frame
     const { scale } = s;
 
     // Bird physics
     s.bird.vy += GRAVITY * scale * dt;
+    s.bird.vy = Math.min(s.bird.vy, MAX_FALL_SPEED * scale); // terminal velocity
     s.bird.y += s.bird.vy * dt;
-    s.bird.angle = Math.max(-30, Math.min(90, (s.bird.vy / (scale * 8)) * 45));
+    s.bird.angle = Math.max(-30, Math.min(85, (s.bird.vy / (scale * 6)) * 45));
 
     // Spawn pipes
     if (now - lastPipeRef.current > PIPE_INTERVAL) {
@@ -188,6 +193,7 @@ export default function FlappyBird({ onReady }) {
 
     // Collision
     if (checkCollision(s.bird, s.pipes, scale)) {
+      playFailSound();
       s.phase = "dead";
       setUiState("dead");
       saveHighScore(s.score);
@@ -358,33 +364,40 @@ export default function FlappyBird({ onReady }) {
     } catch {}
   }
 
-  const handleGesture = useCallback((gesture) => {
-    setCurrentGesture(prev => prev !== gesture ? gesture : prev);
+  const handOverlayRef = useRef(null);
+  const [handDetected, setHandDetected] = useState(false);
 
-    const isAction = gesture === GESTURES.PINCH || gesture === GESTURES.PAN;
+  const handleGesture = useCallback((gesture, indexTip, dims, landmarks) => {
+    setHandDetected(!!landmarks || !!indexTip);
+    setCurrentGesture(gesture);
 
-    if (isAction && !lastGestureRef.current) {
-      lastGestureRef.current = true;
-      const s = stateRef.current;
-      if (s?.phase === "playing") {
-        triggerFlap();
-      } else {
-        const btn = document.getElementById("flappy-action-btn");
-        if (btn) btn.click();
+    const isAction = gesture === GESTURES.PINCH || gesture === GESTURES.PAN || gesture === GESTURES.DRAW;
+
+    if (isAction) {
+      if (!lastGestureRef.current) {
+        lastGestureRef.current = true;
+        const s = stateRef.current;
+        if (s?.phase === "playing") {
+          triggerFlap();
+        } else {
+          startGame();
+        }
       }
-    } else if (!isAction && gesture !== GESTURES.NONE) {
-      // Clear action state only when we explicitly see an open hand (or other non-action pose)
+    } else {
+      // Clear action state immediately so next pinch/tap triggers a new flap
       lastGestureRef.current = false;
     }
   }, [triggerFlap]);
 
   useHandTracking({
     videoRef,
+    overlayCanvasRef: handOverlayRef,
     onGesture: handleGesture,
   });
 
   /* ── Start / Restart ── */
   function startGame() {
+    resumeAudio();
     const canvas = canvasRef.current;
     if (!canvas) return;
     const scale = resizeCanvas() || stateRef.current?.scale || 1;
@@ -470,11 +483,7 @@ export default function FlappyBird({ onReady }) {
       </div>
 
       {/* Pip camera */}
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted
+      <div
         style={{
           position: 'fixed',
           bottom: 20,
@@ -484,12 +493,36 @@ export default function FlappyBird({ onReady }) {
           border: '3px solid #000000',
           boxShadow: '4px 4px 0px 0px #000000',
           zIndex: 50,
-          transform: 'scaleX(-1)',
-          opacity: 0.85,
-          pointerEvents: 'none',
           background: '#000',
+          overflow: 'hidden',
         }}
-      />
+      >
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            transform: 'scaleX(-1)',
+            opacity: 0.9,
+            pointerEvents: 'none',
+          }}
+        />
+        <canvas
+          ref={handOverlayRef}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            transform: 'scaleX(-1)',
+            pointerEvents: 'none',
+          }}
+        />
+      </div>
 
       <div className="relative w-full max-w-[480px] border-4 border-black shadow-neo-2xl bg-black">
         <canvas

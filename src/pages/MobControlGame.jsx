@@ -1,601 +1,815 @@
 import React, { useRef, useEffect, useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useHandTracking } from "../hooks/useHandTracking";
-import { GESTURES } from "../utils/gestureDetector";// ─────────────────────────────────────────────
-// CONSTANTS & CONFIG
-// ─────────────────────────────────────────────
-const UNIT_RADIUS = 7;
-const CROWD_SPREAD = 28;
-const MOVE_SPEED = 1.3;
-const GATE_WIDTH = 90;
-const GATE_HEIGHT = 60;
-const GATE_PAIR_INTERVAL = 340; // px between gate pairs on the "road"
-const ROAD_WIDTH = 300;
-const PARTICLE_COUNT = 18;
+import { GESTURES } from "../utils/gestureDetector";
+import { playPlusSound, playFightSound, resumeAudio } from "../utils/soundEffects";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFIG & GAME LEVELS
+// ─────────────────────────────────────────────────────────────────────────────
+const FORWARD_SPEED = 0.055;
+const GATE_SPACING = 8.5; // Z units between gates
 
 const LEVELS = [
-  { enemyCount: 15, gateCount: 4, startCount: 10, label: "Level 1" },
-  { enemyCount: 30, gateCount: 5, startCount: 10, label: "Level 2" },
-  { enemyCount: 55, gateCount: 6, startCount: 12, label: "Level 3" },
-  { enemyCount: 90, gateCount: 7, startCount: 14, label: "Level 4" },
-  { enemyCount: 140, gateCount: 8, startCount: 16, label: "Level 5" },
+  { enemyCount: 15, gateCount: 4, startCount: 3, label: "Level 1" },
+  { enemyCount: 30, gateCount: 5, startCount: 5, label: "Level 2" },
+  { enemyCount: 60, gateCount: 6, startCount: 6, label: "Level 3" },
+  { enemyCount: 95, gateCount: 7, startCount: 8, label: "Level 4" },
+  { enemyCount: 150, gateCount: 8, startCount: 10, label: "Level 5" },
 ];
 
-const GATE_COLOR = "#48dbfb";
-const GATE_GLOW = "#48dbfb88";
-
-const GATE_OPS = [
-  { label: "×2", fn: (n) => n * 2, color: GATE_COLOR, glow: GATE_GLOW },
-  { label: "+10", fn: (n) => n + 10, color: GATE_COLOR, glow: GATE_GLOW },
-  { label: "+5", fn: (n) => n + 5, color: GATE_COLOR, glow: GATE_GLOW },
-  { label: "−5", fn: (n) => Math.max(1, n - 5), color: GATE_COLOR, glow: GATE_GLOW },
-  { label: "−10", fn: (n) => Math.max(1, n - 10), color: GATE_COLOR, glow: GATE_GLOW },
-  { label: "÷2", fn: (n) => Math.max(1, Math.floor(n / 2)), color: GATE_COLOR, glow: GATE_GLOW },
-  { label: "+20", fn: (n) => n + 20, color: GATE_COLOR, glow: GATE_GLOW },
-  { label: "×3", fn: (n) => n * 3, color: GATE_COLOR, glow: GATE_GLOW },
+const POSITIVE_OPS = [
+  { label: "+20", fn: (n) => n + 20, isPositive: true },
+  { label: "+15", fn: (n) => n + 15, isPositive: true },
+  { label: "+10", fn: (n) => n + 10, isPositive: true },
+  { label: "+25", fn: (n) => n + 25, isPositive: true },
+  { label: "×2", fn: (n) => n * 2, isPositive: true },
+  { label: "×3", fn: (n) => n * 3, isPositive: true },
 ];
 
-function pickGatePair(level) {
-  const pool = [...GATE_OPS];
-  const a = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
-  const b = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
-  return [a, b];
+const NEGATIVE_OPS = [
+  { label: "-15", fn: (n) => Math.max(1, n - 15), isPositive: false },
+  { label: "-09", fn: (n) => Math.max(1, n - 9), isPositive: false },
+  { label: "-05", fn: (n) => Math.max(1, n - 5), isPositive: false },
+  { label: "-20", fn: (n) => Math.max(1, n - 20), isPositive: false },
+  { label: "÷2", fn: (n) => Math.max(1, Math.floor(n / 2)), isPositive: false },
+];
+
+function pickGatePair() {
+  const neg = NEGATIVE_OPS[Math.floor(Math.random() * NEGATIVE_OPS.length)];
+  const pos = POSITIVE_OPS[Math.floor(Math.random() * POSITIVE_OPS.length)];
+  const leftIsPos = Math.random() < 0.35;
+  return {
+    left: leftIsPos ? pos : neg,
+    right: leftIsPos ? neg : pos,
+  };
 }
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
-function lerp(a, b, t) { return a + (b - a) * t; }
+// ─────────────────────────────────────────────────────────────────────────────
+// 3D PROJECTION MATH (ZOOMED-IN PERSPECTIVE)
+// ─────────────────────────────────────────────────────────────────────────────
+function project3D(x, z, W, H) {
+  // z: 0.4 (near) to 24 (horizon)
+  const clampedZ = Math.max(0.2, z);
+  const horizonY = H * 0.02; // Horizon positioned high up
+  
+  // Smooth, zoomed-in perspective decay
+  const scale = 1 / (clampedZ * 0.16 + 0.84);
+  const screenY = horizonY + (H - horizonY) * Math.pow(scale, 1.12);
+  
+  // Wide road perspective: from 32% of W at horizon to 92% at screen bottom
+  const roadWidth = W * (0.32 + 0.62 * scale);
+  const screenX = W / 2 + x * (roadWidth / 2);
 
-// ─────────────────────────────────────────────
-// UNIT POSITIONS LAYOUT
-// ─────────────────────────────────────────────
-function layoutUnits(count, cx, cy) {
-  const units = [];
-  if (count === 0) return units;
-  const cols = Math.min(count, 6);
-  for (let i = 0; i < count; i++) {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const totalCols = Math.min(count - row * cols, cols);
-    const offsetX = (col - (totalCols - 1) / 2) * CROWD_SPREAD;
-    const offsetY = row * CROWD_SPREAD * 0.8; // tighter y spacing
-    units.push({ x: cx + offsetX, y: cy + offsetY });
-  }
-  return units;
+  return { x: screenX, y: screenY, scale, roadWidth };
 }
 
-// ─────────────────────────────────────────────
-// PARTICLE SYSTEM
-// ─────────────────────────────────────────────
-function spawnParticles(particles, x, y, color, count = PARTICLE_COUNT) {
+// Layout units in a cluster around center
+function getCrowdPositions(count, cx, cz) {
+  const positions = [];
+  if (count <= 0) return positions;
+  
+  // Natural 3D cluster with proportional spacing
   for (let i = 0; i < count; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const speed = 1.5 + Math.random() * 3;
-    particles.push({
-      x, y,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
-      life: 1,
-      decay: 0.025 + Math.random() * 0.02,
-      color,
-      r: 2 + Math.random() * 3,
+    if (i === 0) {
+      positions.push({ x: cx, z: cz });
+      continue;
+    }
+    const angle = i * 2.39996;
+    const dist = Math.sqrt(i) * 0.062;
+    positions.push({
+      x: cx + Math.cos(angle) * dist * 0.72,
+      z: cz + Math.sin(angle) * dist * 0.95,
     });
   }
+  return positions;
 }
 
-function updateParticles(particles, timeScale = 1) {
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const p = particles[i];
-    p.x += p.vx * timeScale;
-    p.y += p.vy * timeScale;
-    p.vy += 0.08 * timeScale;
-    p.life -= p.decay * timeScale;
-    if (p.life <= 0) particles.splice(i, 1);
-  }
+// ─────────────────────────────────────────────────────────────────────────────
+// 3D PROCEDURAL DRAWING FUNCTIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Draw 3D animated running humanoid stickman / gummy runner (Zoomed & Scaled up)
+function draw3DRunner(ctx, x, y, scale, color, runCycle) {
+  const headRadius = 13.5 * scale;
+  const torsoHeight = 25 * scale;
+  const legLength = 24 * scale;
+  const armLength = 20 * scale;
+
+  ctx.save();
+
+  // 1. Ground Drop Shadow
+  ctx.fillStyle = "rgba(0, 0, 0, 0.32)";
+  ctx.beginPath();
+  ctx.ellipse(x - 2 * scale, y + 2 * scale, 19 * scale, 6.5 * scale, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Color shades
+  const isRed = color === "red";
+  const mainColor = isRed ? "#ff2a2a" : "#00d2ff";
+  const darkColor = isRed ? "#990000" : "#006494";
+  const lightColor = isRed ? "#ff9999" : "#cbf3f0";
+
+  // Running Stride Angles
+  const legAngle1 = Math.sin(runCycle) * 0.85;
+  const legAngle2 = Math.sin(runCycle + Math.PI) * 0.85;
+  const armAngle1 = Math.sin(runCycle + Math.PI) * 0.85;
+  const armAngle2 = Math.sin(runCycle) * 0.85;
+
+  const hipY = y - legLength;
+  const neckY = hipY - torsoHeight;
+  const headY = neckY - headRadius;
+
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  // 2. Back Leg & Arm
+  ctx.strokeStyle = darkColor;
+  ctx.lineWidth = 7.5 * scale;
+
+  // Back Leg
+  ctx.beginPath();
+  ctx.moveTo(x + 3 * scale, hipY);
+  ctx.lineTo(x + 3 * scale + Math.sin(legAngle2) * legLength * 0.7, hipY + Math.cos(legAngle2) * legLength * 0.7);
+  ctx.lineTo(x + 3 * scale + Math.sin(legAngle2) * legLength, hipY + legLength);
+  ctx.stroke();
+
+  // Back Arm
+  ctx.beginPath();
+  ctx.moveTo(x, neckY + 4 * scale);
+  ctx.lineTo(x + Math.sin(armAngle2) * armLength, neckY + 4 * scale + Math.cos(armAngle2) * armLength);
+  ctx.stroke();
+
+  // 3. Torso
+  const torsoGrad = ctx.createLinearGradient(x, neckY, x, hipY);
+  torsoGrad.addColorStop(0, lightColor);
+  torsoGrad.addColorStop(1, mainColor);
+  ctx.fillStyle = torsoGrad;
+  ctx.beginPath();
+  ctx.roundRect(x - 7 * scale, neckY, 14 * scale, torsoHeight, 6 * scale);
+  ctx.fill();
+  ctx.strokeStyle = darkColor;
+  ctx.lineWidth = 1.8 * scale;
+  ctx.stroke();
+
+  // 4. Front Leg
+  ctx.strokeStyle = mainColor;
+  ctx.lineWidth = 8.5 * scale;
+  ctx.beginPath();
+  ctx.moveTo(x - 3 * scale, hipY);
+  ctx.lineTo(x - 3 * scale + Math.sin(legAngle1) * legLength * 0.7, hipY + Math.cos(legAngle1) * legLength * 0.7);
+  ctx.lineTo(x - 3 * scale + Math.sin(legAngle1) * legLength, hipY + legLength);
+  ctx.stroke();
+
+  // 5. Front Arm
+  ctx.beginPath();
+  ctx.moveTo(x, neckY + 4 * scale);
+  ctx.lineTo(x + Math.sin(armAngle1) * armLength, neckY + 4 * scale + Math.cos(armAngle1) * armLength);
+  ctx.stroke();
+
+  // 6. 3D Head with Specular Highlight
+  const headGrad = ctx.createRadialGradient(
+    x - headRadius * 0.35, headY - headRadius * 0.35, headRadius * 0.1,
+    x, headY, headRadius
+  );
+  headGrad.addColorStop(0, "#ffffff");
+  headGrad.addColorStop(0.35, lightColor);
+  headGrad.addColorStop(0.8, mainColor);
+  headGrad.addColorStop(1, darkColor);
+
+  ctx.fillStyle = headGrad;
+  ctx.beginPath();
+  ctx.arc(x, headY, headRadius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,0.25)";
+  ctx.lineWidth = 1.5 * scale;
+  ctx.stroke();
+
+  ctx.restore();
 }
 
-function drawParticles(ctx, particles) {
-  for (const p of particles) {
-    ctx.globalAlpha = p.life;
-    ctx.fillStyle = p.color;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-}
-
-// ─────────────────────────────────────────────
-// MAIN COMPONENT
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
 export default function MobControlGame() {
   const navigate = useNavigate();
   const canvasRef = useRef(null);
-  const stateRef = useRef(null);
-  const animRef = useRef(null);
   const containerRef = useRef(null);
   const videoRef = useRef(null);
-  const lastGestureRef = useRef(false);
+  const stateRef = useRef(null);
+  const animRef = useRef(null);
   const activeGestureRef = useRef(GESTURES.NONE);
   const keysRef = useRef({ left: false, right: false });
   const [currentGesture, setCurrentGesture] = useState(GESTURES.NONE);
 
-  // ── Initialize / reset game state ──
   function createGameState(levelIdx = 0) {
     const lvl = LEVELS[Math.min(levelIdx, LEVELS.length - 1)];
     const gates = [];
     for (let i = 0; i < lvl.gateCount; i++) {
-      const pair = pickGatePair(levelIdx);
+      const pair = pickGatePair();
       gates.push({
-        y: -(500 + i * GATE_PAIR_INTERVAL), // world coords (camera scrolls)
-        left: pair[0],
-        right: pair[1],
+        z: 4.5 + i * GATE_SPACING,
+        left: pair.left,
+        right: pair.right,
         passed: false,
-        chosen: null, // 'left' | 'right'
         flash: 0,
       });
     }
-    const battleY = -(500 + lvl.gateCount * GATE_PAIR_INTERVAL + 400);
+    const battleZ = 4.5 + lvl.gateCount * GATE_SPACING + 3;
 
     return {
-      phase: "running", // running | choosing | battle | win | lose | levelComplete | gameOver
+      phase: "running", // running | battle | win | lose
       levelIdx,
       levelLabel: lvl.label,
-      crowdCount: lvl.startCount,
-      crowdX: 0, // center x in world (always 0 for our road)
-      crowdY: 0, // camera world Y (units rendered relative to camera)
-      cameraY: 300, // camera offset: lower = further down the road
-      targetCameraY: 300,
+      playerCount: lvl.startCount,
+      playerX: 0, // -0.7 to 0.7
+      targetPlayerX: 0,
+      playerZ: 1.0,
+      progress: 0,
       gates,
-      battleY,
+      battleZ,
       enemyCount: lvl.enemyCount,
       enemyStartCount: lvl.enemyCount,
-      battleStarted: false,
-      battleDone: false,
+      enemyZ: battleZ,
       battleTimer: 0,
       particles: [],
       score: 0,
-      highScore: parseInt(localStorage.getItem("mobHighScore") || "0"),
-      pendingGate: null, // gate awaiting choice
-      choiceTimer: 0,
-      winTimer: 0,
+      highScore: parseInt(localStorage.getItem("mobHighScore") || "0", 10),
       flashMsg: "",
+      flashColor: "#fff",
       flashAlpha: 0,
-      unitTargets: [], // animated unit positions
+      waveOffset: 0,
     };
   }
 
-  function initState() {
-    const savedLevel = parseInt(localStorage.getItem("mobLevel") || "0", 10);
-    stateRef.current = createGameState(savedLevel);
-    stateRef.current.score = 0;
-  }
-
-  // ── ABSTRACT INPUT SYSTEM ──
   function applyGate(s, gate, side) {
-    gate.chosen = side;
+    playPlusSound();
     gate.passed = true;
     gate.flash = 1;
     const op = side === "left" ? gate.left : gate.right;
-    const before = s.crowdCount;
-    s.crowdCount = Math.max(1, op.fn(s.crowdCount));
-    const cx = canvasRef.current ? canvasRef.current.width / 2 : 200;
-    const cy = canvasRef.current ? canvasRef.current.height * 0.6 : 300;
-    const spawnX = cx + s.crowdX;
-    if (s.crowdCount > before) {
-      spawnParticles(s.particles, spawnX, cy, "#00e5ff", 22);
-      showFlash(s, `${op.label}  ➜  ${s.crowdCount} units!`, "#00e5ff");
-    } else if (s.crowdCount < before) {
-      spawnParticles(s.particles, spawnX, cy, "#ff6b6b", 16);
-      showFlash(s, `${op.label}  ➜  ${s.crowdCount} units`, "#ff6b6b");
+    const before = s.playerCount;
+    s.playerCount = Math.max(1, op.fn(s.playerCount));
+    
+    if (s.playerCount > before) {
+      s.flashMsg = `${op.label}  ➔  ${s.playerCount} RUNNERS!`;
+      s.flashColor = "#00f0ff";
+      s.flashAlpha = 1;
+      s.score += (s.playerCount - before) * 15;
     } else {
-      showFlash(s, `${op.label}`, "#fff");
+      s.flashMsg = `${op.label}  ➔  ${s.playerCount} RUNNERS`;
+      s.flashColor = "#ff4444";
+      s.flashAlpha = 1;
     }
-    s.score += Math.floor(s.crowdCount * 0.5);
-  }
-
-  function showFlash(s, msg, color) {
-    s.flashMsg = msg;
-    s.flashColor = color;
-    s.flashAlpha = 1;
   }
 
   // ── GAME LOOP ──
-  function gameLoop() {
+  const gameLoop = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     const s = stateRef.current;
     if (!s) return;
 
-    updateGame(s, canvas);
-    renderGame(ctx, s, canvas);
+    const W = canvas.width;
+    const H = canvas.height;
 
-    animRef.current = requestAnimationFrame(gameLoop);
-  }
+    // ── 1. UPDATE ──
+    s.waveOffset += 0.03;
 
-  function updateGame(s, canvas) {
     if (s.phase === "running") {
-      // Movement logic
+      // Horizontal steer
       let dx = 0;
       if (keysRef.current.left || activeGestureRef.current === GESTURES.ERASE) dx = -1;
       if (keysRef.current.right || activeGestureRef.current === GESTURES.DRAW) dx = 1;
-      s.crowdX += dx * 6.5;
-      s.crowdX = clamp(s.crowdX, -ROAD_WIDTH / 2 + 25, ROAD_WIDTH / 2 - 25);
+      s.targetPlayerX += dx * 0.045;
+      s.targetPlayerX = clamp(s.targetPlayerX, -0.68, 0.68);
+      s.playerX += (s.targetPlayerX - s.playerX) * 0.18;
 
-      // Scroll camera forward
-      s.cameraY += MOVE_SPEED;
-      s.targetCameraY = s.cameraY;
+      // Move forward along the bridge
+      s.progress += FORWARD_SPEED;
 
-      // Check gate proximity
+      // Gate collisions
       for (const gate of s.gates) {
-        if (gate.passed) continue;
-        const screenY = canvas.height * 0.6 + (gate.y + s.cameraY);
-        if (gate.flash > 0) gate.flash = Math.max(0, gate.flash - 0.04);
-        
-        // Pass gate automatically based on current X position
-        if (screenY >= canvas.height * 0.6 && screenY < canvas.height * 0.6 + 50) {
-           applyGate(s, gate, s.crowdX < 0 ? "left" : "right");
+        const relativeZ = gate.z - s.progress;
+        if (relativeZ < s.playerZ && !gate.passed) {
+          applyGate(s, gate, s.playerX < 0 ? "left" : "right");
         }
       }
 
-      // Check battle zone
-      const battleScreenY = canvas.height * 0.6 + (s.battleY + s.cameraY);
-      if (battleScreenY > canvas.height * 0.45 && !s.battleStarted) {
-        s.battleStarted = true;
+      // Check battle zone trigger
+      if (s.battleZ - s.progress <= s.playerZ + 1.2) {
         s.phase = "battle";
-        s.crowdX = 0; // Move back to center for battle
-        spawnParticles(s.particles, canvas.width / 2, canvas.height * 0.5, "#ff4444", 30);
+        s.flashMsg = "⚔️ CLASH! BATTLE MOB!";
+        s.flashColor = "#ff3333";
+        s.flashAlpha = 1;
       }
-
-      updateParticles(s.particles, 1);
-      // Flash decay
-      if (s.flashAlpha > 0) s.flashAlpha = Math.max(0, s.flashAlpha - 0.018);
     }
 
     if (s.phase === "battle") {
       s.battleTimer++;
-      updateParticles(s.particles, 0.25); // SLOW MOTION PARTICLES 🎬
+      s.playerX += (0 - s.playerX) * 0.1; // merge to center
 
-      // Slow down unit deaths for slow motion effect
-      if (s.battleTimer % 24 === 0 && !s.battleDone) {
-        const cx = canvas.width / 2;
-        const cy = canvas.height * 0.5;
-        if (s.crowdCount > 0 && s.enemyCount > 0) {
-          const playerLoss = Math.max(0, Math.ceil(s.enemyCount * 0.12));
-          const enemyLoss = Math.max(0, Math.ceil(s.crowdCount * 0.12));
-          s.crowdCount = Math.max(0, s.crowdCount - playerLoss);
-          s.enemyCount = Math.max(0, s.enemyCount - enemyLoss);
-          if (playerLoss > 0) spawnParticles(s.particles, cx - 60, cy, "#3a7bd5", 6);
-          if (enemyLoss > 0) spawnParticles(s.particles, cx + 60, cy, "#ff6b6b", 6);
+      // Slow-motion runner clashing
+      if (s.battleTimer % 4 === 0 && s.playerCount > 0 && s.enemyCount > 0) {
+        playFightSound();
+        const pLoss = Math.max(1, Math.ceil(s.enemyCount * 0.04));
+        const eLoss = Math.max(1, Math.ceil(s.playerCount * 0.04));
+        s.playerCount = Math.max(0, s.playerCount - pLoss);
+        s.enemyCount = Math.max(0, s.enemyCount - eLoss);
+
+        // Spawn clash particles
+        const p = project3D(0, 1.2, W, H);
+        for (let i = 0; i < 4; i++) {
+          s.particles.push({
+            x: p.x + (Math.random() - 0.5) * 40,
+            y: p.y - 20 + (Math.random() - 0.5) * 30,
+            vx: (Math.random() - 0.5) * 6,
+            vy: (Math.random() - 0.5) * 6 - 2,
+            life: 1,
+            color: Math.random() < 0.5 ? "#00f0ff" : "#ff3333",
+          });
         }
+      }
 
-        if (s.crowdCount === 0 || s.enemyCount === 0) {
-          s.battleDone = true;
-          if (s.crowdCount > 0) {
-            // WIN
-            s.score += s.crowdCount * 10 + 200;
-            spawnParticles(s.particles, cx, cy, "#ffd700", 40);
-            showFlash(s, "VICTORY! 🏆", "#ffd700");
-            s.phase = "levelComplete";
-          } else {
-            showFlash(s, "DEFEATED 💀", "#ff4444");
-            s.phase = "lose";
-          }
+      if (s.playerCount === 0 || s.enemyCount === 0) {
+        if (s.playerCount > 0) {
+          s.phase = "win";
+          s.score += s.playerCount * 25 + 500;
           if (s.score > s.highScore) {
             s.highScore = s.score;
-            localStorage.setItem("mobHighScore", s.highScore);
+            localStorage.setItem("mobHighScore", String(s.highScore));
           }
-          s.winTimer = 0;
+        } else {
+          s.phase = "lose";
         }
       }
     }
 
-    if (s.phase === "levelComplete" || s.phase === "lose" || s.phase === "gameOver") {
-      s.winTimer++;
-      updateParticles(s.particles, 1);
-      if (s.flashAlpha > 0) s.flashAlpha = Math.max(0, s.flashAlpha - 0.006);
+    // Update particles
+    for (let i = s.particles.length - 1; i >= 0; i--) {
+      const p = s.particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.2;
+      p.life -= 0.035;
+      if (p.life <= 0) s.particles.splice(i, 1);
     }
-  }
 
-  // ── RENDER ──
-  function renderGame(ctx, s, canvas) {
-    const W = canvas.width;
-    const H = canvas.height;
+    if (s.flashAlpha > 0) s.flashAlpha = Math.max(0, s.flashAlpha - 0.02);
+
+    // ── 2. RENDER 3D SCENE ──
     ctx.clearRect(0, 0, W, H);
 
-    // Sky gradient
-    const sky = ctx.createLinearGradient(0, 0, 0, H);
-    sky.addColorStop(0, "#0f0c29");
-    sky.addColorStop(0.5, "#302b63");
-    sky.addColorStop(1, "#24243e");
-    ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, W, H);
+    // A. Sky & Ocean Background
+    drawSkyAndOcean(ctx, W, H, s.waveOffset);
 
-    // Stars
-    ctx.fillStyle = "rgba(255,255,255,0.5)";
-    // We use a seeded simple star pattern
-    for (let i = 0; i < 60; i++) {
-      const sx = ((i * 137 + 41) % W);
-      const sy = ((i * 71 + 13) % (H * 0.7));
-      ctx.beginPath();
-      ctx.arc(sx, sy, 0.8, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    // B. Bridge Concrete Deck & Lane Markings
+    draw3DBridge(ctx, W, H, s.progress);
 
-    const cx = W / 2;
-    const crowdScreenY = H * 0.6;
+    // C. Render 3D Objects Sorted by Depth (Far to Near)
+    // Gather all gates, enemy runners, and player runners
+    const renderList = [];
 
-    // Road
-    drawRoad(ctx, s, W, H, cx, crowdScreenY);
-
-    // Gates
+    // Add gates
     for (const gate of s.gates) {
-      const gy = crowdScreenY + (gate.y + s.cameraY);
-      if (gy < -80 || gy > H + 80) continue;
-      drawGate(ctx, gate, cx, gy, W);
-    }
-
-    // Battle zone
-    if (s.battleStarted || s.phase === "battle" || s.phase === "levelComplete" || s.phase === "lose") {
-      const by = crowdScreenY + (s.battleY + s.cameraY);
-      if (by > -100 && by < H + 100) {
-        drawBattleZone(ctx, s, cx, by, W, H);
+      const relZ = gate.z - s.progress;
+      if (relZ > 0.3 && relZ < 26) {
+        renderList.push({ type: "gate", z: relZ, gate });
       }
     }
 
-    // Player crowd
-    if (s.phase === "running" || s.phase === "battle" || s.phase === "levelComplete") {
-      drawCrowd(ctx, s.crowdCount, cx + s.crowdX, crowdScreenY, "#3a7bd5", "#74b9ff");
+    // Add Enemy Runners
+    if (s.enemyCount > 0) {
+      const enemyRelZ = s.battleZ - s.progress;
+      if (enemyRelZ > 0.4 && enemyRelZ < 26) {
+        const positions = getCrowdPositions(s.enemyCount, 0, enemyRelZ);
+        positions.forEach((pos, idx) => {
+          renderList.push({
+            type: "enemy",
+            z: pos.z,
+            x: pos.x,
+            runCycle: (s.progress * 12 + idx * 0.8),
+          });
+        });
+      }
     }
 
-    // Particles
-    drawParticles(ctx, s.particles);
+    // Add Player Runners
+    if (s.playerCount > 0) {
+      const positions = getCrowdPositions(s.playerCount, s.playerX, s.playerZ);
+      positions.forEach((pos, idx) => {
+        renderList.push({
+          type: "player",
+          z: pos.z,
+          x: pos.x,
+          runCycle: (s.progress * 14 + idx * 0.7),
+        });
+      });
+    }
 
-    // HUD
+    // Sort by depth (farthest first)
+    renderList.sort((a, b) => b.z - a.z);
+
+    // Draw sorted objects
+    for (const item of renderList) {
+      if (item.type === "gate") {
+        draw3DGate(ctx, item.gate, item.z, W, H);
+      } else if (item.type === "enemy") {
+        const p = project3D(item.x, item.z, W, H);
+        draw3DRunner(ctx, p.x, p.y, p.scale, "red", item.runCycle);
+      } else if (item.type === "player") {
+        const p = project3D(item.x, item.z, W, H);
+        draw3DRunner(ctx, p.x, p.y, p.scale, "blue", item.runCycle);
+      }
+    }
+
+    // D. Particles
+    for (const p of s.particles) {
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // E. 3D "PICK YOUR LINE" Bottom Banner (as in screenshot)
+    drawBottomPrompt(ctx, W, H, s.phase);
+
+    // F. Top HUD (Score, Level, Count)
     drawHUD(ctx, s, W, H);
 
-    // Flash message
+    // G. Flash Overlay Message
     if (s.flashAlpha > 0.01) {
+      ctx.save();
       ctx.globalAlpha = s.flashAlpha;
-      ctx.font = `bold ${clamp(W * 0.055, 20, 36)}px 'Segoe UI', sans-serif`;
+      ctx.font = `900 ${clamp(W * 0.06, 20, 32)}px "Space Grotesk", sans-serif`;
       ctx.textAlign = "center";
-      ctx.fillStyle = s.flashColor || "#fff";
-      ctx.shadowColor = s.flashColor || "#fff";
-      ctx.shadowBlur = 18;
-      ctx.fillText(s.flashMsg, cx, H * 0.35);
-      ctx.shadowBlur = 0;
-      ctx.globalAlpha = 1;
+      ctx.fillStyle = s.flashColor;
+      ctx.strokeStyle = "#000000";
+      ctx.lineWidth = 4;
+      ctx.strokeText(s.flashMsg, W / 2, H * 0.4);
+      ctx.fillText(s.flashMsg, W / 2, H * 0.4);
+      ctx.restore();
     }
 
-    // Overlays
-    if (s.phase === "levelComplete") {
-      drawOverlay(ctx, W, H, "LEVEL COMPLETE! 🏆", `Score: ${s.score}`, "#ffd700", "Press SPACE / Tap to continue");
+    // H. Victory / Defeat Overlays
+    if (s.phase === "win") {
+      drawModal(ctx, W, H, "VICTORY! 🏆", `Level Cleared!\nScore: ${s.score}`, "#FFE600", "▶ NEXT LEVEL");
     } else if (s.phase === "lose") {
-      drawOverlay(ctx, W, H, "DEFEATED 💀", `Score: ${s.score}`, "#ff6b6b", "Press SPACE / Tap to restart");
-    } else if (s.phase === "gameOver") {
-      drawOverlay(ctx, W, H, "GAME OVER", `Final Score: ${s.score}\nHigh Score: ${s.highScore}`, "#ff9f43", "Press SPACE / Tap to play again");
+      drawModal(ctx, W, H, "DEFEATED 💀", `The mob fell in battle!\nFinal Score: ${s.score}`, "#FF4D4D", "↺ PLAY AGAIN");
+    }
+
+    animRef.current = requestAnimationFrame(gameLoop);
+  }, []);
+
+  // ── DRAW SKY & OCEAN ──
+  function drawSkyAndOcean(ctx, W, H, waveOffset) {
+    const horizonY = H * 0.055;
+
+    // Sky
+    const sky = ctx.createLinearGradient(0, 0, 0, horizonY);
+    sky.addColorStop(0, "#8ed4f8");
+    sky.addColorStop(1, "#ccebfb");
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, horizonY);
+
+    // Ocean Water
+    const ocean = ctx.createLinearGradient(0, horizonY, 0, H);
+    ocean.addColorStop(0, "#0077b6");
+    ocean.addColorStop(0.5, "#0096c7");
+    ocean.addColorStop(1, "#023e8a");
+    ctx.fillStyle = ocean;
+    ctx.fillRect(0, horizonY, W, H - horizonY);
+
+    // Sparkling Wave Patterns
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.28)";
+    ctx.lineWidth = 1.5;
+    for (let y = horizonY + 10; y < H; y += 22) {
+      const freq = 0.015;
+      const phase = waveOffset * 2 + y * 0.05;
+      ctx.beginPath();
+      for (let x = 0; x < W; x += 15) {
+        const wy = y + Math.sin(x * freq + phase) * 3;
+        if (x === 0) ctx.moveTo(x, wy);
+        else ctx.lineTo(x, wy);
+      }
+      ctx.stroke();
     }
   }
 
-  function drawRoad(ctx, s, W, H, cx, crowdScreenY) {
-    const roadLeft = cx - ROAD_WIDTH / 2;
-    const roadRight = cx + ROAD_WIDTH / 2;
+  // ── DRAW 3D BRIDGE ROAD ──
+  function draw3DBridge(ctx, W, H, progress) {
+    const near = project3D(0, 0.3, W, H);
+    const far = project3D(0, 24, W, H);
 
-    // Road surface
-    const roadGrad = ctx.createLinearGradient(roadLeft, 0, roadRight, 0);
-    roadGrad.addColorStop(0, "#1a1a2e");
-    roadGrad.addColorStop(0.5, "#16213e");
-    roadGrad.addColorStop(1, "#1a1a2e");
+    const nearLeft = W / 2 - near.roadWidth / 2;
+    const nearRight = W / 2 + near.roadWidth / 2;
+    const farLeft = W / 2 - far.roadWidth / 2;
+    const farRight = W / 2 + far.roadWidth / 2;
+
+    // Concrete Bridge Road Deck
+    ctx.save();
+    const roadGrad = ctx.createLinearGradient(0, far.y, 0, near.y);
+    roadGrad.addColorStop(0, "#d5dbe0");
+    roadGrad.addColorStop(0.4, "#e2e6ea");
+    roadGrad.addColorStop(1, "#edf0f2");
     ctx.fillStyle = roadGrad;
-    ctx.fillRect(roadLeft, 0, ROAD_WIDTH, H);
 
-    // Road edges
-    ctx.strokeStyle = "rgba(255,255,255,0.12)";
-    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(roadLeft, 0); ctx.lineTo(roadLeft, H);
-    ctx.moveTo(roadRight, 0); ctx.lineTo(roadRight, H);
+    ctx.moveTo(farLeft, far.y);
+    ctx.lineTo(farRight, far.y);
+    ctx.lineTo(nearRight, near.y);
+    ctx.lineTo(nearLeft, near.y);
+    ctx.closePath();
+    ctx.fill();
+
+    // Road Edge Curbs
+    ctx.strokeStyle = "#343a40";
+    ctx.lineWidth = 4;
     ctx.stroke();
 
-    // Dashed center line scrolling
-    const dashOffset = s.cameraY % 60;
-    ctx.setLineDash([30, 30]);
-    ctx.lineDashOffset = dashOffset;
-    ctx.strokeStyle = "rgba(255,255,255,0.15)";
+    // Side Red/White Safety Railing Posts in Perspective
+    const postCount = 20;
+    for (let i = 0; i < postCount; i++) {
+      const z = 0.5 + i * 1.2 - (progress % 1.2);
+      if (z < 0.3 || z > 23) continue;
+      const p = project3D(0, z, W, H);
+      const postH = 42 * p.scale;
+      const lx = W / 2 - p.roadWidth / 2;
+      const rx = W / 2 + p.roadWidth / 2;
+
+      // Left Post
+      ctx.fillStyle = i % 2 === 0 ? "#dc2626" : "#ffffff";
+      ctx.fillRect(lx - 7 * p.scale, p.y - postH, 7 * p.scale, postH);
+      ctx.strokeRect(lx - 7 * p.scale, p.y - postH, 7 * p.scale, postH);
+
+      // Right Post
+      ctx.fillRect(rx, p.y - postH, 7 * p.scale, postH);
+      ctx.strokeRect(rx, p.y - postH, 7 * p.scale, postH);
+    }
+
+    // Bridge Suspension Cables (Top Corners Angling Down)
+    ctx.strokeStyle = "#5a6268";
+    ctx.lineWidth = 18;
+    ctx.beginPath();
+    ctx.moveTo(0, 0); ctx.lineTo(nearLeft + 12, near.y);
+    ctx.moveTo(W, 0); ctx.lineTo(nearRight - 12, near.y);
+    ctx.stroke();
+
+    ctx.strokeStyle = "#343a40";
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(cx, 0); ctx.lineTo(cx, H);
+    ctx.moveTo(0, 0); ctx.lineTo(nearLeft + 12, near.y);
+    ctx.moveTo(W, 0); ctx.lineTo(nearRight - 12, near.y);
     ctx.stroke();
-    ctx.setLineDash([]);
-  }
 
-  function drawGate(ctx, gate, cx, gy, W) {
-    const lx = cx - ROAD_WIDTH / 2 + 10;
-    const rx = cx + 30;
-    const gw = ROAD_WIDTH / 2 - 40;
-    const gh = GATE_HEIGHT;
+    // 3D Scrolling White Dashed Lane Lines (Thicker & Prominent)
+    for (let lane = -0.5; lane <= 0.5; lane += 0.5) {
+      if (lane === 0) continue;
+      for (let i = 0; i < 20; i++) {
+        const zNear = 0.5 + i * 1.1 - (progress % 1.1);
+        const zFar = zNear + 0.55;
+        if (zNear < 0.3 || zNear > 23) continue;
 
-    const drawSingleGate = (x, op, side) => {
-      const chosen = gate.chosen === side;
-      const other = gate.chosen && gate.chosen !== side;
-      const alpha = other ? 0.35 : 1;
-      ctx.globalAlpha = alpha;
+        const p1 = project3D(lane, zNear, W, H);
+        const p2 = project3D(lane, zFar, W, H);
 
-      // Glow
-      if (!other) {
-        ctx.shadowColor = op.glow;
-        ctx.shadowBlur = gate.flash > 0 && chosen ? 40 : 16;
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        const w1 = 8 * p1.scale;
+        const w2 = 8 * p2.scale;
+        ctx.moveTo(p1.x - w1 / 2, p1.y);
+        ctx.lineTo(p1.x + w1 / 2, p1.y);
+        ctx.lineTo(p2.x + w2 / 2, p2.y);
+        ctx.lineTo(p2.x - w2 / 2, p2.y);
+        ctx.closePath();
+        ctx.fill();
       }
-
-      // Gate body
-      const gr = ctx.createLinearGradient(x, gy - gh / 2, x, gy + gh / 2);
-      gr.addColorStop(0, op.color + "33");
-      gr.addColorStop(0.5, op.color + "66");
-      gr.addColorStop(1, op.color + "33");
-      ctx.fillStyle = gr;
-      ctx.beginPath();
-      roundRect(ctx, x, gy - gh / 2, gw, gh, 12);
-      ctx.fill();
-
-      // Gate border
-      ctx.strokeStyle = op.color;
-      ctx.lineWidth = chosen ? 3 : 1.5;
-      ctx.beginPath();
-      roundRect(ctx, x, gy - gh / 2, gw, gh, 12);
-      ctx.stroke();
-
-      // Label
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = "#fff";
-      ctx.font = `bold ${clamp(gw * 0.28, 16, 26)}px 'Courier New', monospace`;
-      ctx.textAlign = "center";
-      ctx.fillText(op.label, x + gw / 2, gy + 8);
-
-      ctx.globalAlpha = 1;
-      ctx.shadowBlur = 0;
-    };
-
-    drawSingleGate(lx, gate.left, "left");
-    drawSingleGate(rx, gate.right, "right");
-  }
-
-  function drawCrowd(ctx, count, cx, cy, colorDark, colorLight) {
-    if (count <= 0) return;
-    const units = layoutUnits(count, cx, cy);
-    for (let i = 0; i < units.length; i++) {
-      const u = units[i];
-      const grad = ctx.createRadialGradient(u.x - 2, u.y - 2, 1, u.x, u.y, UNIT_RADIUS);
-      grad.addColorStop(0, colorLight);
-      grad.addColorStop(1, colorDark);
-      ctx.fillStyle = grad;
-      ctx.shadowColor = colorLight;
-      ctx.shadowBlur = 6;
-      ctx.beginPath();
-      ctx.arc(u.x, u.y, UNIT_RADIUS, 0, Math.PI * 2);
-      ctx.fill();
     }
-    ctx.shadowBlur = 0;
 
-    // Count badge
-    ctx.fillStyle = "#fff";
-    ctx.font = `bold ${clamp(20, 14, 24)}px 'Courier New', monospace`;
-    ctx.textAlign = "center";
-    ctx.shadowColor = colorDark;
-    ctx.shadowBlur = 8;
-    ctx.fillText(count, cx, cy - UNIT_RADIUS * 4 - 8);
-    ctx.shadowBlur = 0;
+    ctx.restore();
   }
 
-  function drawBattleZone(ctx, s, cx, by, W, H) {
-    // Battle line
-    ctx.strokeStyle = "rgba(255,100,100,0.4)";
-    ctx.lineWidth = 2;
-    ctx.setLineDash([8, 8]);
+  // ── DRAW 3D MATH GATE ──
+  function draw3DGate(ctx, gate, z, W, H) {
+    const pCenter = project3D(0, z, W, H);
+    const pLeft = project3D(-1, z, W, H);
+    const pRight = project3D(1, z, W, H);
+
+    const gateH = 105 * pCenter.scale;
+    const postW = 20 * pCenter.scale;
+    const postH = 145 * pCenter.scale;
+
+    const yBase = pCenter.y;
+    const yTop = yBase - gateH;
+
+    ctx.save();
+
+    // Left Gate Panel (Negative = Red translucent, Positive = Blue)
+    const leftIsPos = gate.left.isPositive;
+    ctx.fillStyle = leftIsPos ? "rgba(47, 128, 237, 0.48)" : "rgba(235, 87, 87, 0.50)";
+    ctx.strokeStyle = leftIsPos ? "#1d4ed8" : "#dc2626";
+    ctx.lineWidth = 3.5 * pCenter.scale;
     ctx.beginPath();
-    ctx.moveTo(cx - ROAD_WIDTH / 2, by);
-    ctx.lineTo(cx + ROAD_WIDTH / 2, by);
+    ctx.rect(pLeft.x, yTop, pCenter.x - pLeft.x, gateH);
+    ctx.fill();
     ctx.stroke();
-    ctx.setLineDash([]);
 
-    ctx.fillStyle = "rgba(255,80,80,0.15)";
-    ctx.font = `bold 13px 'Courier New', monospace`;
+    // Right Gate Panel
+    const rightIsPos = gate.right.isPositive;
+    ctx.fillStyle = rightIsPos ? "rgba(47, 128, 237, 0.48)" : "rgba(235, 87, 87, 0.50)";
+    ctx.strokeStyle = rightIsPos ? "#1d4ed8" : "#dc2626";
+    ctx.beginPath();
+    ctx.rect(pCenter.x, yTop, pRight.x - pCenter.x, gateH);
+    ctx.fill();
+    ctx.stroke();
+
+    // 3D Goal Posts (Left, Middle, Right)
+    // Left Post
+    ctx.fillStyle = leftIsPos ? "#1e40af" : "#b91c1c";
+    ctx.fillRect(pLeft.x - postW / 2, yBase - postH, postW, postH);
+    ctx.strokeRect(pLeft.x - postW / 2, yBase - postH, postW, postH);
+
+    // Right Post
+    ctx.fillStyle = rightIsPos ? "#1e40af" : "#b91c1c";
+    ctx.fillRect(pRight.x - postW / 2, yBase - postH, postW, postH);
+    ctx.strokeRect(pRight.x - postW / 2, yBase - postH, postW, postH);
+
+    // Middle Post
+    ctx.fillStyle = "#0f172a";
+    ctx.fillRect(pCenter.x - postW * 0.4, yBase - postH * 0.95, postW * 0.8, postH * 0.95);
+    ctx.strokeRect(pCenter.x - postW * 0.4, yBase - postH * 0.95, postW * 0.8, postH * 0.95);
+
+    // Gate Bold Math Text with Thick Black Outline
+    const fontSize = clamp(52 * pCenter.scale, 16, 68);
+    ctx.font = `900 ${fontSize}px "Space Grotesk", sans-serif`;
     ctx.textAlign = "center";
-    ctx.fillText("⚔ BATTLE ZONE", cx, by - 10);
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#ffffff";
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 5 * pCenter.scale;
 
-    // Enemy crowd (above battle line)
-    if (s.enemyCount > 0) {
-      drawCrowd(ctx, s.enemyCount, cx, by - 60, "#c0392b", "#ff6b6b");
-    }
+    // Left text
+    const textLX = (pLeft.x + pCenter.x) / 2;
+    const textY = yTop + gateH / 2;
+    ctx.strokeText(gate.left.label, textLX, textY);
+    ctx.fillText(gate.left.label, textLX, textY);
+
+    // Right text
+    const textRX = (pCenter.x + pRight.x) / 2;
+    ctx.strokeText(gate.right.label, textRX, textY);
+    ctx.fillText(gate.right.label, textRX, textY);
+
+    ctx.restore();
   }
 
-  function drawHUD(ctx, s, W, H) {
-    // Top bar
-    ctx.fillStyle = "rgba(0,0,0,0.45)";
-    roundRect(ctx, 10, 10, W - 20, 52, 10);
-    ctx.fill();
+  // ── DRAW BOTTOM "PICK YOUR LINE" BANNER ──
+  function drawBottomPrompt(ctx, W, H, phase) {
+    if (phase !== "running") return;
+    
+    ctx.save();
+    const fontSize = clamp(W * 0.08, 26, 42);
+    ctx.font = `900 ${fontSize}px "Space Grotesk", sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
 
-    ctx.font = `bold ${clamp(W * 0.038, 13, 18)}px 'Courier New', monospace`;
+    const text = "PICK YOUR LINE";
+    const x = W / 2;
+    const y = H - 24;
+
+    // Hard 3D text shadow
+    ctx.fillStyle = "#000000";
+    ctx.fillText(text, x + 4, y + 4);
+
+    // Black stroke
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 7;
+    ctx.strokeText(text, x, y);
+
+    // Neon text fill
+    ctx.fillStyle = "#80b9ff";
+    ctx.fillText(text, x, y);
+    ctx.restore();
+  }
+
+  // ── DRAW HUD ──
+  function drawHUD(ctx, s, W, H) {
+    // Top HUD Bar in Neo-Brutalism Style
+    ctx.save();
+
+    // Score & Level Container
+    ctx.fillStyle = "#FFE600";
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 3;
+    ctx.shadowColor = "#000000";
+    ctx.shadowOffsetX = 3;
+    ctx.shadowOffsetY = 3;
+
+    // Top Pill
+    const pillW = Math.min(W - 120, 320);
+    const pillH = 44;
+    const pillX = W / 2 - pillW / 2;
+    const pillY = 16;
+    ctx.beginPath();
+    ctx.roundRect(pillX, pillY, pillW, pillH, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.shadowColor = "transparent";
+
+    // Text info inside pill
+    ctx.font = `900 13px "JetBrains Mono", monospace`;
     ctx.textAlign = "left";
-    ctx.fillStyle = "#ffd700";
-    ctx.fillText(`⭐ ${s.score}`, 22, 38);
+    ctx.fillStyle = "#000000";
+    ctx.fillText(`🏆 ${s.score}`, pillX + 16, pillY + 27);
 
     ctx.textAlign = "center";
-    ctx.fillStyle = "#fff";
-    ctx.fillText(s.levelLabel, W / 2, 38);
+    ctx.fillText(s.levelLabel, pillX + pillW / 2, pillY + 27);
 
     ctx.textAlign = "right";
-    ctx.fillStyle = "rgba(255,255,255,0.6)";
-    ctx.fillText(`HI ${s.highScore}`, W - 22, 38);
+    ctx.fillText(`HI ${s.highScore}`, pillX + pillW - 16, pillY + 27);
 
-    // Crowd counter pill
-    ctx.fillStyle = "rgba(58,123,213,0.8)";
-    roundRect(ctx, W / 2 - 40, H - 68, 80, 34, 17);
-    ctx.fill();
-    ctx.fillStyle = "#fff";
-    ctx.font = `bold 16px 'Courier New', monospace`;
-    ctx.textAlign = "center";
-    ctx.fillText(`👥 ${s.crowdCount}`, W / 2, H - 45);
-
-    // Controls hint
-    if (s.phase === "running") {
-      ctx.fillStyle = "rgba(255,255,255,0.4)";
-      ctx.font = `bold 14px 'Courier New', monospace`;
-      ctx.textAlign = "center";
-      ctx.fillText("✌️ (Two Fingers) = Left   |   ☝️ (Index) = Right", W / 2, H - 16);
-    }
-  }
-
-  function drawOverlay(ctx, W, H, title, body, color, hint) {
-    // Dim
-    ctx.fillStyle = "rgba(0,0,0,0.72)";
-    ctx.fillRect(0, 0, W, H);
-
-    // Card
-    const cw = Math.min(W - 40, 340);
-    const ch = 200;
-    const cx = W / 2;
-    const cy = H / 2;
-    ctx.fillStyle = "rgba(20,20,40,0.97)";
-    ctx.strokeStyle = color;
+    // Live Crowd Count Badge above player
+    const p = project3D(s.playerX, s.playerZ, W, H);
+    const badgeW = 70;
+    const badgeH = 26;
+    ctx.fillStyle = "#00d2ff";
+    ctx.strokeStyle = "#000000";
     ctx.lineWidth = 2.5;
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 24;
-    roundRect(ctx, cx - cw / 2, cy - ch / 2, cw, ch, 18);
+    ctx.shadowColor = "#000000";
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
+    ctx.beginPath();
+    ctx.roundRect(p.x - badgeW / 2, p.y - 68 * p.scale, badgeW, badgeH, 6);
     ctx.fill();
     ctx.stroke();
-    ctx.shadowBlur = 0;
 
-    ctx.fillStyle = color;
-    ctx.font = `bold ${clamp(W * 0.065, 22, 34)}px 'Courier New', monospace`;
+    ctx.shadowColor = "transparent";
+    ctx.fillStyle = "#000000";
+    ctx.font = `900 13px "JetBrains Mono", monospace`;
     ctx.textAlign = "center";
-    ctx.fillText(title, cx, cy - 30);
+    ctx.fillText(`👥 ${s.playerCount}`, p.x, p.y - 68 * p.scale + 18);
 
-    ctx.fillStyle = "#fff";
-    ctx.font = `${clamp(W * 0.04, 14, 20)}px 'Segoe UI', sans-serif`;
-    const lines = body.split("\n");
-    lines.forEach((line, i) => ctx.fillText(line, cx, cy + 14 + i * 26));
-
-    ctx.fillStyle = "rgba(255,255,255,0.45)";
-    ctx.font = `12px 'Courier New', monospace`;
-    ctx.fillText(hint, cx, cy + ch / 2 - 16);
+    ctx.restore();
   }
 
-  function roundRect(ctx, x, y, w, h, r) {
+  // ── DRAW MODAL (Victory / Defeat) ──
+  function drawModal(ctx, W, H, title, body, color, buttonText) {
+    ctx.save();
+    // Dim background
+    ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
+    ctx.fillRect(0, 0, W, H);
+
+    const cw = Math.min(W - 40, 360);
+    const ch = 230;
+    const cx = W / 2;
+    const cy = H / 2;
+
+    // Card Box
+    ctx.fillStyle = "#FFFDF5";
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 4;
+    ctx.shadowColor = "#000000";
+    ctx.shadowOffsetX = 8;
+    ctx.shadowOffsetY = 8;
     ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    ctx.lineTo(x + r, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
+    ctx.roundRect(cx - cw / 2, cy - ch / 2, cw, ch, 12);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.shadowColor = "transparent";
+
+    // Title Badge
+    ctx.fillStyle = color;
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.roundRect(cx - 110, cy - ch / 2 + 18, 220, 38, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#000000";
+    ctx.font = `900 18px "Space Grotesk", sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillText(title, cx, cy - ch / 2 + 43);
+
+    // Body
+    ctx.font = `700 14px "Plus Jakarta Sans", sans-serif`;
+    const lines = body.split("\n");
+    lines.forEach((l, i) => ctx.fillText(l, cx, cy + 10 + i * 22));
+
+    // CTA Hint
+    ctx.fillStyle = "#000000";
+    ctx.font = `900 13px "JetBrains Mono", monospace`;
+    ctx.fillText(`PRESS SPACE / TAP: ${buttonText}`, cx, cy + ch / 2 - 20);
+
+    ctx.restore();
   }
 
-  // ── RESIZE ──
+  // ── RESIZE & BOOT ──
   function resizeCanvas() {
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -604,13 +818,12 @@ export default function MobControlGame() {
     canvas.height = container.clientHeight;
   }
 
-  // ── ADVANCE LEVEL / RESTART ──
   function advanceLevel() {
     const s = stateRef.current;
     if (!s) return;
     const nextLevel = s.levelIdx + 1;
     if (nextLevel >= LEVELS.length) {
-      stateRef.current = { ...createGameState(0), phase: "gameOver", score: s.score, highScore: s.highScore };
+      stateRef.current = { ...createGameState(0), score: s.score, highScore: s.highScore };
       localStorage.setItem("mobLevel", "0");
     } else {
       localStorage.setItem("mobLevel", String(nextLevel));
@@ -630,7 +843,7 @@ export default function MobControlGame() {
     stateRef.current.highScore = highScore;
   }
 
-  // ── INPUT HANDLING ──
+  // ── INPUT HANDLERS ──
   useEffect(() => {
     const onKeyDown = (e) => {
       const s = stateRef.current;
@@ -638,8 +851,8 @@ export default function MobControlGame() {
       if (e.code === "ArrowLeft" || e.code === "KeyA") keysRef.current.left = true;
       if (e.code === "ArrowRight" || e.code === "KeyD") keysRef.current.right = true;
       if (e.code === "Space" || e.code === "Enter") {
-        if (s.phase === "levelComplete") advanceLevel();
-        else if (s.phase === "lose" || s.phase === "gameOver") restartGame();
+        if (s.phase === "win") advanceLevel();
+        else if (s.phase === "lose") restartGame();
       }
     };
     const onKeyUp = (e) => {
@@ -654,7 +867,7 @@ export default function MobControlGame() {
     };
   }, []);
 
-  // ── TOUCH / MOUSE ──
+  // Pointer drag & touch controls
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -663,51 +876,38 @@ export default function MobControlGame() {
       const s = stateRef.current;
       if (!s) return;
       const rect = canvas.getBoundingClientRect();
-      const x = clientX - rect.left;
-      const W = canvas.width;
+      const x = (clientX - rect.left) / canvas.width; // 0 to 1
 
       if (s.phase === "running") {
-        keysRef.current.left = x < W / 2;
-        keysRef.current.right = x >= W / 2;
-      } else if (s.phase === "levelComplete") {
+        s.targetPlayerX = clamp((x - 0.5) * 1.6, -0.68, 0.68);
+      } else if (s.phase === "win") {
         advanceLevel();
-      } else if (s.phase === "lose" || s.phase === "gameOver") {
+      } else if (s.phase === "lose") {
         restartGame();
       }
     };
 
-    const stopPointerAction = () => {
-      keysRef.current.left = false;
-      keysRef.current.right = false;
+    const onPointerMove = (e) => {
+      if (e.buttons > 0) handlePointerAction(e.clientX);
     };
-
     const onTouch = (e) => {
       e.preventDefault();
-      handlePointerAction(e.changedTouches[0].clientX);
+      handlePointerAction(e.touches[0].clientX);
     };
-    const onTouchEnd = (e) => {
-      e.preventDefault();
-      stopPointerAction();
-    };
-    const onMouseDown = (e) => handlePointerAction(e.clientX);
-    const onMouseUp = () => stopPointerAction();
 
+    canvas.addEventListener("mousemove", onPointerMove);
+    canvas.addEventListener("mousedown", (e) => handlePointerAction(e.clientX));
+    canvas.addEventListener("touchmove", onTouch, { passive: false });
     canvas.addEventListener("touchstart", onTouch, { passive: false });
-    canvas.addEventListener("touchend", onTouchEnd, { passive: false });
-    canvas.addEventListener("touchcancel", onTouchEnd, { passive: false });
-    canvas.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("mouseup", onMouseUp);
 
     return () => {
+      canvas.removeEventListener("mousemove", onPointerMove);
+      canvas.removeEventListener("touchmove", onTouch);
       canvas.removeEventListener("touchstart", onTouch);
-      canvas.removeEventListener("touchend", onTouchEnd);
-      canvas.removeEventListener("touchcancel", onTouchEnd);
-      canvas.removeEventListener("mousedown", onMouseDown);
-      window.removeEventListener("mouseup", onMouseUp);
     };
   }, []);
 
-  // ── RESIZE OBSERVER ──
+  // Resize observer
   useEffect(() => {
     const observer = new ResizeObserver(() => resizeCanvas());
     if (containerRef.current) observer.observe(containerRef.current);
@@ -715,32 +915,25 @@ export default function MobControlGame() {
     return () => observer.disconnect();
   }, []);
 
-  // ── BOOT GAME LOOP ──
+  // Boot loop
   useEffect(() => {
-    initState();
+    const savedLevel = parseInt(localStorage.getItem("mobLevel") || "0", 10);
+    stateRef.current = createGameState(savedLevel);
     animRef.current = requestAnimationFrame(gameLoop);
     return () => cancelAnimationFrame(animRef.current);
-  }, []);
+  }, [gameLoop]);
 
-  // ── GESTURE INTEGRATION POINT ──
+  // Hand gesture tracking
   const handleGesture = useCallback((gesture) => {
     setCurrentGesture((prev) => (prev !== gesture ? gesture : prev));
     activeGestureRef.current = gesture;
 
     const isAction = gesture === GESTURES.DRAW || gesture === GESTURES.ERASE;
-
-    if (isAction && !lastGestureRef.current) {
-      lastGestureRef.current = true;
+    if (isAction) {
       const s = stateRef.current;
       if (!s) return;
-      if (s.phase === "levelComplete") {
-        advanceLevel();
-      } else if (s.phase === "lose" || s.phase === "gameOver") {
-        restartGame();
-      }
-    } else if (!isAction && gesture !== GESTURES.NONE) {
-      // Clear action block
-      lastGestureRef.current = false;
+      if (s.phase === "win") advanceLevel();
+      else if (s.phase === "lose") restartGame();
     }
   }, []);
 
@@ -752,26 +945,15 @@ export default function MobControlGame() {
   return (
     <div
       ref={containerRef}
-      style={{
-        width: "100%",
-        height: "100dvh",
-        background: "#0f0c29",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        overflow: "hidden",
-        touchAction: "none",
-        userSelect: "none",
-      }}
-      className="relative"
+      className="w-full h-[100dvh] bg-neo-dots flex items-center justify-center overflow-hidden relative select-none font-sans"
     >
       {/* Back button */}
       <button
         onClick={() => navigate('/')}
-        className="absolute top-6 left-6 w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 transition-colors text-zinc-300 hover:text-white z-50 backdrop-blur-md border border-white/10"
+        className="absolute top-6 left-6 neo-btn-white px-3.5 py-2 text-xs font-mono font-black uppercase z-50 flex items-center gap-1.5"
         title="Back to Home"
       >
-        ←
+        <span>←</span> HOME
       </button>
 
       {/* Pip camera */}
@@ -784,20 +966,20 @@ export default function MobControlGame() {
           position: 'fixed',
           bottom: 20,
           right: 20,
-          width: 140,
-          height: 105,
-          borderRadius: 12,
-          border: '2px solid rgba(255,255,255,0.15)',
+          width: 130,
+          height: 98,
+          border: '3px solid #000000',
+          boxShadow: '4px 4px 0px 0px #000000',
           zIndex: 50,
           transform: 'scaleX(-1)',
-          opacity: 0.6,
+          opacity: 0.85,
           pointerEvents: 'none',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
           background: '#000',
         }}
       />
 
-      <div className="fixed bottom-[140px] right-5 z-50 flex flex-col gap-1.5 pointer-events-none">
+      {/* Gesture hints badge */}
+      <div className="fixed bottom-[130px] right-5 z-50 flex flex-col gap-1.5 pointer-events-none">
         {[
           { emoji: '✌️', label: 'Left', active: currentGesture === GESTURES.ERASE },
           { emoji: '☝️', label: 'Right', active: currentGesture === GESTURES.DRAW },
@@ -805,11 +987,11 @@ export default function MobControlGame() {
           <div
             key={h.label}
             className={`
-              flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium backdrop-blur-sm
-              border transition-all duration-200 shadow-sm
+              flex items-center gap-2 px-3 py-1.5 text-xs font-mono font-black uppercase
+              border-2 border-black transition-all duration-150 shadow-neo-sm
               ${h.active 
-                ? 'bg-violet-500/30 text-violet-200 border-violet-500/50 scale-105' 
-                : 'bg-black/40 text-zinc-400 border-white/5 scale-100'}
+                ? 'bg-neo-yellow text-black scale-105 translate-x-[-2px]' 
+                : 'bg-white text-zinc-700'}
             `}
           >
             <span className="text-sm">{h.emoji}</span>
@@ -818,15 +1000,13 @@ export default function MobControlGame() {
         ))}
       </div>
 
-      <canvas
-        ref={canvasRef}
-        style={{
-          display: "block",
-          width: "100%",
-          height: "100%",
-          cursor: "pointer",
-        }}
-      />
+      {/* Main 3D Canvas Frame */}
+      <div className="relative w-full max-w-[680px] lg:max-w-[760px] h-full max-h-[95dvh] border-4 border-black shadow-neo-2xl bg-black overflow-hidden">
+        <canvas
+          ref={canvasRef}
+          className="block w-full h-full cursor-pointer"
+        />
+      </div>
     </div>
   );
 }

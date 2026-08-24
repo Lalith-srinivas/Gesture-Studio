@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { mapHandToScreen } from "../utils/resolution";
+import { useHandTracking } from "../hooks/useHandTracking";
+import { GESTURES } from "../utils/gestureDetector";
+import { playSliceSound, playBombSound, resumeAudio } from "../utils/soundEffects";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -47,16 +50,33 @@ function lineIntersectsCircle(x1, y1, x2, y2, cx, cy, r) {
   return distToSegment(cx, cy, x1, y1, x2, y2) <= r * SLICE_RADIUS_FACTOR;
 }
 
+function getPlayableBounds(canvasWidth) {
+  const margin = Math.max(160, canvasWidth * 0.17);
+  return {
+    minX: margin,
+    maxX: canvasWidth - margin,
+    centerX: canvasWidth / 2,
+  };
+}
+
 function spawnFruit(canvasWidth) {
   const isBomb = Math.random() < 0.1;
   const type = isBomb ? BOMB : FRUIT_TYPES[Math.floor(Math.random() * FRUIT_TYPES.length)];
   const r = type.radius;
+  const { minX, maxX, centerX } = getPlayableBounds(canvasWidth);
+
+  // Spawn strictly inside the playable bounds
+  const spawnX = randomBetween(minX + r + 20, maxX - r - 20);
+  // Bias horizontal trajectory towards the center
+  const centerBias = (centerX - spawnX) * 0.005;
+  const vx = centerBias + randomBetween(-0.5, 0.5);
+
   return {
     id: Math.random().toString(36).slice(2),
-    x: randomBetween(r + 40, canvasWidth - r - 40),
+    x: spawnX,
     y: window.innerHeight + r + 10,
-    vx: randomBetween(-0.3, 0.3),
-    vy: randomBetween(-13, -10),
+    vx,
+    vy: randomBetween(-13.5, -10.5),
     ...type,
     sliced: false,
     missed: false,
@@ -247,11 +267,24 @@ export default function FruitNinja() {
     }
 
     // ── Fruits ───────────────────────────────────────────────────────────────
+    const { minX, maxX } = getPlayableBounds(W);
+
     s.fruits = s.fruits.filter(f => {
       f.vy += GRAVITY * speedFactor;
       f.x += f.vx * speedFactor;
       f.y += f.vy * speedFactor;
       f.rotation += f.rotSpeed * speedFactor;
+
+      // Keep active fruits inside the designated playable zone
+      if (!f.sliced) {
+        if (f.x - f.radius < minX) {
+          f.x = minX + f.radius;
+          f.vx = Math.abs(f.vx) * 0.7;
+        } else if (f.x + f.radius > maxX) {
+          f.x = maxX - f.radius;
+          f.vx = -Math.abs(f.vx) * 0.7;
+        }
+      }
 
       if (f.sliced) {
         f.opacity -= 0.06;
@@ -442,6 +475,7 @@ export default function FruitNinja() {
       emitParticles(f.x, f.y, f.color);
 
       if (f.isBomb) {
+        playBombSound();
         s.bombs++;
         setDisplayBombs(s.bombs);
         s.shakeFrames = 18;
@@ -458,6 +492,7 @@ export default function FruitNinja() {
         }
         spawnFloatingText(f.x, f.y, "Bomb💥", "#ff3e3e");
       } else {
+        playSliceSound();
         s.score += f.score;
         setDisplayScore(s.score);
         const phrase = FRUIT_PHRASES[Math.floor(Math.random() * FRUIT_PHRASES.length)];
@@ -495,6 +530,7 @@ export default function FruitNinja() {
 
   // ── Start / Restart ───────────────────────────────────────────────────────
   const startGame = useCallback(() => {
+    resumeAudio();
     const s = stateRef.current;
     if (s.animId) cancelAnimationFrame(s.animId);
     if (s.spawnTimer) clearInterval(s.spawnTimer);

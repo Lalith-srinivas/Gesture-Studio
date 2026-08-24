@@ -2,18 +2,26 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import Home from './pages/Home';
 import AirDraw from './pages/AirDraw';
 import FruitNinja from './pages/FruitNinja';
-import HillClimbGame from './pages/HillClimbGame';
+import HillClimbGame from './pages/crazyroad';
 import FlappyBird from './pages/FlappyBird';
 import MobControlGame from './pages/MobControlGame';
+import ArcheryChallenge from './pages/ArcheryChallenge';
 import GestureCursor from './components/GestureCursor';
 
 /**
  * Renders GestureCursor only on pages that don't have their own camera/tracking.
- * AirDraw, FruitNinja, and HillClimb manage their own camera, so skip cursor there.
+ * AirDraw, FruitNinja, HillClimb, etc. manage their own camera/canvas, so skip cursor there.
  */
 function ConditionalCursor() {
   const location = useLocation();
-  const pagesWithOwnCamera = ['/air-draw', '/fruit-ninja', '/hill-climb', '/flappy-bird', '/mob-control'];
+  const pagesWithOwnCamera = [
+    '/air-draw',
+    '/fruit-ninja',
+    '/hill-climb',
+    '/flappy-bird',
+    '/mob-control',
+    '/archery',
+  ];
   const hasOwnCamera = pagesWithOwnCamera.some(p => location.pathname.startsWith(p));
 
   if (hasOwnCamera) return null;
@@ -31,6 +39,7 @@ export default function App() {
         <Route path="/hill-climb" element={<HillClimbGame />} />
         <Route path="/flappy-bird" element={<FlappyBird />} />
         <Route path="/mob-control" element={<MobControlGame />} />
+        <Route path="/archery" element={<ArcheryChallenge />} />
       </Routes>
     </Router>
   );

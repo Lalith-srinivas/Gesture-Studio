@@ -61,14 +61,26 @@ const GAMES = [
     buttonBg: 'bg-[#0284C7] hover:bg-[#0369A1] text-white',
     badgeText: 'text-black',
   },
+  {
+    to: '/archery',
+    emoji: '🏹',
+    tag: 'PRECISION BOW',
+    title: 'Archery Challenge',
+    desc: 'Draw back your bowstring with pinch gestures, aim, and strike moving targets and dynamic powerup bubbles!',
+    bg: 'bg-[#FED7AA]',
+    accent: 'bg-[#F97316]',
+    badgeBg: 'bg-[#FDBA74]',
+    buttonBg: 'bg-[#EA580C] hover:bg-[#C2410C] text-white',
+    badgeText: 'text-black',
+  },
 ];
 
 const GESTURE_GUIDES = [
   { emoji: '☝️', name: 'Index Point', use: 'Air Draw · Traffic Lane 1 · Move' },
   { emoji: '✌️', name: 'Peace Sign', use: 'Erase Mode · Traffic Lane 2 · Left' },
-  { emoji: '🤏', name: 'Pinch Finger', use: 'Click · Flap Bird · Lane 3' },
-  { emoji: '✊', name: 'Closed Fist', use: 'Nitro Boost · Pan / Scroll' },
-  { emoji: '🖐️', name: 'Open Hand', use: 'Scroll Page · Ready Pose' },
+  { emoji: '🤟', name: 'Rock Sign', use: 'Traffic Lane 3 · Aim Action' },
+  { emoji: '🤏', name: 'Pinch Finger', use: 'Click · Flap Bird · Draw Bow' },
+  { emoji: '✊', name: 'Closed Fist', use: 'Nitro Boost · Cancel Bow Aim' },
 ];
 
 export default function Home() {
@@ -87,6 +99,7 @@ export default function Home() {
           <span className="mx-4">🏎️ CRAZY ROAD</span>
           <span className="mx-4">🐦 FLAPPY BIRD</span>
           <span className="mx-4">👥 MOB CONTROL</span>
+          <span className="mx-4">🏹 ARCHERY CHALLENGE</span>
           <span className="mx-4">⚡ GESTURE STUDIO ⚡</span>
           <span className="mx-4">✦ REAL-TIME AI HAND TRACKING ✦</span>
           <span className="mx-4">🎮 100% IN-BROWSER</span>
@@ -96,6 +109,7 @@ export default function Home() {
           <span className="mx-4">🏎️ CRAZY ROAD</span>
           <span className="mx-4">🐦 FLAPPY BIRD</span>
           <span className="mx-4">👥 MOB CONTROL</span>
+          <span className="mx-4">🏹 ARCHERY CHALLENGE</span>
         </div>
       </div>
 
