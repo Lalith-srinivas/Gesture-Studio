@@ -61,7 +61,6 @@ export default function GestureCursor() {
           const rootEl = document.getElementById('root');
           if (rootEl) rootEl.scrollBy({ top: speed, behavior: 'auto' });
           
-          // Also target the specific Home page wrapper that uses overflow-y-auto
           const scrollableWrappers = document.querySelectorAll('.overflow-y-auto');
           scrollableWrappers.forEach(el => el.scrollBy({ top: speed, behavior: 'auto' }));
 
@@ -107,27 +106,27 @@ export default function GestureCursor() {
     onGesture: handleGesture,
   });
 
-  // Cursor appearance based on state
+  // Cursor appearance based on state (Neo-Brutalist styling)
   const getCursorStyle = () => {
     if (isScrolling) {
       return {
-        bg: 'rgba(245, 158, 11, 0.6)',
-        border: 'rgba(245, 158, 11, 0.9)',
+        bg: '#FFE600',
+        border: '#000000',
         emoji: scrollDir > 0 ? '👇' : scrollDir < 0 ? '👆' : '🖐️',
-        scale: 'scale(1.2)',
+        scale: 'scale(1.25)',
       };
     }
     if (isPinching) {
       return {
-        bg: '#10b981',
-        border: '#fff',
+        bg: '#4ADE80',
+        border: '#000000',
         emoji: '🤏',
-        scale: 'scale(0.7)',
+        scale: 'scale(0.8)',
       };
     }
     return {
-      bg: 'rgba(255, 255, 255, 0.5)',
-      border: 'rgba(255, 255, 255, 0.8)',
+      bg: '#00F0FF',
+      border: '#000000',
       emoji: '☝️',
       scale: 'scale(1)',
     };
@@ -137,7 +136,7 @@ export default function GestureCursor() {
 
   return (
     <>
-      {/* Small pip camera for global tracking */}
+      {/* Small pip camera with Neo-Brutalism thick border & shadow */}
       <video
         ref={videoRef}
         autoPlay
@@ -145,33 +144,32 @@ export default function GestureCursor() {
         muted
         style={{
           position: 'fixed',
-          bottom: 10,
-          right: 10,
-          width: 120,
-          height: 90,
-          borderRadius: 8,
-          border: '2px solid rgba(255,255,255,0.15)',
+          bottom: 16,
+          right: 16,
+          width: 130,
+          height: 98,
+          border: '3px solid #000000',
+          boxShadow: '4px 4px 0px 0px #000000',
           zIndex: 9999,
           transform: 'scaleX(-1)',
-          opacity: ready ? 0.5 : 0.2,
+          opacity: ready ? 0.8 : 0.3,
           pointerEvents: 'none',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
           background: '#000',
           transition: 'opacity 0.3s',
         }}
       />
 
-      {/* Gesture hints badge — mobile only */}
+      {/* Gesture hints badge — Neo-Brutalist sticky notes */}
       {ready && (
         <div
           style={{
             position: 'fixed',
-            bottom: 110,
-            right: 10,
+            bottom: 126,
+            right: 16,
             zIndex: 9999,
             display: 'flex',
             flexDirection: 'column',
-            gap: 4,
+            gap: 6,
             pointerEvents: 'none',
           }}
         >
@@ -186,19 +184,21 @@ export default function GestureCursor() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
-                padding: '3px 8px',
-                borderRadius: 6,
-                fontSize: 10,
-                background: h.active ? 'rgba(139, 92, 246, 0.3)' : 'rgba(0,0,0,0.4)',
-                color: h.active ? '#e9d5ff' : '#71717a',
-                backdropFilter: 'blur(4px)',
-                border: `1px solid ${h.active ? 'rgba(139,92,246,0.5)' : 'rgba(255,255,255,0.05)'}`,
-                transition: 'all 0.2s',
-                transform: h.active ? 'scale(1.05)' : 'scale(1)',
+                padding: '4px 10px',
+                fontSize: 11,
+                fontFamily: '"JetBrains Mono", monospace',
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                background: h.active ? '#FFE600' : '#FFFDF5',
+                color: '#000000',
+                border: '2px solid #000000',
+                boxShadow: h.active ? '3px 3px 0px 0px #000000' : '2px 2px 0px 0px #000000',
+                transition: 'all 0.15s',
+                transform: h.active ? 'scale(1.05) translateX(-2px)' : 'scale(1)',
               }}
             >
-              <span style={{ fontSize: 12 }}>{h.emoji}</span>
-              <span style={{ fontWeight: h.active ? 600 : 400 }}>{h.label}</span>
+              <span style={{ fontSize: 13 }}>{h.emoji}</span>
+              <span>{h.label}</span>
             </div>
           ))}
         </div>
@@ -209,43 +209,41 @@ export default function GestureCursor() {
         <div
           style={{
             position: 'fixed',
-            right: 20,
-            top: scrollDir > 0 ? 'auto' : 20,
-            bottom: scrollDir > 0 ? 140 : 'auto',
+            right: 24,
+            top: scrollDir > 0 ? 'auto' : 24,
+            bottom: scrollDir > 0 ? 150 : 'auto',
             zIndex: 10001,
             pointerEvents: 'none',
-            animation: 'pulse 1s infinite',
           }}
         >
           <div style={{
-            fontSize: 28,
-            opacity: 0.7,
-            filter: 'drop-shadow(0 0 8px rgba(245,158,11,0.5))',
+            fontSize: 24,
+            background: '#FFE600',
+            border: '2px solid #000',
+            boxShadow: '4px 4px 0px #000',
+            padding: '6px 10px',
           }}>
-            {scrollDir > 0 ? '⬇️' : '⬆️'}
+            {scrollDir > 0 ? '⬇️ SCROLLING DOWN' : '⬆️ SCROLLING UP'}
           </div>
         </div>
       )}
 
-      {/* Floating cursor */}
+      {/* Floating neo-brutalist cursor */}
       {position.x >= 0 && (
         <div
           style={{
             position: 'fixed',
             left: position.x,
             top: position.y,
-            width: isScrolling ? 30 : 24,
-            height: isScrolling ? 30 : 24,
+            width: isScrolling ? 34 : 28,
+            height: isScrolling ? 34 : 28,
             background: cursor.bg,
-            border: `2px solid ${cursor.border}`,
-            borderRadius: '50%',
+            border: `3px solid ${cursor.border}`,
+            boxShadow: '3px 3px 0px 0px #000000',
             transform: `translate(-50%, -50%) ${cursor.scale}`,
             pointerEvents: 'none',
             zIndex: 10000,
-            boxShadow: isScrolling
-              ? '0 0 20px rgba(245, 158, 11, 0.5)'
-              : '0 0 15px rgba(255, 255, 255, 0.4)',
-            transition: 'transform 0.08s, background 0.08s, width 0.15s, height 0.15s, box-shadow 0.15s',
+            transition: 'transform 0.08s, background 0.08s, width 0.15s, height 0.15s',
           }}
         >
           <div style={{
@@ -253,7 +251,7 @@ export default function GestureCursor() {
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            fontSize: 12,
+            fontSize: 13,
           }}>
             {cursor.emoji}
           </div>

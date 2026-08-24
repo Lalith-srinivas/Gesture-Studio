@@ -1,18 +1,20 @@
 /**
  * Toolbar
- * Color picker, stroke width, clear/save actions.
+ * Color picker, stroke width, clear/save actions in Neo-Brutalism design.
  */
 
 const PRESET_COLORS = [
-  { label: 'Violet',  hex: '#a78bfa' },
-  { label: 'Sky',     hex: '#38bdf8' },
-  { label: 'Emerald', hex: '#34d399' },
-  { label: 'Rose',    hex: '#fb7185' },
-  { label: 'Amber',   hex: '#fbbf24' },
-  { label: 'White',   hex: '#f4f4f5' },
+  { label: 'Violet',  hex: '#A855F7' },
+  { label: 'Sky',     hex: '#00F0FF' },
+  { label: 'Emerald', hex: '#4ADE80' },
+  { label: 'Rose',    hex: '#FF66C4' },
+  { label: 'Yellow',  hex: '#FFE600' },
+  { label: 'Orange',  hex: '#FF8A00' },
+  { label: 'White',   hex: '#FFFFFF' },
+  { label: 'Black',   hex: '#000000' },
 ];
 
-const STROKE_SIZES = [2, 4, 8, 14, 22];
+const STROKE_SIZES = [3, 6, 10, 16, 24];
 
 export default function Toolbar({
   strokeColor,
@@ -27,129 +29,137 @@ export default function Toolbar({
   setGlowEnabled,
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-3 px-4 py-3 glass-panel">
-      {/* Color swatches */}
-      <div className="flex items-center gap-1.5">
-        {PRESET_COLORS.map((c) => (
-          <button
-            key={c.hex}
-            title={c.label}
-            onClick={() => setStrokeColor(c.hex)}
+    <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-3.5 bg-[#FFFDF5] border-3 border-black shadow-neo-lg max-w-5xl mx-auto">
+      
+      {/* Left: Color swatches & custom color */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="font-mono text-[11px] font-black uppercase text-black hidden sm:inline-block">
+          COLOR:
+        </span>
+        <div className="flex items-center gap-1.5 p-1 bg-white border-2 border-black shadow-neo-sm">
+          {PRESET_COLORS.map((c) => {
+            const isSelected = strokeColor.toLowerCase() === c.hex.toLowerCase();
+            return (
+              <button
+                key={c.hex}
+                title={c.label}
+                onClick={() => setStrokeColor(c.hex)}
+                className={`
+                  w-6 h-6 sm:w-7 sm:h-7 border-2 border-black transition-all cursor-pointer
+                  hover:scale-110 active:scale-95
+                  ${isSelected ? 'ring-2 ring-offset-1 ring-black scale-110' : 'opacity-90 hover:opacity-100'}
+                `}
+                style={{
+                  backgroundColor: c.hex,
+                }}
+              />
+            );
+          })}
+
+          {/* Custom color input */}
+          <label
+            title="Custom color picker"
             className="
-              w-7 h-7 rounded-full border-2 transition-all duration-150
-              hover:scale-110 active:scale-95 focus:outline-none
+              w-6 h-6 sm:w-7 sm:h-7 border-2 border-black cursor-pointer
+              flex items-center justify-center overflow-hidden hover:scale-110 transition-transform
             "
             style={{
-              backgroundColor: c.hex,
-              borderColor: strokeColor === c.hex ? '#ffffff' : 'transparent',
-              boxShadow: strokeColor === c.hex
-                ? `0 0 0 2px ${c.hex}55, 0 0 12px ${c.hex}66`
-                : 'none',
-            }}
-          />
-        ))}
-
-        {/* Custom color input */}
-        <label
-          title="Custom color"
-          className="
-            w-7 h-7 rounded-full border-2 border-white/20 cursor-pointer
-            flex items-center justify-center overflow-hidden
-            hover:scale-110 transition-transform
-          "
-          style={{
-            background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)',
-          }}
-        >
-          <input
-            type="color"
-            className="opacity-0 w-0 h-0 absolute"
-            value={strokeColor}
-            onChange={(e) => setStrokeColor(e.target.value)}
-          />
-        </label>
-      </div>
-
-      <div className="w-px h-6 bg-white/10" />
-
-      {/* Stroke width */}
-      <div className="flex items-center gap-1.5">
-        {STROKE_SIZES.map((size) => (
-          <button
-            key={size}
-            title={`${size}px`}
-            onClick={() => setStrokeWidth(size)}
-            className="
-              w-8 h-8 rounded-lg flex items-center justify-center
-              transition-all duration-150 hover:bg-white/10 active:scale-95
-              border border-transparent
-            "
-            style={{
-              borderColor: strokeWidth === size ? 'rgba(255,255,255,0.3)' : 'transparent',
-              background: strokeWidth === size ? 'rgba(255,255,255,0.08)' : '',
+              background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)',
             }}
           >
-            <span
-              className="rounded-full"
-              style={{
-                width:  Math.min(size + 4, 20),
-                height: Math.min(size + 4, 20),
-                backgroundColor: strokeColor,
-                opacity: 0.85,
-              }}
+            <input
+              type="color"
+              className="opacity-0 w-0 h-0 absolute cursor-pointer"
+              value={strokeColor}
+              onChange={(e) => setStrokeColor(e.target.value)}
             />
-          </button>
-        ))}
+          </label>
+        </div>
       </div>
 
-      <div className="w-px h-6 bg-white/10" />
+      {/* Center: Stroke size selector */}
+      <div className="flex items-center gap-2">
+        <span className="font-mono text-[11px] font-black uppercase text-black hidden md:inline-block">
+          SIZE:
+        </span>
+        <div className="flex items-center gap-1.5 p-1 bg-white border-2 border-black shadow-neo-sm">
+          {STROKE_SIZES.map((size) => {
+            const isSelected = strokeWidth === size;
+            return (
+              <button
+                key={size}
+                title={`${size}px`}
+                onClick={() => setStrokeWidth(size)}
+                className={`
+                  w-7 h-7 sm:w-8 sm:h-8 border-2 flex items-center justify-center transition-all cursor-pointer
+                  ${isSelected 
+                    ? 'border-black bg-neo-yellow shadow-neo-sm font-black' 
+                    : 'border-transparent hover:border-black/30 hover:bg-zinc-100'}
+                `}
+              >
+                <span
+                  className="rounded-full border border-black/40"
+                  style={{
+                    width: Math.min(size + 2, 20),
+                    height: Math.min(size + 2, 20),
+                    backgroundColor: strokeColor === '#FFFFFF' ? '#000000' : strokeColor,
+                  }}
+                />
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
-      {/* Drawing toggle */}
-      <button
-        onClick={onToggleDrawing}
-        className={`
-          px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-200
-          ${drawingEnabled
-            ? 'bg-violet-500/20 border-violet-500/40 text-violet-300'
-            : 'bg-zinc-800/60 border-zinc-700 text-zinc-400'}
-        `}
-      >
-        {drawingEnabled ? '🖊 On' : '✖ Off'}
-      </button>
+      {/* Right: Mode toggles & Actions */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Drawing toggle */}
+        <button
+          onClick={onToggleDrawing}
+          className={`
+            px-3 py-1.5 text-xs font-mono font-black uppercase border-2 border-black transition-all cursor-pointer
+            ${drawingEnabled
+              ? 'bg-neo-lime text-black shadow-neo-sm hover:bg-neo-limeLight'
+              : 'bg-zinc-200 text-zinc-600 shadow-none'}
+            active:translate-x-0.5 active:translate-y-0.5
+          `}
+        >
+          {drawingEnabled ? '🖊️ DRAW ON' : '✖ DRAW OFF'}
+        </button>
 
-      <div className="w-px h-6 bg-white/10" />
+        {/* Glow toggle */}
+        <button
+          onClick={() => setGlowEnabled(!glowEnabled)}
+          className={`
+            px-3 py-1.5 text-xs font-mono font-black uppercase border-2 border-black transition-all cursor-pointer
+            ${glowEnabled
+              ? 'bg-neo-yellow text-black shadow-neo-sm hover:bg-neo-yellowLight'
+              : 'bg-zinc-200 text-zinc-600 shadow-none'}
+            active:translate-x-0.5 active:translate-y-0.5
+          `}
+        >
+          {glowEnabled ? '✨ GLOW ON' : '✨ GLOW OFF'}
+        </button>
 
-      {/* Glow toggle */}
-      <button
-        onClick={() => setGlowEnabled(!glowEnabled)}
-        className={`
-          px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-200
-          ${glowEnabled
-            ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
-            : 'bg-zinc-800/60 border-zinc-700 text-zinc-400'}
-        `}
-      >
-        {glowEnabled ? '✨ Glow On' : '✨ Glow Off'}
-      </button>
+        {/* Clear Action */}
+        <button
+          onClick={onClear}
+          className="neo-btn-danger px-3 py-1.5 text-xs"
+          title="Clear Canvas"
+        >
+          🗑️ CLEAR
+        </button>
 
-      <div className="w-px h-6 bg-white/10" />
+        {/* Save PNG Action */}
+        <button
+          onClick={onSave}
+          className="neo-btn-cyan px-3 py-1.5 text-xs"
+          title="Save as PNG"
+        >
+          💾 SAVE PNG
+        </button>
+      </div>
 
-      {/* Action buttons */}
-      <button onClick={onClear} className="btn-danger flex items-center gap-1.5">
-        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-        </svg>
-        Clear
-      </button>
-
-      <button onClick={onSave} className="btn-success flex items-center gap-1.5">
-        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-        </svg>
-        Save PNG
-      </button>
     </div>
   );
 }

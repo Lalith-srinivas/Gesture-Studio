@@ -584,11 +584,10 @@ export default function FruitNinja() {
   const lives = MAX_MISSES - displayMisses;
   const bombsLeft = MAX_BOMBS - displayBombs;
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div
-      className="relative w-screen h-screen overflow-hidden select-none"
-      style={{ fontFamily: "'Orbitron', monospace", cursor: "crosshair", background: "#060a12" }}
+      className="relative w-screen h-screen overflow-hidden select-none font-sans"
+      style={{ cursor: "crosshair", background: "#0c0a17" }}
     >
       <video
         ref={videoRef}
@@ -596,69 +595,70 @@ export default function FruitNinja() {
         playsInline
         muted
         className="absolute inset-0 w-full h-full object-cover"
-        style={{ transform: "scaleX(-1)", opacity: 0.4 }}
+        style={{ transform: "scaleX(-1)", opacity: 0.35 }}
       />
 
       {/* Back Button */}
       <button
         onClick={() => navigate("/")}
-        className="absolute top-4 left-4 z-50 text-white/50 hover:text-white px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 backdrop-blur-md transition-all border border-white/5 shadow-2xl flex items-center gap-2 pointer-events-auto"
-        style={{ fontFamily: "sans-serif", fontSize: 13, fontWeight: "500" }}
+        className="absolute top-4 left-4 z-50 neo-btn-white px-3.5 py-2 text-xs font-mono font-black uppercase flex items-center gap-2 pointer-events-auto"
       >
-        <span>←</span> Back to Home
+        <span>←</span> HOME
       </button>
 
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
 
       {/* ── HUD ──────────────────────────────────────────────────────────── */}
       {gameState === "running" && (
-        <div className="absolute top-0 left-0 right-0 flex justify-between items-start px-6 pt-4 pointer-events-none z-10">
+        <div className="absolute top-0 left-0 right-0 flex justify-between items-start px-4 sm:px-6 pt-4 pointer-events-none z-10">
 
-          {/* Score */}
-          <div className="flex flex-col items-start translate-y-2">
-            <span style={{ color: "rgba(255,255,255,0.38)", fontSize: "clamp(8px, 2vw, 10px)", letterSpacing: "0.22em" }}>SCORE</span>
-            <span style={{ color: "#fff", fontSize: "clamp(30px, 8vw, 44px)", fontWeight: 900, lineHeight: 1, textShadow: "0 0 20px rgba(100,200,255,0.8)" }}>
-              {displayScore}
-            </span>
+          {/* Score Box */}
+          <div className="flex flex-col items-start translate-y-12 sm:translate-y-0 sm:ml-28">
+            <div className="bg-neo-yellow border-3 border-black shadow-neo px-4 py-2 flex flex-col items-center">
+              <span className="font-mono text-[10px] font-black tracking-wider text-black">SCORE</span>
+              <span className="font-display font-black text-3xl sm:text-4xl text-black leading-none">
+                {displayScore}
+              </span>
+            </div>
           </div>
 
           {/* Slow-mo badge (centre) */}
           {slowmo && (
-            <div className="flex flex-col items-center" style={{ animation: "fnpulse 0.65s ease-in-out infinite alternate" }}>
-              <span style={{ color: "#64b4ff", fontSize: 10, letterSpacing: "0.3em" }}>SLOW·MO</span>
-              <span style={{ fontSize: 24 }}>⏳</span>
+            <div className="bg-neo-cyan border-3 border-black shadow-neo px-4 py-1.5 flex items-center gap-2 animate-bounce">
+              <span className="text-xl">⏳</span>
+              <span className="font-mono font-black text-xs uppercase text-black">SLOW MOTION</span>
             </div>
           )}
 
           {/* Right: best + bomb lives + heart lives */}
-          <div className="flex flex-col items-end gap-1">
-            <div className="flex flex-col items-end">
-              <span style={{ color: "rgba(255,255,255,0.38)", fontSize: "clamp(8px, 2vw, 10px)", letterSpacing: "0.22em" }}>BEST</span>
-              <span style={{ color: "#f1c40f", fontSize: "clamp(18px, 4vw, 24px)", fontWeight: 700, lineHeight: 1, textShadow: "0 0 16px rgba(241,196,15,0.7)" }}>
+          <div className="flex flex-col items-end gap-2">
+            <div className="bg-white border-2 sm:border-3 border-black shadow-neo-sm px-3 py-1 flex items-center gap-2">
+              <span className="font-mono text-[10px] font-bold text-zinc-600">BEST:</span>
+              <span className="font-mono font-black text-sm sm:text-base text-black">
                 {highScore}
               </span>
             </div>
 
             {/* Bomb lives */}
-            <div className="flex items-center gap-1 mt-1">
+            <div className="flex items-center gap-1.5 p-1.5 bg-[#FFFDF5] border-2 border-black shadow-neo-sm">
+              <span className="font-mono text-[9px] font-bold text-zinc-600 mr-1">BOMBS:</span>
               {Array.from({ length: MAX_BOMBS }).map((_, i) => (
-                <span key={i} style={{
-                  fontSize: 18,
+                <span key={i} className="text-base sm:text-lg leading-none" style={{
                   filter: i < bombsLeft
-                    ? "drop-shadow(0 0 6px #e74c3c)"
-                    : "grayscale(1) opacity(0.28)",
+                    ? "drop-shadow(0 0 2px #000)"
+                    : "grayscale(1) opacity(0.25)",
                 }}>💣</span>
               ))}
             </div>
 
             {/* Fruit lives (hearts) */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 p-1.5 bg-[#FFFDF5] border-2 border-black shadow-neo-sm">
+              <span className="font-mono text-[9px] font-bold text-zinc-600 mr-1">LIVES:</span>
               {Array.from({ length: MAX_MISSES }).map((_, i) => (
-                <span key={i} style={{
-                  fontSize: 15,
+                <span key={i} className="text-xs sm:text-sm leading-none" style={{
                   filter: i < lives
-                    ? "drop-shadow(0 0 5px #e74c3c)"
-                    : "grayscale(1) opacity(0.22)",
+                    ? "drop-shadow(0 0 2px #000)"
+                    : "grayscale(1) opacity(0.2)",
                 }}>❤️</span>
               ))}
             </div>
@@ -671,7 +671,7 @@ export default function FruitNinja() {
         <div
           className="absolute inset-0 pointer-events-none z-20"
           style={{
-            background: "radial-gradient(circle, rgba(255,50,50,0.42) 0%, transparent 68%)",
+            background: "radial-gradient(circle, rgba(255,50,50,0.45) 0%, transparent 70%)",
             animation: "fnpulse 0.18s ease-in-out",
           }}
         />
@@ -679,93 +679,78 @@ export default function FruitNinja() {
 
       {/* ── Start / Game-Over overlay ──────────────────────────────────── */}
       {(gameState === "idle" || gameState === "over") && (
-        <div
-          className="absolute inset-0 flex flex-col items-center justify-center z-30"
-          style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(6px)" }}
-        >
-          {/* Logo */}
-          <div className="text-center mb-4">
-            <div style={{ fontSize: 64, marginBottom: 8 }}>🍉</div>
-            <h1 style={{
-              fontSize: 44, fontWeight: 900, letterSpacing: "0.12em", lineHeight: 1,
-              background: "linear-gradient(135deg, #f39c12, #e74c3c, #8e44ad)",
-              WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-            }}>Fruit Ninja</h1>
-            <p style={{ color: "rgba(255,255,255,0.28)", fontSize: 11, letterSpacing: "0.3em", marginTop: 8 }}>
-              SLICE FAST · AVOID BOMBS
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-30 bg-black/75 p-4">
+          
+          <div className="neo-box-xl bg-[#FFFDF5] p-6 sm:p-10 max-w-md w-full text-center flex flex-col items-center">
+            
+            {/* Logo */}
+            <div className="w-16 h-16 bg-neo-pink border-3 border-black shadow-neo flex items-center justify-center text-4xl mb-3">
+              🍉
+            </div>
+            
+            <h1 className="font-display font-black text-3xl sm:text-4xl text-black uppercase tracking-tight mb-1">
+              Fruit Ninja
+            </h1>
+            <p className="font-mono text-xs font-bold text-zinc-700 uppercase tracking-wider mb-5">
+              SWIPE TO SLICE · AVOID BOMBS
             </p>
+
+            {/* Game-over stats */}
+            {gameState === "over" && (
+              <div className="w-full mb-4">
+                {/* Reason badge */}
+                <div className="inline-block mb-3 px-3 py-1 bg-neo-red text-white border-2 border-black shadow-neo-sm font-mono text-xs font-bold uppercase">
+                  {overReason === "bomb" ? "💣 3 BOMBS SLICED — GAME OVER" : "❤️ 10 FRUITS MISSED — GAME OVER"}
+                </div>
+
+                <div className="p-4 bg-neo-yellow border-2 border-black shadow-neo-sm my-2">
+                  <div className="font-mono text-[10px] font-black uppercase text-black">FINAL SCORE</div>
+                  <div className="font-display font-black text-5xl text-black leading-none my-1">
+                    {displayScore}
+                  </div>
+                  {displayScore > 0 && displayScore >= highScore && (
+                    <div className="font-mono text-xs font-black text-neo-red mt-1">
+                      ★ NEW HIGH SCORE RECORD! ★
+                    </div>
+                  )}
+                  <div className="font-mono text-xs font-bold text-zinc-800 mt-1">
+                    BEST: {highScore}
+                  </div>
+                </div>
+
+                {/* Summary */}
+                <div className="flex gap-4 justify-center mt-3">
+                  <div className="p-2 bg-white border-2 border-black text-xs font-mono font-bold">
+                    ❤️ {displayMisses} / {MAX_MISSES} missed
+                  </div>
+                  <div className="p-2 bg-white border-2 border-black text-xs font-mono font-bold">
+                    💣 {displayBombs} / {MAX_BOMBS} bombs
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* CTA button */}
+            <button
+              onClick={startGame}
+              className="neo-btn-primary w-full py-3.5 text-base uppercase tracking-wider mt-2"
+            >
+              {gameState === "idle" ? "▶ START SLICING" : "↺ PLAY AGAIN"}
+            </button>
+
+            {/* Rules */}
+            {gameState === "idle" && (
+              <div className="flex flex-col gap-1 mt-6 text-left w-full p-3 bg-white border-2 border-black font-mono text-[11px] font-bold text-zinc-800">
+                <div>❤️ Miss 10 fruits = Game Over</div>
+                <div>💣 Slicing a bomb triggers Slow-Mo</div>
+                <div>💥 Slicing 3 bombs = Defeat</div>
+              </div>
+            )}
           </div>
-
-          {/* Game-over stats */}
-          {gameState === "over" && (
-            <div className="mb-4 text-center">
-              {/* Reason pill */}
-              <div style={{
-                display: "inline-block", marginBottom: 14,
-                padding: "5px 20px", borderRadius: 999,
-                fontSize: 11, fontWeight: 700, letterSpacing: "0.18em",
-                background: "rgba(231,76,60,0.22)",
-                border: "1px solid rgba(231,76,60,0.55)",
-                color: "#e74c3c",
-              }}>
-                {overReason === "bomb" ? "💣 3 BOMBS SLICED — GAME OVER" : "❤️ 10 FRUITS MISSED — GAME OVER"}
-              </div>
-
-              <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, letterSpacing: "0.1em" }}>Final Score</div>
-              <div style={{ color: "#fff", fontSize: 72, fontWeight: 900, lineHeight: 1, textShadow: "0 0 30px rgba(100,200,255,0.9)" }}>
-                {displayScore}
-              </div>
-              {displayScore > 0 && displayScore >= highScore && (
-                <div style={{ color: "#f1c40f", fontSize: 12, fontWeight: 700, letterSpacing: "0.22em", marginTop: 6, textShadow: "0 0 12px rgba(241,196,15,0.8)" }}>
-                  ★ NEW HIGH SCORE ★
-                </div>
-              )}
-              <div style={{ color: "#f1c40f", fontSize: 13, marginTop: 4 }}>Best: {highScore}</div>
-
-              {/* Summary */}
-              <div className="flex gap-8 justify-center mt-5">
-                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.38)", fontSize: 12 }}>
-                  <div style={{ fontSize: 22, marginBottom: 2 }}>❤️</div>
-                  <div>{displayMisses} / {MAX_MISSES} missed</div>
-                </div>
-                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.38)", fontSize: 12 }}>
-                  <div style={{ fontSize: 22, marginBottom: 2 }}>💣</div>
-                  <div>{displayBombs} / {MAX_BOMBS} bombs</div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* CTA button */}
-          <button
-            onClick={startGame}
-            style={{
-              marginTop: 18, padding: "14px 56px",
-              fontSize: 16, fontWeight: 900, letterSpacing: "0.18em", textTransform: "uppercase",
-              borderRadius: 999, border: "2px solid rgba(255,255,255,0.15)",
-              background: "linear-gradient(135deg, #e74c3c, #c0392b)", color: "#fff",
-              boxShadow: "0 0 40px rgba(231,76,60,0.6), inset 0 1px 0 rgba(255,255,255,0.2)",
-              cursor: "pointer", fontFamily: "inherit", transition: "transform 0.15s",
-            }}
-            onMouseEnter={e => e.currentTarget.style.transform = "scale(1.07)"}
-            onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
-          >
-            {gameState === "idle" ? "▶  Start" : "↺  Play Again"}
-          </button>
-
-          {/* Rules */}
-          {gameState === "idle" && (
-            <div className="flex gap-6 mt-8" style={{ color: "rgba(255,255,255,0.2)", fontSize: 11, letterSpacing: "0.1em" }}>
-              <span>❤️ Miss 10 fruits = over</span>
-              <span>💣 Slice a bomb = slow-mo</span>
-              <span>💣💣💣 3 bombs = over</span>
-            </div>
-          )}
         </div>
       )}
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap');
         @keyframes fnpulse { from { opacity: 1; } to { opacity: 0.45; } }
       `}</style>
     </div>

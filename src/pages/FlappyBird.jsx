@@ -436,18 +436,19 @@ export default function FlappyBird({ onReady }) {
   const isFlapping = currentGesture === GESTURES.PINCH || currentGesture === GESTURES.PAN;
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-950 select-none relative overflow-hidden">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-neo-dots text-black select-none relative overflow-hidden font-sans">
       {/* Back button */}
       <button
         onClick={() => navigate('/')}
-        className="absolute top-6 left-6 w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 transition-colors text-zinc-300 hover:text-white z-50 backdrop-blur-md border border-white/10"
+        className="absolute top-6 left-6 neo-btn-white px-3 py-2 text-xs font-mono font-black uppercase z-50 flex items-center gap-1.5"
         title="Back to Home"
       >
-        ←
+        <span>←</span>
+        <span>HOME</span>
       </button>
 
       {/* Gesture hints overlay */}
-      <div className="fixed bottom-[140px] right-5 z-50 flex flex-col gap-1.5 pointer-events-none">
+      <div className="fixed bottom-[130px] right-5 z-50 flex flex-col gap-2 pointer-events-none">
         {[
           { emoji: '✋', label: 'Ready', active: !isFlapping && currentGesture !== GESTURES.NONE },
           { emoji: '🤏', label: 'Flap', active: isFlapping },
@@ -455,11 +456,11 @@ export default function FlappyBird({ onReady }) {
           <div
             key={h.label}
             className={`
-              flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium backdrop-blur-sm
-              border transition-all duration-200 shadow-sm
+              flex items-center gap-2 px-3 py-1.5 text-xs font-mono font-black uppercase
+              border-2 border-black transition-all duration-150 shadow-neo-sm
               ${h.active 
-                ? 'bg-violet-500/30 text-violet-200 border-violet-500/50 scale-105' 
-                : 'bg-black/40 text-zinc-400 border-white/5 scale-100'}
+                ? 'bg-neo-yellow text-black scale-105 translate-x-[-2px]' 
+                : 'bg-white text-zinc-700'}
             `}
           >
             <span className="text-sm">{h.emoji}</span>
@@ -478,20 +479,19 @@ export default function FlappyBird({ onReady }) {
           position: 'fixed',
           bottom: 20,
           right: 20,
-          width: 140,
-          height: 105,
-          borderRadius: 12,
-          border: '2px solid rgba(255,255,255,0.15)',
+          width: 130,
+          height: 98,
+          border: '3px solid #000000',
+          boxShadow: '4px 4px 0px 0px #000000',
           zIndex: 50,
           transform: 'scaleX(-1)',
-          opacity: 0.6,
+          opacity: 0.85,
           pointerEvents: 'none',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
           background: '#000',
         }}
       />
 
-      <div className="relative w-full max-w-[480px]">
+      <div className="relative w-full max-w-[480px] border-4 border-black shadow-neo-2xl bg-black">
         <canvas
           ref={canvasRef}
           className="block w-full cursor-pointer touch-none"
@@ -501,51 +501,75 @@ export default function FlappyBird({ onReady }) {
         {/* Start overlay */}
         {uiState === "idle" && (
           <Overlay>
-            <p className="text-5xl mb-1">🐦</p>
-            <h1 className="text-3xl font-bold text-white mb-1 tracking-tight">Flappy Bird</h1>
-            <p className="text-sm text-white/50 mb-6">Space / Tap to flap</p>
-            {highScore > 0 && (
-              <p className="text-yellow-400 text-sm mb-4">Best: {highScore}</p>
-            )}
-            <button
-              id="flappy-action-btn"
-              onClick={startGame}
-              className="px-8 py-3 bg-yellow-400 hover:bg-yellow-300 active:scale-95 text-gray-900 font-bold rounded-full text-lg transition-all"
-            >
-              Play
-            </button>
+            <div className="neo-box-lg p-6 sm:p-8 max-w-xs sm:max-w-sm w-full mx-4 text-center bg-neo-cream flex flex-col items-center">
+              <div className="w-14 h-14 bg-neo-yellow border-2 border-black shadow-neo-sm flex items-center justify-center text-3xl mb-3">
+                🐦
+              </div>
+              <h1 className="font-display font-black text-3xl uppercase tracking-tight text-black mb-1">
+                Flappy Bird
+              </h1>
+              <p className="font-mono text-xs font-bold text-zinc-700 mb-4 uppercase">
+                SPACE · TAP · PINCH TO FLAP
+              </p>
+              {highScore > 0 && (
+                <div className="neo-tag bg-neo-yellow mb-5">
+                  ★ BEST SCORE: {highScore}
+                </div>
+              )}
+              <button
+                id="flappy-action-btn"
+                onClick={startGame}
+                className="neo-btn-primary w-full py-3 text-base uppercase"
+              >
+                ▶ START FLAPPING
+              </button>
+            </div>
           </Overlay>
         )}
 
         {/* Game Over overlay */}
         {uiState === "dead" && (
           <Overlay>
-            <p className="text-4xl mb-2">💥</p>
-            <h2 className="text-2xl font-bold text-white mb-1">Game Over</h2>
-            <p className="text-4xl font-black text-yellow-400 mb-1">
-              {stateRef.current?.score ?? 0}
-            </p>
-            <p className="text-sm text-white/50 mb-1">Score</p>
-            <p className="text-sm text-white/40 mb-6">Best: {getHighScore()}</p>
-            <button
-              id="flappy-action-btn"
-              onClick={restartGame}
-              className="px-8 py-3 bg-yellow-400 hover:bg-yellow-300 active:scale-95 text-gray-900 font-bold rounded-full text-lg transition-all"
-            >
-              Restart
-            </button>
+            <div className="neo-box-lg p-6 sm:p-8 max-w-xs sm:max-w-sm w-full mx-4 text-center bg-[#FFFDF5] flex flex-col items-center">
+              <div className="w-14 h-14 bg-neo-red text-white border-2 border-black shadow-neo-sm flex items-center justify-center text-3xl mb-3">
+                💥
+              </div>
+              <h2 className="font-display font-black text-2xl uppercase tracking-tight text-neo-red mb-1">
+                GAME OVER
+              </h2>
+              
+              <div className="my-4 p-4 bg-neo-yellow border-2 border-black shadow-neo-sm w-full">
+                <div className="font-mono text-[10px] font-black uppercase text-black">SCORE</div>
+                <div className="font-display font-black text-5xl text-black">
+                  {stateRef.current?.score ?? 0}
+                </div>
+                <div className="font-mono text-xs font-bold text-zinc-800 mt-1">
+                  BEST: {getHighScore()}
+                </div>
+              </div>
+
+              <button
+                id="flappy-action-btn"
+                onClick={restartGame}
+                className="neo-btn-primary w-full py-3 text-base uppercase"
+              >
+                ↺ PLAY AGAIN
+              </button>
+            </div>
           </Overlay>
         )}
       </div>
 
-      <p className="text-white/20 text-xs mt-4 z-10">Space / Tap / Pinch to flap</p>
+      <div className="mt-4 neo-tag bg-white font-mono text-xs text-black">
+        TIP: PINCH FINGERS OR HIT SPACE TO FLAP
+      </div>
     </div>
   );
 }
 
 function Overlay({ children }) {
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm rounded-none">
+    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-xs p-4">
       {children}
     </div>
   );

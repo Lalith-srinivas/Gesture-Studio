@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useHandTracking } from '../hooks/useHandTracking';
 import { GESTURES } from '../utils/gestureDetector';
 
@@ -299,6 +300,7 @@ function drawRoadsideTrees(ctx, width, height, roadOffset) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export default function TrafficRiderGame() {
+  const navigate = useNavigate();
   const canvasRef = useRef(null);
   const videoRef = useRef(null);
   const handOverlayRef = useRef(null);
@@ -559,59 +561,76 @@ export default function TrafficRiderGame() {
   }, []);
 
   return (
-    <div style={{ fontFamily: 'sans-serif', userSelect: 'none', display: 'flex', justifyContent: 'center', background: '#0f172a', padding: 16 }}>
-      <div style={{ position: 'relative', width: 460, borderRadius: 24, overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}>
+    <div className="min-h-screen bg-neo-dots text-black flex flex-col items-center justify-center p-4 select-none font-sans relative">
+      {/* Back button */}
+      <button
+        onClick={() => navigate('/')}
+        className="absolute top-6 left-6 neo-btn-white px-3.5 py-2 text-xs font-mono font-black uppercase z-50 flex items-center gap-1.5"
+        title="Back to Home"
+      >
+        <span>←</span> HOME
+      </button>
+
+      <div className="relative border-4 border-black shadow-neo-2xl bg-black overflow-hidden" style={{ width: 460 }}>
         
         {/* Top-Left Score Overlay */}
-        <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 10, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', padding: '6px 16px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.2)' }}>
-          <div style={{ fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: 1 }}>
+        <div className="absolute top-4 left-4 z-10 bg-neo-yellow border-3 border-black shadow-neo px-3 py-1.5 flex flex-col items-start">
+          <div className="font-display font-black text-lg text-black leading-tight">
             SCORE: <span ref={scoreRef}>0</span>
           </div>
-          <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 'bold' }}>
+          <div className="font-mono text-[10px] font-bold text-zinc-800 uppercase">
             HIGH: <span ref={highScoreRef}>{highScore}</span>
           </div>
         </div>
 
         {/* Bottom-Right Speedometer / Boost Dial */}
-        <div style={{ position: 'absolute', bottom: 16, right: 16, zIndex: 10, width: 110, height: 90, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', borderRadius: '60px 60px 12px 12px', padding: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1px solid rgba(255,255,255,0.2)' }}>
-          <div style={{ position: 'relative', width: 80, height: 45, borderTopLeftRadius: 40, borderTopRightRadius: 40, border: '6px solid #22c55e', borderBottom: 'none', marginTop: 4 }}>
+        <div className="absolute bottom-4 right-4 z-10 w-28 bg-[#FFFDF5] border-3 border-black shadow-neo p-2 flex flex-col items-center">
+          <div className="relative w-20 h-11 border-t-4 border-l-4 border-r-4 border-black rounded-t-full bg-neo-lime/30 mt-1 flex justify-center">
             {/* Needle */}
-            <div ref={needleRef} style={{ position: 'absolute', bottom: 0, left: '50%', width: 3, height: 34, background: '#fff', transformOrigin: 'bottom center', transform: 'rotate(-90deg)', transition: 'transform 0.1s linear' }} />
+            <div
+              ref={needleRef}
+              className="absolute bottom-0 w-1 h-9 bg-neo-red border-l border-r border-black origin-bottom"
+              style={{ transform: 'rotate(-90deg)', transition: 'transform 0.1s linear' }}
+            />
           </div>
-          <div ref={boostPercentRef} style={{ fontSize: 14, fontWeight: 'bold', color: '#fff', marginTop: 4 }}>100%</div>
-          <div style={{ fontSize: 8, fontWeight: 900, color: '#94a3b8', letterSpacing: 0.5 }}>BOOST METER</div>
+          <div ref={boostPercentRef} className="font-display font-black text-xs text-black mt-1">100%</div>
+          <div className="font-mono text-[8px] font-black uppercase text-zinc-600">BOOST CHARGE</div>
         </div>
 
         {/* Camera Tracking Feeds */}
-        <video ref={videoRef} autoPlay playsInline muted style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', opacity: 0.1, pointerEvents: 'none' }} />
+        <video ref={videoRef} autoPlay playsInline muted style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', opacity: 0.08, pointerEvents: 'none' }} />
         <canvas ref={handOverlayRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', transform: 'scaleX(-1)', pointerEvents: 'none' }} />
         
         {/* Main Canvas */}
         <canvas ref={canvasRef} style={{ display: 'block' }} />
 
         {/* Start / Game Over Overlay */}
-        <div ref={overlayRef} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 20 }}>
-          <div style={{ background: '#1e293b', padding: '28px 36px', borderRadius: 16, textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
-            <h1 ref={olTitleRef} style={{ margin: 0, fontSize: 28, color: '#fff', letterSpacing: 1 }}>🏎️ CRAZY ROAD</h1>
-            <p ref={olSubRef} style={{ color: '#94a3b8', margin: '8px 0 20px', fontSize: 14 }}>Dodge traffic & use boost to pass cars!</p>
-            <button onClick={startGame} style={{ padding: '12px 32px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 8, fontSize: 16, fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 12px rgba(220,38,38,0.4)' }}>
-              RACE NOW
+        <div ref={overlayRef} className="absolute inset-0 bg-black/75 flex flex-col items-center justify-center z-20 p-4">
+          <div className="neo-box-lg bg-[#FFFDF5] p-6 sm:p-8 text-center max-w-xs sm:max-w-sm w-full flex flex-col items-center">
+            <h1 ref={olTitleRef} className="font-display font-black text-2xl sm:text-3xl text-black uppercase tracking-tight mb-1">
+              🏎️ CRAZY ROAD
+            </h1>
+            <p ref={olSubRef} className="font-mono text-xs font-bold text-zinc-700 my-3">
+              DODGE TRAFFIC & BOOST TO WIN!
+            </p>
+            <button onClick={startGame} className="neo-btn-primary w-full py-3 text-sm sm:text-base uppercase tracking-wider mt-2">
+              RACE NOW ➔
             </button>
           </div>
         </div>
 
         {/* Floating Gesture Indicators */}
-        <div style={{ position: 'absolute', top: 16, right: 16, display: 'flex', flexDirection: 'column', gap: 6, zIndex: 10 }}>
-          <div style={{ background: 'rgba(0,0,0,0.6)', color: '#fff', padding: '4px 10px', borderRadius: 8, fontSize: 11, opacity: activeGesture === GESTURES.DRAW ? 1 : 0.4, border: '1px solid rgba(255,255,255,0.2)' }}>
+        <div className="absolute top-4 right-4 flex flex-col gap-1.5 z-10 pointer-events-none">
+          <div className={`px-2.5 py-1 text-[11px] font-mono font-bold uppercase border-2 border-black transition-all ${activeGesture === GESTURES.DRAW ? 'bg-neo-yellow text-black shadow-neo-sm scale-105' : 'bg-white/80 text-zinc-700'}`}>
             ☝️ Lane 1
           </div>
-          <div style={{ background: 'rgba(0,0,0,0.6)', color: '#fff', padding: '4px 10px', borderRadius: 8, fontSize: 11, opacity: activeGesture === GESTURES.STOP ? 1 : 0.4, border: '1px solid rgba(255,255,255,0.2)' }}>
+          <div className={`px-2.5 py-1 text-[11px] font-mono font-bold uppercase border-2 border-black transition-all ${activeGesture === GESTURES.STOP ? 'bg-neo-yellow text-black shadow-neo-sm scale-105' : 'bg-white/80 text-zinc-700'}`}>
             ✌️ Lane 2
           </div>
-          <div style={{ background: 'rgba(0,0,0,0.6)', color: '#fff', padding: '4px 10px', borderRadius: 8, fontSize: 11, opacity: activeGesture === GESTURES.PINCH ? 1 : 0.4, border: '1px solid rgba(255,255,255,0.2)' }}>
+          <div className={`px-2.5 py-1 text-[11px] font-mono font-bold uppercase border-2 border-black transition-all ${activeGesture === GESTURES.PINCH ? 'bg-neo-yellow text-black shadow-neo-sm scale-105' : 'bg-white/80 text-zinc-700'}`}>
             👌 Lane 3
           </div>
-          <div style={{ background: 'rgba(0,0,0,0.6)', color: '#fff', padding: '4px 10px', borderRadius: 8, fontSize: 11, opacity: activeGesture === GESTURES.PAN ? 1 : 0.4, border: '1px solid rgba(255,255,255,0.2)' }}>
+          <div className={`px-2.5 py-1 text-[11px] font-mono font-bold uppercase border-2 border-black transition-all ${activeGesture === GESTURES.PAN ? 'bg-neo-pink text-black shadow-neo-sm scale-105' : 'bg-white/80 text-zinc-700'}`}>
             ✊ Boost
           </div>
         </div>

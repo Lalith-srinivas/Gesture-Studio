@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -14,38 +14,111 @@ html, body, #root {
   width: 100%;
   height: 100%;
   overflow: auto;
-  background: #0a0a0f;
-  font-family: 'Inter', system-ui, sans-serif;
+  background: #FFFDF5;
+  color: #121212;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+/* Neo-Brutalist Dot Grid Pattern */
+.bg-neo-dots {
+  background-color: #FFFDF5;
+  background-image: radial-gradient(#000000 1.2px, transparent 1.2px);
+  background-size: 24px 24px;
+}
+
+.bg-neo-dots-dark {
+  background-color: #121212;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.2) 1.2px, transparent 1.2px);
+  background-size: 24px 24px;
 }
 
 @layer components {
+  /* Neo-Brutalist Containers */
+  .neo-box {
+    @apply border-2 md:border-3 border-black bg-white shadow-neo;
+  }
+
+  .neo-box-lg {
+    @apply border-3 md:border-4 border-black bg-white shadow-neo-lg;
+  }
+
+  .neo-box-xl {
+    @apply border-3 md:border-4 border-black bg-white shadow-neo-xl;
+  }
+
+  .neo-box-dark {
+    @apply border-2 md:border-3 border-white bg-neo-dark shadow-neo-white;
+  }
+
+  /* Neo-Brutalist Buttons */
+  .neo-btn {
+    @apply inline-flex items-center justify-center font-display font-bold text-sm tracking-wide
+           border-2 md:border-3 border-black shadow-neo transition-all duration-150 cursor-pointer select-none
+           hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-neo-lg
+           active:translate-x-0.5 active:translate-y-0.5 active:shadow-neo-sm;
+  }
+
+  .neo-btn-primary {
+    @apply neo-btn bg-neo-yellow text-black hover:bg-neo-yellowLight;
+  }
+
+  .neo-btn-pink {
+    @apply neo-btn bg-neo-pink text-black hover:bg-neo-pinkLight;
+  }
+
+  .neo-btn-cyan {
+    @apply neo-btn bg-neo-cyan text-black hover:bg-neo-cyanLight;
+  }
+
+  .neo-btn-lime {
+    @apply neo-btn bg-neo-lime text-black hover:bg-neo-limeLight;
+  }
+
+  .neo-btn-purple {
+    @apply neo-btn bg-neo-purple text-black hover:bg-neo-purpleLight;
+  }
+
+  .neo-btn-danger {
+    @apply neo-btn bg-neo-red text-white hover:bg-red-400;
+  }
+
+  .neo-btn-white {
+    @apply neo-btn bg-white text-black hover:bg-zinc-100;
+  }
+
+  .neo-badge {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 text-xs font-mono font-bold
+           border-2 border-black shadow-neo-sm rounded-full;
+  }
+
+  .neo-tag {
+    @apply inline-flex items-center px-2.5 py-0.5 text-[11px] font-mono font-bold uppercase
+           border-2 border-black shadow-[2px_2px_0px_#000];
+  }
+
+  /* Legacy utility compat with Neo-Brutalism style */
   .glass-panel {
-    @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl;
+    @apply neo-box-lg bg-white/95;
   }
 
   .btn-primary {
-    @apply px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200
-           bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/25
-           text-white active:scale-95 cursor-pointer select-none;
+    @apply neo-btn-primary px-4 py-2 rounded-none;
   }
 
   .btn-danger {
-    @apply px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200
-           bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 hover:border-red-500/50
-           text-red-300 active:scale-95 cursor-pointer select-none;
+    @apply neo-btn-danger px-4 py-2 rounded-none;
   }
 
   .btn-success {
-    @apply px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200
-           bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30
-           text-emerald-300 active:scale-95 cursor-pointer select-none;
+    @apply neo-btn-lime px-4 py-2 rounded-none;
   }
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+/* Custom Neo Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #FFFDF5; border-left: 2px solid #000; }
+::-webkit-scrollbar-thumb { background: #000000; border: 1px solid #FFFDF5; }
+::-webkit-scrollbar-thumb:hover { background: #FFE600; border: 1px solid #000; }
 
 /* Canvas cursor */
 canvas { cursor: crosshair; }
