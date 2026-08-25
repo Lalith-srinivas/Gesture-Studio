@@ -6,6 +6,7 @@ import HillClimbGame from './pages/crazyroad';
 import FlappyBird from './pages/FlappyBird';
 import MobControlGame from './pages/MobControlGame';
 import ArcheryChallenge from './pages/ArcheryChallenge';
+import BirdHunterChallenge from './pages/BirdHunterChallenge';
 import GestureCursor from './components/GestureCursor';
 
 /**
@@ -21,6 +22,7 @@ function ConditionalCursor() {
     '/flappy-bird',
     '/mob-control',
     '/archery',
+    '/bird-hunter',
   ];
   const hasOwnCamera = pagesWithOwnCamera.some(p => location.pathname.startsWith(p));
 
@@ -40,6 +42,7 @@ export default function App() {
         <Route path="/flappy-bird" element={<FlappyBird />} />
         <Route path="/mob-control" element={<MobControlGame />} />
         <Route path="/archery" element={<ArcheryChallenge />} />
+        <Route path="/bird-hunter" element={<BirdHunterChallenge />} />
       </Routes>
     </Router>
   );

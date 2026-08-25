@@ -73,14 +73,26 @@ const GAMES = [
     buttonBg: 'bg-[#EA580C] hover:bg-[#C2410C] text-white',
     badgeText: 'text-black',
   },
+  {
+    to: '/bird-hunter',
+    emoji: '🦅',
+    tag: 'SLINGSHOT HUNT',
+    title: 'Bird Hunter',
+    desc: 'Pull back the slingshot with pinch gestures, aim at unpredictable birds, and unleash combo trick shots!',
+    bg: 'bg-[#BAE6FD]',
+    accent: 'bg-[#38BDF8]',
+    badgeBg: 'bg-[#7DD3FC]',
+    buttonBg: 'bg-[#0284C7] hover:bg-[#0369A1] text-white',
+    badgeText: 'text-black',
+  },
 ];
 
 const GESTURE_GUIDES = [
   { emoji: '☝️', name: 'Index Point', use: 'Air Draw · Traffic Lane 1 · Move' },
   { emoji: '✌️', name: 'Peace Sign', use: 'Erase Mode · Traffic Lane 2 · Left' },
-  { emoji: '🤟', name: 'Rock Sign', use: 'Traffic Lane 3 · Aim Action' },
-  { emoji: '🤏', name: 'Pinch Finger', use: 'Click · Flap Bird · Draw Bow' },
-  { emoji: '✊', name: 'Closed Fist', use: 'Nitro Boost · Cancel Bow Aim' },
+  { emoji: '🤟', name: 'Rock Sign', use: 'Traffic Lane 3 · Pause Game' },
+  { emoji: '🤏', name: 'Pinch Finger', use: 'Slingshot · Bow · Flap Bird' },
+  { emoji: '✊', name: 'Closed Fist', use: 'Cancel Aim · Nitro Boost' },
 ];
 
 export default function Home() {
@@ -100,6 +112,7 @@ export default function Home() {
           <span className="mx-4">🐦 FLAPPY BIRD</span>
           <span className="mx-4">👥 MOB CONTROL</span>
           <span className="mx-4">🏹 ARCHERY CHALLENGE</span>
+          <span className="mx-4">🦅 BIRD HUNTER</span>
           <span className="mx-4">⚡ GESTURE STUDIO ⚡</span>
           <span className="mx-4">✦ REAL-TIME AI HAND TRACKING ✦</span>
           <span className="mx-4">🎮 100% IN-BROWSER</span>
@@ -110,6 +123,7 @@ export default function Home() {
           <span className="mx-4">🐦 FLAPPY BIRD</span>
           <span className="mx-4">👥 MOB CONTROL</span>
           <span className="mx-4">🏹 ARCHERY CHALLENGE</span>
+          <span className="mx-4">🦅 BIRD HUNTER</span>
         </div>
       </div>
 

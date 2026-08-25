@@ -1,4 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useHandTracking } from '../hooks/useHandTracking';
+import { GESTURES } from '../utils/gestureDetector';
+import { mapHandToScreen } from '../utils/resolution';
 
 // --- UTILS & CONSTANTS ---
 const BIRD_TYPES = ['NORMAL', 'GOLDEN', 'FAST', 'TINY', 'GIANT', 'GHOST'];
@@ -19,19 +23,24 @@ class AudioEngine {
   }
   init() {
     if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
   }
   playTone(freq, type = 'sine', duration = 0.1, vol = 0.1) {
     if (!this.enabled || !this.ctx) return;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-    gain.gain.setValueAtTime(vol, this.ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-    osc.start();
-    osc.stop(this.ctx.currentTime + duration);
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+      gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + duration);
+    } catch (e) {}
   }
   stretch() { this.playTone(200, 'triangle', 0.1, 0.05); }
   launch() { this.playTone(150, 'sawtooth', 0.2, 0.1); }
@@ -43,12 +52,28 @@ const audio = new AudioEngine();
 
 // --- GAME ENGINE ---
 export default function BirdHunterChallenge() {
+  const navigate = useNavigate();
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
+  const videoRef = useRef(null);
+  const handOverlayRef = useRef(null);
+
   const [gameState, setGameState] = useState('MENU'); // MENU, PLAYING, PAUSED
   const [orientation, setOrientation] = useState('landscape');
+  const [activeGesture, setActiveGesture] = useState(GESTURES.NONE);
+  const [handTracked, setHandTracked] = useState(false);
+
+  // Gesture tracking refs
+  const lastGestureRef = useRef(GESTURES.NONE);
+  const pauseCooldownRef = useRef(0);
+  const handPosRef = useRef({ x: 400, y: 500 });
+  const gameStateRef = useRef('MENU');
+
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
   
-  // HUD States (using refs for rapid updates to avoid re-renders, sync to state for UI menus if needed)
+  // HUD States
   const stats = useRef({
     score: 0, highScore: 0, combo: 0, maxCombo: 0, birdsHit: 0, shotsFired: 0,
     showTrajectory: true, sound: true
@@ -498,18 +523,30 @@ export default function BirdHunterChallenge() {
       ctx.lineTo(slingshot.pullX, slingshot.pullY);
       ctx.stroke();
 
-      // Aim Trajectory Assist Powerup
-      if (slingshot.isPulling && g.activePowerups.tripleShotTime > 0) {
-          ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
-          ctx.lineWidth = 2;
-          ctx.setLineDash([10, 10]);
-          ctx.beginPath();
-          ctx.moveTo(slingshot.pullX, slingshot.pullY);
-          const dx = slingshot.x - slingshot.pullX;
-          const dy = slingshot.y - slingshot.pullY;
-          ctx.lineTo(slingshot.pullX + dx * 5, slingshot.pullY + dy * 5);
-          ctx.stroke();
-          ctx.setLineDash([]);
+      // Aim Trajectory Predictive Line
+      if (slingshot.isPulling && stats.current.showTrajectory) {
+        ctx.save();
+        ctx.strokeStyle = g.activePowerups.explosiveTime > 0 ? '#EF4444' : '#F97316';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([8, 6]);
+        ctx.beginPath();
+        const dx = slingshot.x - slingshot.pullX;
+        const dy = slingshot.y - slingshot.pullY;
+        const power = 4.2;
+        let px = slingshot.pullX;
+        let py = slingshot.pullY;
+        let pvx = dx * power;
+        let pvy = dy * power;
+        ctx.moveTo(px, py);
+        for (let i = 0; i < 28; i++) {
+          px += pvx * 0.035;
+          py += pvy * 0.035;
+          pvy += 400 * 0.035; // gravity
+          ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
       }
 
       // Draw Projectiles
@@ -556,11 +593,9 @@ export default function BirdHunterChallenge() {
   }, [gameState, selectedProjectile]);
 
   // --- CONTROLS / GESTURE ARCHITECTURE ---
-  
-  // These represent the architecture requested for gesture controls
   const controls = useRef({
     grabProjectile: (x, y) => {
-      if (gameState !== 'PLAYING') return;
+      if (gameStateRef.current !== 'PLAYING') return;
       game.current.slingshot.isPulling = true;
       controls.current.aim(x, y);
       audio.stretch();
@@ -571,14 +606,14 @@ export default function BirdHunterChallenge() {
       const dx = x - slingshot.x;
       const dy = y - slingshot.y;
       const dist = Math.hypot(dx, dy);
-      const maxPull = 150;
+      const maxPull = 160;
       
       if (dist > maxPull) {
         slingshot.pullX = slingshot.x + (dx / dist) * maxPull;
         slingshot.pullY = slingshot.y + (dy / dist) * maxPull;
       } else {
         slingshot.pullX = x;
-        slingshot.pullY = Math.max(y, slingshot.y - 50); // don't pull forwards too much
+        slingshot.pullY = Math.max(y, slingshot.y - 40); // don't pull forwards too much
       }
     },
     releaseShot: () => {
@@ -588,9 +623,9 @@ export default function BirdHunterChallenge() {
       
       const dx = slingshot.x - slingshot.pullX;
       const dy = slingshot.y - slingshot.pullY;
-      const power = 4; // Multiplier
+      const power = 4.2; // Multiplier
       
-      if (Math.hypot(dx, dy) > 20) {
+      if (Math.hypot(dx, dy) > 15) {
         audio.launch();
         stats.current.shotsFired++;
         const baseProj = {
@@ -615,31 +650,95 @@ export default function BirdHunterChallenge() {
     }
   });
 
-  // Attach controls to window for hypothetical MediaPipe integration
-  useEffect(() => {
-    window.gestureControls = controls.current;
-    return () => delete window.gestureControls;
-  }, []);
+  // --- HAND TRACKING INTEGRATION ---
+  useHandTracking({
+    videoRef,
+    overlayCanvasRef: handOverlayRef,
+    onGesture: (gesture, indexTip, dims, landmarks) => {
+      const c = canvasRef.current;
+      const v = videoRef.current;
+      const currentGameState = gameStateRef.current;
 
-  // Mouse / Touch Events mapping to architecture
+      if (!landmarks && !indexTip) {
+        setHandTracked(false);
+        setActiveGesture(GESTURES.NONE);
+        if (game.current.slingshot.isPulling && lastGestureRef.current === GESTURES.PINCH) {
+          controls.current.releaseShot();
+        }
+        lastGestureRef.current = GESTURES.NONE;
+        return;
+      }
+
+      setHandTracked(true);
+      setActiveGesture(gesture);
+
+      if (c && v) {
+        const thumbLm = landmarks ? landmarks[4] : indexTip;
+        const indexLm = landmarks ? landmarks[8] : indexTip;
+        const pinchLm = landmarks
+          ? { x: (landmarks[4].x + landmarks[8].x) / 2, y: (landmarks[4].y + landmarks[8].y) / 2 }
+          : indexTip;
+
+        const pos = mapHandToScreen(
+          gesture === GESTURES.PINCH ? pinchLm : indexLm,
+          c.width, c.height, v.videoWidth, v.videoHeight, true
+        );
+        handPosRef.current = pos;
+
+        // 🤏 PINCH: Grab Slingshot & Aim
+        if (gesture === GESTURES.PINCH) {
+          if (currentGameState === 'PLAYING') {
+            if (!game.current.slingshot.isPulling) {
+              controls.current.grabProjectile(pos.x, pos.y);
+            } else {
+              controls.current.aim(pos.x, pos.y);
+            }
+          }
+        }
+        // RELEASE PINCH: Release Shot!
+        else if (lastGestureRef.current === GESTURES.PINCH && gesture !== GESTURES.PAN) {
+          if (game.current.slingshot.isPulling && currentGameState === 'PLAYING') {
+            controls.current.releaseShot();
+          }
+        }
+        // ✊ FIST: Cancel Shot / Reset Aim
+        else if (gesture === GESTURES.PAN) {
+          game.current.slingshot.isPulling = false;
+          game.current.slingshot.pullX = game.current.slingshot.x;
+          game.current.slingshot.pullY = game.current.slingshot.y;
+        }
+        // 🤟 ROCK: Pause / Resume Game
+        else if (gesture === GESTURES.ROCK) {
+          if (Date.now() - pauseCooldownRef.current > 1200) {
+            pauseCooldownRef.current = Date.now();
+            if (currentGameState === 'PLAYING') {
+              setGameState('PAUSED');
+            } else if (currentGameState === 'PAUSED') {
+              setGameState('PLAYING');
+            }
+          }
+        }
+      }
+
+      lastGestureRef.current = gesture;
+    }
+  });
+
+  // Mouse / Touch Events mapping
   const handlePointerDown = (e) => {
     if (gameState !== 'PLAYING') return;
     const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX || (e.touches && e.touches[0].clientX) - rect.left;
-    const y = e.clientY || (e.touches && e.touches[0].clientY) - rect.top;
+    const x = (e.clientX !== undefined ? e.clientX : e.touches?.[0]?.clientX) - rect.left;
+    const y = (e.clientY !== undefined ? e.clientY : e.touches?.[0]?.clientY) - rect.top;
     
-    // Check if clicking near slingshot pouch
-    const { slingshot } = game.current;
-    if (Math.hypot(x - slingshot.pullX, y - slingshot.pullY) < 60) {
-      controls.current.grabProjectile(x, y);
-    }
+    controls.current.grabProjectile(x, y);
   };
 
   const handlePointerMove = (e) => {
     if (!game.current.slingshot.isPulling) return;
     const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX || (e.touches && e.touches[0].clientX) - rect.left;
-    const y = e.clientY || (e.touches && e.touches[0].clientY) - rect.top;
+    const x = (e.clientX !== undefined ? e.clientX : e.touches?.[0]?.clientX) - rect.left;
+    const y = (e.clientY !== undefined ? e.clientY : e.touches?.[0]?.clientY) - rect.top;
     controls.current.aim(x, y);
   };
 
@@ -648,14 +747,14 @@ export default function BirdHunterChallenge() {
   };
 
   // --- UI RENDERERS ---
-  const BrutalButton = ({ children, onClick, color = 'bg-white', active = false }) => (
+  const BrutalButton = ({ children, onClick, color = 'bg-white', active = false, className = '' }) => (
     <button 
       onClick={(e) => { audio.init(); onClick(e); }}
       className={`
-        px-6 py-3 text-xl font-black uppercase tracking-wider
+        px-5 py-2.5 text-sm sm:text-base font-black uppercase tracking-wider
         border-4 border-black rounded-xl
-        ${color} ${active ? 'shadow-none translate-y-[6px] translate-x-[6px]' : 'shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'}
-        transition-all duration-75 active:shadow-none active:translate-y-[6px] active:translate-x-[6px]
+        ${color} ${active ? 'shadow-none translate-y-[4px] translate-x-[4px]' : 'shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'}
+        transition-all duration-75 active:shadow-none active:translate-y-[4px] active:translate-x-[4px] ${className}
       `}
     >
       {children}
@@ -663,7 +762,7 @@ export default function BirdHunterChallenge() {
   );
 
   const BrutalCard = ({ children, className = '' }) => (
-    <div className={`border-4 border-black bg-white rounded-2xl shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] p-8 ${className}`}>
+    <div className={`border-4 border-black bg-white rounded-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] p-4 sm:p-6 ${className}`}>
       {children}
     </div>
   );
@@ -687,13 +786,42 @@ export default function BirdHunterChallenge() {
   return (
     <div ref={containerRef} className="relative w-full h-screen bg-sky-200 overflow-hidden font-sans select-none touch-none">
       
-      {/* Portrait Overlay */}
+      {/* Tracking Camera & Landmark Overlays */}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          transform: 'scaleX(-1)',
+          opacity: 0.05,
+          pointerEvents: 'none',
+        }}
+      />
+      <canvas
+        ref={handOverlayRef}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          transform: 'scaleX(-1)',
+          pointerEvents: 'none',
+        }}
+      />
+
+      {/* Portrait Notice Overlay */}
       {orientation === 'portrait' && (
         <div className="absolute inset-0 z-50 bg-rose-500 flex flex-col items-center justify-center p-8 text-center">
           <BrutalCard className="bg-yellow-400">
-            <h1 className="text-4xl font-black uppercase mb-4 text-black">Rotate Device</h1>
-            <p className="text-xl font-bold">Please rotate your device to landscape for the best experience.</p>
-            <div className="mt-8 text-6xl animate-spin-slow">🔄</div>
+            <h1 className="text-3xl font-black uppercase mb-3 text-black">Rotate Device</h1>
+            <p className="text-base font-bold">Please rotate your device to landscape for the best slingshot hunting experience.</p>
+            <div className="mt-4 text-5xl animate-spin-slow">🔄</div>
           </BrutalCard>
         </div>
       )}
@@ -712,125 +840,166 @@ export default function BirdHunterChallenge() {
         onTouchCancel={handlePointerUp}
       />
 
-      {/* HUD - Absolute Positioned */}
+      {/* Top Neo-Brutalist HUD */}
+      <header className="absolute top-4 left-4 right-4 z-10 flex flex-wrap justify-between items-center gap-3 pointer-events-none">
+        <div className="flex items-center gap-3 pointer-events-auto">
+          {/* Back to Home Button */}
+          <button
+            onClick={() => navigate('/')}
+            className="bg-white hover:bg-yellow-300 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none px-3.5 py-2 rounded-xl text-xs font-mono font-black uppercase transition-all flex items-center gap-1.5"
+            title="Back to Home"
+          >
+            <span>←</span> HOME
+          </button>
+
+          {/* Score Card */}
+          <div className="bg-yellow-400 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-4 py-2 rounded-xl">
+            <span className="text-xs font-black uppercase tracking-wider block text-black">Score</span>
+            <span className="text-2xl sm:text-3xl font-black text-black">{stats.current.score}</span>
+          </div>
+
+          {/* Combo Multiplier */}
+          <div className="bg-pink-500 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-4 py-2 rounded-xl text-white">
+            <span className="text-xs font-black uppercase tracking-wider block">Combo</span>
+            <span className="text-2xl sm:text-3xl font-black">x{stats.current.combo}</span>
+          </div>
+        </div>
+
+        {/* Live Gesture Detection Chip */}
+        <div className="flex items-center gap-2 bg-white/95 border-3 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] px-3.5 py-1.5 rounded-xl pointer-events-auto">
+          <span className={`w-2.5 h-2.5 rounded-full border border-black ${handTracked ? 'bg-neo-lime animate-pulse' : 'bg-zinc-400'}`} />
+          <span className="text-xs font-mono font-bold text-zinc-600">GESTURE:</span>
+          <span className="text-xs font-mono font-black uppercase text-black">
+            {activeGesture === GESTURES.PINCH ? '🤏 Aim Slingshot' :
+             activeGesture === GESTURES.PAN ? '✊ Cancel Shot' :
+             activeGesture === GESTURES.ROCK ? '🤟 Pause' :
+             handTracked ? '✋ Hand Ready' : '🔍 Detect Hand'}
+          </span>
+        </div>
+
+        {/* High Score Card */}
+        <div className="bg-cyan-400 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-4 py-2 rounded-xl pointer-events-auto">
+          <span className="text-xs font-black uppercase tracking-wider block text-black">High Score</span>
+          <span className="text-2xl sm:text-3xl font-black text-black">{stats.current.highScore}</span>
+        </div>
+      </header>
+
+      {/* Bottom Controls */}
       {gameState === 'PLAYING' && (
-        <>
-          {/* Top HUD */}
-          <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none">
-            <div className="flex gap-4">
-              <BrutalCard className="!p-3 !shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-blue-400 text-black">
-                <div className="text-xs font-black uppercase">Score</div>
-                <div className="text-3xl font-black">{stats.current.score}</div>
-              </BrutalCard>
-              <BrutalCard className="!p-3 !shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-pink-400 text-black">
-                <div className="text-xs font-black uppercase">Combo</div>
-                <div className="text-3xl font-black">x{stats.current.combo}</div>
-              </BrutalCard>
-            </div>
-            <div className="flex gap-4">
-              <BrutalCard className="!p-3 !shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white text-black">
-                <div className="text-xs font-black uppercase">High Score</div>
-                <div className="text-xl font-black">{stats.current.highScore}</div>
-              </BrutalCard>
-            </div>
+        <div className="absolute bottom-4 left-4 right-4 z-10 flex justify-between items-end pointer-events-none">
+          <div className="flex gap-2 pointer-events-auto">
+            <BrutalButton onClick={() => setGameState('PAUSED')} color="bg-rose-400">⏸ Pause</BrutalButton>
+            <BrutalButton onClick={() => { audio.enabled = !audio.enabled; setHudUpdate(h=>h+1); }} color={audio.enabled ? "bg-green-400" : "bg-gray-400"}>
+              {audio.enabled ? '🔊' : '🔇'}
+            </BrutalButton>
+          </div>
+          
+          {/* Active Powerups Indicators */}
+          <div className="flex gap-2 pointer-events-none">
+            {game.current.activePowerups.slowMoTime > 0 && <span className="bg-cyan-400 text-black border-2 border-black font-black px-2.5 py-1 rounded shadow-neo-sm">SLOW-MO</span>}
+            {game.current.activePowerups.tripleShotTime > 0 && <span className="bg-orange-400 text-black border-2 border-black font-black px-2.5 py-1 rounded shadow-neo-sm">TRIPLE</span>}
+            {game.current.activePowerups.doubleScoreTime > 0 && <span className="bg-yellow-400 text-black border-2 border-black font-black px-2.5 py-1 rounded shadow-neo-sm">2X PTS</span>}
+            {game.current.activePowerups.explosiveTime > 0 && <span className="bg-red-500 text-white border-2 border-black font-black px-2.5 py-1 rounded shadow-neo-sm">BOOM</span>}
           </div>
 
-          {/* Bottom Controls */}
-          <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
-            <div className="flex gap-2">
-              <BrutalButton onClick={() => setGameState('PAUSED')} color="bg-rose-400">⏸ Pause</BrutalButton>
-              <BrutalButton onClick={() => { audio.enabled = !audio.enabled; setHudUpdate(h=>h+1); }} color={audio.enabled ? "bg-green-400" : "bg-gray-400"}>
-                {audio.enabled ? '🔊' : '🔇'}
-              </BrutalButton>
-            </div>
-            
-            {/* Active Powerups Indicators */}
-            <div className="flex gap-2 pointer-events-none">
-                {game.current.activePowerups.slowMoTime > 0 && <span className="bg-cyan-400 text-black border-2 border-black font-bold px-2 py-1 rounded">SLOW-MO</span>}
-                {game.current.activePowerups.tripleShotTime > 0 && <span className="bg-orange-400 text-black border-2 border-black font-bold px-2 py-1 rounded">TRIPLE</span>}
-                {game.current.activePowerups.doubleScoreTime > 0 && <span className="bg-yellow-400 text-black border-2 border-black font-bold px-2 py-1 rounded">2X PTS</span>}
-                {game.current.activePowerups.explosiveTime > 0 && <span className="bg-red-500 text-white border-2 border-black font-bold px-2 py-1 rounded">BOOM</span>}
-            </div>
-
-            <div className="flex gap-2">
-               <BrutalCard className="!p-2 !rounded-xl !shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white flex gap-2">
-                  {PROJECTILES.map(p => (
-                    <button 
-                      key={p.id}
-                      onClick={() => setSelectedProjectile(p)}
-                      className={`w-12 h-12 rounded-lg border-2 border-black flex items-center justify-center transition-all ${selectedProjectile.id === p.id ? 'bg-black text-white scale-110' : 'bg-gray-100 hover:bg-gray-200'}`}
-                      style={{ backgroundColor: selectedProjectile.id === p.id ? p.color : '' }}
-                    >
-                      <div className="w-6 h-6 rounded-full border-2 border-black" style={{ backgroundColor: p.color }}></div>
-                    </button>
-                  ))}
-               </BrutalCard>
-            </div>
+          <div className="flex gap-2 pointer-events-auto">
+            <BrutalCard className="!p-2 !rounded-xl !shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white flex gap-2">
+              {PROJECTILES.map(p => (
+                <button 
+                  key={p.id}
+                  onClick={() => setSelectedProjectile(p)}
+                  className={`w-10 h-10 rounded-lg border-2 border-black flex items-center justify-center transition-all ${selectedProjectile.id === p.id ? 'scale-110 shadow-neo-sm' : 'bg-gray-100 hover:bg-gray-200'}`}
+                  style={{ backgroundColor: selectedProjectile.id === p.id ? p.color : '' }}
+                >
+                  <div className="w-5 h-5 rounded-full border-2 border-black" style={{ backgroundColor: p.color }}></div>
+                </button>
+              ))}
+            </BrutalCard>
           </div>
-        </>
+        </div>
       )}
 
-      {/* Main Menu */}
+      {/* Main Menu Modal */}
       {gameState === 'MENU' && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-sm z-40">
-          <BrutalCard className="bg-yellow-400 max-w-2xl w-full text-center flex flex-col items-center">
-            <h1 className="text-6xl font-black uppercase text-black mb-2 drop-shadow-[4px_4px_0px_#fff]">Bird Hunter</h1>
-            <h2 className="text-2xl font-bold uppercase text-black bg-white px-4 py-1 border-4 border-black inline-block -rotate-2 mb-8">Hit the Moving Bird</h2>
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm z-40 p-4">
+          <BrutalCard className="bg-yellow-400 max-w-xl w-full text-center flex flex-col items-center gap-4">
+            <h1 className="text-4xl sm:text-5xl font-black uppercase text-black drop-shadow-[3px_3px_0px_#fff]">
+              BIRD HUNTER
+            </h1>
+            <h2 className="text-lg font-black uppercase text-black bg-white px-3 py-1 border-3 border-black inline-block -rotate-1">
+              Slingshot Precision Challenge
+            </h2>
             
-            <p className="text-lg font-bold mb-8 max-w-md">
-              Aim with a slingshot and hit birds flying through unpredictable paths. Each successful hit increases difficulty.
+            <p className="text-sm font-bold max-w-md text-zinc-900">
+              Aim your slingshot with hand gestures or mouse. Strike birds along chaotic flight paths and rack up combo multipliers!
             </p>
 
-            <div className="mb-8 w-full">
-              <h3 className="text-xl font-black mb-4 uppercase">Select Ammo</h3>
-              <div className="flex justify-center gap-4 flex-wrap">
+            {/* Gesture Guide Table */}
+            <div className="w-full text-left bg-white border-3 border-black p-3.5 rounded-xl text-xs">
+              <p className="font-display font-black text-sm mb-2 uppercase text-black">🎯 Hand Gesture Controls:</p>
+              <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 font-mono text-[11px] font-bold">
+                <div className="flex items-center gap-1.5"><span className="text-sm">🤏</span> <span>Pinch:</span></div>
+                <div className="text-zinc-800">Grab pouch & stretch band</div>
+
+                <div className="flex items-center gap-1.5"><span className="text-sm">✋</span> <span>Move Hand:</span></div>
+                <div className="text-zinc-800">Aim trajectory & power</div>
+
+                <div className="flex items-center gap-1.5"><span className="text-sm">🏹</span> <span>Release:</span></div>
+                <div className="text-emerald-700">Fire projectile!</div>
+
+                <div className="flex items-center gap-1.5"><span className="text-sm">✊</span> <span>Fist:</span></div>
+                <div className="text-rose-700">Cancel shot</div>
+
+                <div className="flex items-center gap-1.5"><span className="text-sm">🤟</span> <span>Rock Sign:</span></div>
+                <div className="text-amber-700">Pause / Resume</div>
+              </div>
+            </div>
+
+            {/* Ammo Selector */}
+            <div className="w-full">
+              <h3 className="text-xs font-black mb-2 uppercase tracking-wider">Select Ammo Type:</h3>
+              <div className="flex justify-center gap-2 flex-wrap">
                 {PROJECTILES.map(p => (
-                  <BrutalButton 
+                  <button 
                     key={p.id} 
-                    color={selectedProjectile.id === p.id ? 'bg-black text-white' : 'bg-white'} 
                     onClick={() => setSelectedProjectile(p)}
+                    className={`px-3 py-1.5 rounded-lg border-2 border-black font-bold text-xs flex items-center gap-1.5 transition-all ${selectedProjectile.id === p.id ? 'bg-black text-white shadow-neo-sm scale-105' : 'bg-white text-black'}`}
                   >
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded-full border-2 border-white bg-current" style={{ color: p.color }}></div>
-                      {p.name}
-                    </div>
-                  </BrutalButton>
+                    <div className="w-3.5 h-3.5 rounded-full border border-black" style={{ backgroundColor: p.color }}></div>
+                    {p.name}
+                  </button>
                 ))}
               </div>
             </div>
 
-            <BrutalButton onClick={startGame} color="bg-green-400">
-              <span className="text-3xl px-8">START CHALLENGE</span>
+            <BrutalButton onClick={startGame} color="bg-green-400" className="w-full py-3.5 text-xl">
+              START CHALLENGE
             </BrutalButton>
-            
-            <div className="mt-6 font-bold uppercase text-sm flex gap-4">
-               <span>Mouse</span> • <span>Touch</span> • <span>Gesture Ready</span>
-            </div>
           </BrutalCard>
         </div>
       )}
 
-      {/* Pause Menu */}
+      {/* Pause Menu Modal */}
       {gameState === 'PAUSED' && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-md z-40">
-          <BrutalCard className="bg-sky-300 text-center flex flex-col items-center gap-6">
-            <h2 className="text-5xl font-black uppercase text-black">Paused</h2>
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-md z-40 p-4">
+          <BrutalCard className="bg-sky-300 text-center flex flex-col items-center gap-5 max-w-sm w-full">
+            <h2 className="text-4xl font-black uppercase text-black">Game Paused</h2>
             
-            <div className="flex flex-col gap-4 w-64">
-              <BrutalButton onClick={() => setGameState('PLAYING')} color="bg-green-400">Resume</BrutalButton>
-              <BrutalButton onClick={startGame} color="bg-yellow-400">Restart</BrutalButton>
-              <BrutalButton onClick={() => setGameState('MENU')} color="bg-white">Main Menu</BrutalButton>
+            <div className="flex flex-col gap-3 w-full">
+              <BrutalButton onClick={() => setGameState('PLAYING')} color="bg-green-400">▶ Resume</BrutalButton>
+              <BrutalButton onClick={startGame} color="bg-yellow-400">↺ Restart</BrutalButton>
+              <BrutalButton onClick={() => setGameState('MENU')} color="bg-white">☰ Main Menu</BrutalButton>
             </div>
 
-            <div className="mt-4 flex items-center justify-center gap-4 bg-white p-4 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-              <label className="font-bold uppercase flex items-center gap-2 cursor-pointer">
+            <div className="w-full flex items-center justify-center gap-2 bg-white p-3 border-3 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] rounded-xl">
+              <label className="font-bold text-xs uppercase flex items-center gap-2 cursor-pointer">
                 <input 
                   type="checkbox" 
-                  className="w-6 h-6 border-4 border-black appearance-none checked:bg-black relative after:content-[''] checked:after:absolute checked:after:w-2 checked:after:h-4 checked:after:border-r-4 checked:after:border-b-4 checked:after:border-white checked:after:rotate-45 checked:after:left-[6px] checked:after:top-[2px]"
+                  className="w-5 h-5 border-2 border-black"
                   checked={stats.current.showTrajectory}
                   onChange={(e) => { stats.current.showTrajectory = e.target.checked; setHudUpdate(h=>h+1); }}
                 />
-                Show Trajectory Line
+                Show Trajectory Arc
               </label>
             </div>
           </BrutalCard>
