@@ -1,4 +1,7 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import AuthModal from '../components/AuthModal';
 
 const GAMES = [
   {
@@ -50,18 +53,6 @@ const GAMES = [
     badgeText: 'text-black',
   },
   {
-    to: '/mob-control',
-    emoji: '👥',
-    tag: 'STRATEGY CROWD',
-    title: 'Mob Control',
-    desc: 'Direct your crowd through multiplier gates (+10, ×2, ×3) and conquer enemy battle zones in slow-mo!',
-    bg: 'bg-[#BAE6FD]',
-    accent: 'bg-[#38BDF8]',
-    badgeBg: 'bg-[#7DD3FC]',
-    buttonBg: 'bg-[#0284C7] hover:bg-[#0369A1] text-white',
-    badgeText: 'text-black',
-  },
-  {
     to: '/archery',
     emoji: '🏹',
     tag: 'PRECISION BOW',
@@ -96,35 +87,49 @@ const GESTURE_GUIDES = [
 ];
 
 export default function Home() {
+  const { currentUser, userProfile, isGuest } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
   return (
     <div className="w-full min-h-screen bg-neo-dots text-black flex flex-col font-sans selection:bg-neo-yellow selection:text-black">
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
       
-      {/* ── Top Neo Marquee Ticker ────────────────────────────────────────── */}
-      <div className="w-full bg-neo-yellow border-b-3 border-black py-2.5 overflow-hidden flex items-center shadow-neo-sm select-none z-20">
-        <div className="flex whitespace-nowrap animate-marquee font-mono font-black text-xs md:text-sm tracking-wider uppercase">
-          <span className="mx-4">⚡ GESTURE STUDIO ⚡</span>
-          <span className="mx-4">✦ REAL-TIME AI HAND TRACKING ✦</span>
-          <span className="mx-4">🎮 100% IN-BROWSER</span>
-          <span className="mx-4">🚫 NO CONTROLLER REQUIRED</span>
-          <span className="mx-4">🎨 AIR DRAW</span>
-          <span className="mx-4">🍉 FRUIT NINJA</span>
-          <span className="mx-4">🏎️ CRAZY ROAD</span>
-          <span className="mx-4">🐦 FLAPPY BIRD</span>
-          <span className="mx-4">👥 MOB CONTROL</span>
-          <span className="mx-4">🏹 ARCHERY CHALLENGE</span>
-          <span className="mx-4">🦅 BIRD HUNTER</span>
-          <span className="mx-4">⚡ GESTURE STUDIO ⚡</span>
-          <span className="mx-4">✦ REAL-TIME AI HAND TRACKING ✦</span>
-          <span className="mx-4">🎮 100% IN-BROWSER</span>
-          <span className="mx-4">🚫 NO CONTROLLER REQUIRED</span>
-          <span className="mx-4">🎨 AIR DRAW</span>
-          <span className="mx-4">🍉 FRUIT NINJA</span>
-          <span className="mx-4">🏎️ CRAZY ROAD</span>
-          <span className="mx-4">🐦 FLAPPY BIRD</span>
-          <span className="mx-4">👥 MOB CONTROL</span>
-          <span className="mx-4">🏹 ARCHERY CHALLENGE</span>
-          <span className="mx-4">🦅 BIRD HUNTER</span>
+      {/* ── Top Neo Marquee Ticker & Auth Action ───────────────────────────── */}
+      <div className="w-full bg-neo-yellow border-b-3 border-black py-2 overflow-hidden flex items-center justify-between px-3 shadow-neo-sm select-none z-20">
+        <div className="flex-1 overflow-hidden">
+          <div className="flex whitespace-nowrap animate-marquee font-mono font-black text-xs md:text-sm tracking-wider uppercase">
+            <span className="mx-4">⚡ GESTURE STUDIO ⚡</span>
+            <span className="mx-4">✦ REAL-TIME AI HAND TRACKING ✦</span>
+            <span className="mx-4">🎮 100% IN-BROWSER</span>
+            <span className="mx-4">🚫 NO CONTROLLER REQUIRED</span>
+            <span className="mx-4">🎨 AIR DRAW</span>
+            <span className="mx-4">🍉 FRUIT NINJA</span>
+            <span className="mx-4">🏎️ CRAZY ROAD</span>
+            <span className="mx-4">🐦 FLAPPY BIRD</span>
+            <span className="mx-4">🏹 ARCHERY CHALLENGE</span>
+            <span className="mx-4">🦅 BIRD HUNTER</span>
+          </div>
         </div>
+
+        {/* Firebase Player Profile / Sign In Button */}
+        <button
+          onClick={() => setShowAuthModal(true)}
+          className="ml-3 px-3 py-1 bg-white hover:bg-zinc-100 border-2 border-black font-mono font-black text-xs uppercase flex items-center gap-1.5 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform shrink-0"
+        >
+          <span>{currentUser ? (isGuest ? '👤' : '⭐') : '🔑'}</span>
+          <span className="hidden sm:inline">
+            {currentUser
+              ? isGuest
+                ? 'Guest Player'
+                : userProfile?.username || 'Player'
+              : 'Sign In'}
+          </span>
+          {userProfile?.currentStreak > 0 && !isGuest && (
+            <span className="bg-amber-300 px-1 border border-black text-[10px]">
+              🔥 {userProfile.currentStreak}d
+            </span>
+          )}
+        </button>
       </div>
 
       {/* ── Main Container ────────────────────────────────────────────────── */}

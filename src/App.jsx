@@ -4,10 +4,10 @@ import AirDraw from './pages/AirDraw';
 import FruitNinja from './pages/FruitNinja';
 import HillClimbGame from './pages/crazyroad';
 import FlappyBird from './pages/FlappyBird';
-import MobControlGame from './pages/MobControlGame';
 import ArcheryChallenge from './pages/ArcheryChallenge';
 import BirdHunterChallenge from './pages/BirdHunterChallenge';
 import GestureCursor from './components/GestureCursor';
+import { AuthProvider } from './context/AuthContext';
 
 /**
  * Renders GestureCursor only on pages that don't have their own camera/tracking.
@@ -20,7 +20,6 @@ function ConditionalCursor() {
     '/fruit-ninja',
     '/hill-climb',
     '/flappy-bird',
-    '/mob-control',
     '/archery',
     '/bird-hunter',
   ];
@@ -32,18 +31,19 @@ function ConditionalCursor() {
 
 export default function App() {
   return (
-    <Router>
-      <ConditionalCursor />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/air-draw" element={<AirDraw />} />
-        <Route path="/fruit-ninja" element={<FruitNinja />} />
-        <Route path="/hill-climb" element={<HillClimbGame />} />
-        <Route path="/flappy-bird" element={<FlappyBird />} />
-        <Route path="/mob-control" element={<MobControlGame />} />
-        <Route path="/archery" element={<ArcheryChallenge />} />
-        <Route path="/bird-hunter" element={<BirdHunterChallenge />} />
-      </Routes>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <ConditionalCursor />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/air-draw" element={<AirDraw />} />
+          <Route path="/fruit-ninja" element={<FruitNinja />} />
+          <Route path="/hill-climb" element={<HillClimbGame />} />
+          <Route path="/flappy-bird" element={<FlappyBird />} />
+          <Route path="/archery" element={<ArcheryChallenge />} />
+          <Route path="/bird-hunter" element={<BirdHunterChallenge />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }

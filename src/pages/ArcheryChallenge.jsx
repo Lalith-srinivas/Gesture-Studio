@@ -102,6 +102,17 @@ export default function ArcheryChallenge() {
   const [powerupTimeLeft, setPowerupTimeLeft] = useState(0);
   const [activeGesture, setActiveGesture] = useState(GESTURES.NONE);
   const [handTracked, setHandTracked] = useState(false);
+  const [orientation, setOrientation] = useState('landscape');
+
+  // Handle Orientation
+  useEffect(() => {
+    const checkOrientation = () => {
+      setOrientation(window.innerHeight > window.innerWidth ? 'portrait' : 'landscape');
+    };
+    window.addEventListener('resize', checkOrientation);
+    checkOrientation();
+    return () => window.removeEventListener('resize', checkOrientation);
+  }, []);
 
   // Gesture tracking refs
   const lastGestureRef = useRef(GESTURES.NONE);
@@ -862,6 +873,27 @@ export default function ArcheryChallenge() {
 
   return (
     <div className="relative w-full h-screen bg-amber-50 font-sans select-none overflow-hidden flex flex-col">
+      
+      {/* Portrait / Rotate Device Prompt */}
+      {orientation === 'portrait' && (
+        <div className="absolute inset-0 z-50 bg-amber-400/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center select-none">
+          <div className="bg-white border-8 border-black shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] rounded-3xl p-8 max-w-sm w-full text-center flex flex-col items-center gap-4 animate-bounce-subtle">
+            <div className="w-16 h-16 bg-yellow-300 border-4 border-black rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center text-4xl animate-spin-slow">
+              🔄
+            </div>
+            <h2 className="text-3xl font-black uppercase text-black tracking-tight -rotate-1">
+              Rotate Device
+            </h2>
+            <p className="font-mono text-sm font-black text-zinc-800 uppercase leading-relaxed">
+              Please turn your phone to <span className="text-orange-600 bg-orange-100 px-1 border border-black">Landscape Mode</span> for full screen archery precision & best hand tracking!
+            </p>
+            <div className="mt-2 text-4xl">
+              📱 ➔ 📲
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* --- TOP HUD OVERLAY --- */}
       <header className="absolute top-4 left-4 right-4 z-10 flex flex-wrap justify-between items-center gap-4 pointer-events-none">
         <div className="flex items-center gap-3 pointer-events-auto">
