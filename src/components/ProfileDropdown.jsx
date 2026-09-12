@@ -80,7 +80,7 @@ export default function ProfileDropdown() {
 
         {/* Dropdown */}
         {open && (
-          <div className="absolute right-0 top-full mt-1 w-52 bg-white border-3 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-xl overflow-hidden z-50 animate-fade-in">
+          <div className="absolute right-0 top-full mt-1.5 w-56 bg-white border-3 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-xl overflow-hidden z-[100] animate-fade-in">
             {/* User header */}
             <div className="px-3 py-2.5 bg-neo-yellow border-b-2 border-black">
               <p className="font-display font-black text-sm uppercase truncate">{username}</p>

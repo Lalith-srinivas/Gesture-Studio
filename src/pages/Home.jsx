@@ -102,7 +102,7 @@ export default function Home() {
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
       
       {/* ── Top Neo Marquee Ticker & Auth Action ───────────────────────────── */}
-      <div className="w-full bg-neo-yellow border-b-3 border-black py-2 overflow-hidden flex items-center justify-between px-3 shadow-neo-sm select-none z-20">
+      <div className="w-full bg-neo-yellow border-b-3 border-black py-2 flex items-center justify-between px-3 shadow-neo-sm select-none relative z-30">
         <div className="flex-1 overflow-hidden">
           <div className="flex whitespace-nowrap animate-marquee font-mono font-black text-xs md:text-sm tracking-wider uppercase">
             <span className="mx-4">⚡ GESTURE STUDIO ⚡</span>
