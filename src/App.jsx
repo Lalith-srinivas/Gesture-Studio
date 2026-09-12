@@ -1,7 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Home from './pages/Home';
-import AirDraw from './pages/AirDraw';
 import FruitNinja from './pages/FruitNinja';
 import HillClimbGame from './pages/crazyroad';
 import FlappyBird from './pages/FlappyBird';
@@ -20,9 +19,7 @@ import { PlayerProvider, usePlayer } from './context/PlayerContext';
 
 const GestureAcademy = lazy(() => import('./pages/GestureAcademy'));
 
-// ── One-time migration: clear old seed-based leaderboard cache (v1 keys) ─────
-// This runs once and removes fake placeholder data from localStorage so the
-// leaderboard loads fresh from Firestore with only real player scores.
+// ── One-time migration: clear old seed-based leaderboard cache keys ──────────
 try {
   const OLD_LB_KEYS = [
     'gesture_studio_lb_global',
@@ -36,15 +33,13 @@ try {
   OLD_LB_KEYS.forEach((k) => localStorage.removeItem(k));
 } catch { /* silent */ }
 
-
 /**
  * Renders GestureCursor only on pages that don't have their own camera/tracking.
- * AirDraw, FruitNinja, HillClimb, GestureAcademy, etc. manage their own camera/canvas, so skip cursor there.
+ * FruitNinja, HillClimb, GestureAcademy, etc. manage their own camera/canvas.
  */
 function ConditionalCursor() {
   const location = useLocation();
   const pagesWithOwnCamera = [
-    '/air-draw',
     '/fruit-ninja',
     '/hill-climb',
     '/flappy-bird',
@@ -52,8 +47,7 @@ function ConditionalCursor() {
     '/bird-hunter',
     '/gesture-academy',
   ];
-  const hasOwnCamera = pagesWithOwnCamera.some(p => location.pathname.startsWith(p));
-
+  const hasOwnCamera = pagesWithOwnCamera.some((p) => location.pathname.startsWith(p));
   if (hasOwnCamera) return null;
   return <GestureCursor />;
 }
@@ -65,14 +59,13 @@ function ConditionalCursor() {
 function ConditionalBottomNav() {
   const location = useLocation();
   const activeGames = [
-    '/air-draw',
     '/fruit-ninja',
     '/hill-climb',
     '/flappy-bird',
     '/archery',
     '/bird-hunter',
   ];
-  const isInActiveGame = activeGames.some(p => location.pathname.startsWith(p));
+  const isInActiveGame = activeGames.some((p) => location.pathname.startsWith(p));
   if (isInActiveGame) return null;
   return <BottomNav />;
 }
@@ -114,14 +107,6 @@ export default function App() {
                 >
                   <GestureAcademy />
                 </Suspense>
-              }
-            />
-            <Route
-              path="/air-draw"
-              element={
-                <TutorialGate gameName="air-draw">
-                  <AirDraw />
-                </TutorialGate>
               }
             />
             <Route

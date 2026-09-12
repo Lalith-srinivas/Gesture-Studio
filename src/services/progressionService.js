@@ -22,7 +22,7 @@
  * Currently, scores are client-trusted.
  */
 
-import { doc, updateDoc, getDoc, increment, setDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, increment, setDoc, collection, getDocs, arrayUnion } from 'firebase/firestore';
 import { db } from '../firebase/firebase';
 import { calculateGameXP, getLevelFromXP } from './xpService';
 import { checkNewAchievements, getAchievementById } from './achievementService';
@@ -136,9 +136,9 @@ export async function recordGameResult({
     const newLevel = getLevelFromXP(newXP).level;
     const didLevelUp = newLevel > prevLevel;
 
-    // ── 8. Persist all achievements to Firestore ──────────────────────────────
+    // ── 8. Persist all achievements to Firestore (atomic arrayUnion) ──────────
     if (newAchievementIds.length > 0) {
-      const allUnlocked = [...alreadyUnlocked, ...newAchievementIds];
+      // Write each individual achievement sub-document
       for (const achId of newAchievementIds) {
         const achDef = getAchievementById(achId);
         if (!achDef) continue;
@@ -151,10 +151,10 @@ export async function recordGameResult({
         } catch { /* silent */ }
       }
 
-      // Update achievementsUnlocked array on root doc
+      // Use arrayUnion to atomically append IDs to the root doc — NEVER replaces the full array
       try {
         await setDoc(doc(db, 'users', uid), {
-          achievementsUnlocked: allUnlocked,
+          achievementsUnlocked: arrayUnion(...newAchievementIds),
         }, { merge: true });
       } catch { /* silent */ }
     }
@@ -176,7 +176,7 @@ export async function recordGameResult({
     // ── 10. Persist streak ────────────────────────────────────────────────────
     await persistGameStreak(uid, streakUpdate);
 
-    // ── 11. Update leaderboards ───────────────────────────────────────────────
+    // ── 11. Update leaderboards (always — not just personal bests) ────────────
     const newTotalScore = (profile?.totalScore || 0) + score;
     updateGlobalLeaderboard(uid, {
       username: username || profile?.username || 'Player',
@@ -185,12 +185,11 @@ export async function recordGameResult({
       level: newLevel,
     }).catch(() => {});
 
-    if (isPersonalBest) {
-      updateGameLeaderboard(uid, gameId, {
-        username: username || profile?.username || 'Player',
-        avatar: avatar || profile?.avatar || '🎮',
-      }, score).catch(() => {});
-    }
+    // Always update game leaderboard — service will keep the best score
+    updateGameLeaderboard(uid, gameId, {
+      username: username || profile?.username || 'Player',
+      avatar: avatar || profile?.avatar || '🎮',
+    }, score).catch(() => {});
 
     return {
       xpEarned: totalXPEarned,
@@ -257,8 +256,9 @@ export async function recordAcademyCompletion(uid, playerData) {
         unlockedAt: new Date().toISOString(),
       }, { merge: true });
 
+      // Use arrayUnion — never overwrite the full array
       await setDoc(doc(db, 'users', uid), {
-        achievementsUnlocked: [...alreadyUnlocked, 'gesture_master'],
+        achievementsUnlocked: arrayUnion('gesture_master'),
       }, { merge: true });
     }
 

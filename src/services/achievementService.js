@@ -136,7 +136,7 @@ export const ACHIEVEMENTS = [
     category: 'platform',
     check: (p) => {
       const games = p?.gamesPlayedByGame || {};
-      const required = ['fruit-ninja', 'flappy-bird', 'archery', 'bird-hunter', 'hill-climb', 'air-draw'];
+      const required = ['fruit-ninja', 'flappy-bird', 'archery', 'bird-hunter', 'hill-climb'];
       return required.every((g) => games[g]);
     },
   },
@@ -317,31 +317,6 @@ export const ACHIEVEMENTS = [
     category: 'game',
     gameId: 'hill-climb',
     check: (p, gr) => gr?.gameId === 'hill-climb' ? (gr?.score || 0) >= 500 : false,
-  },
-
-  // ── Air Draw ───────────────────────────────────────────────────────────────
-  {
-    id: 'air_draw_first',
-    title: 'First Stroke',
-    description: 'Create your first Air Draw masterpiece.',
-    icon: '🎨',
-    xp: 30,
-    category: 'game',
-    gameId: 'air-draw',
-    check: (p) => (p?.gamesPlayedByGame?.['air-draw']),
-  },
-  {
-    id: 'air_draw_10',
-    title: 'Digital Artist',
-    description: 'Complete 10 Air Draw sessions.',
-    icon: '✏️',
-    xp: 100,
-    category: 'game',
-    gameId: 'air-draw',
-    check: (p) => {
-      // Tracked via gameStats
-      return false; // Resolved via gameStats subcollection in progressionService
-    },
   },
 ];
 

@@ -8,19 +8,6 @@ import ProfileDropdown from '../components/ProfileDropdown';
 
 const GAMES = [
   {
-    to: '/air-draw',
-    id: 'air-draw',
-    emoji: '🎨',
-    tag: 'CREATIVE LAB',
-    title: 'Air Draw',
-    desc: 'Draw and sketch in mid-air using your index finger. Features custom colors, glow mode, and PNG export.',
-    bg: 'bg-[#E9D5FF]',
-    accent: 'bg-[#A855F7]',
-    badgeBg: 'bg-[#C084FC]',
-    buttonBg: 'bg-[#9333EA] hover:bg-[#7E22CE] text-white',
-    badgeText: 'text-black',
-  },
-  {
     to: '/fruit-ninja',
     id: 'fruit-ninja',
     emoji: '🍉',
@@ -122,7 +109,6 @@ export default function Home() {
             <span className="mx-4">✦ REAL-TIME AI HAND TRACKING ✦</span>
             <span className="mx-4">🎮 100% IN-BROWSER</span>
             <span className="mx-4">🚫 NO CONTROLLER REQUIRED</span>
-            <span className="mx-4">🎨 AIR DRAW</span>
             <span className="mx-4">🍉 FRUIT NINJA</span>
             <span className="mx-4">🏎️ CRAZY ROAD</span>
             <span className="mx-4">🐦 FLAPPY BIRD</span>

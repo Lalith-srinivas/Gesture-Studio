@@ -14,7 +14,6 @@
 import { useCallback } from 'react';
 
 const GAME_NAMES = [
-  'air-draw',
   'fruit-ninja',
   'hill-climb',
   'flappy-bird',

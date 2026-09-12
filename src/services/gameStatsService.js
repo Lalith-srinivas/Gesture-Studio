@@ -24,7 +24,6 @@ export const GAME_IDS = [
   'archery',
   'bird-hunter',
   'hill-climb',
-  'air-draw',
 ];
 
 export const GAME_LABELS = {
@@ -33,7 +32,6 @@ export const GAME_LABELS = {
   'archery':     { label: 'Archery Challenge', emoji: '🏹' },
   'bird-hunter': { label: 'Bird Hunter', emoji: '🦅' },
   'hill-climb':  { label: 'Crazy Road', emoji: '🏎️' },
-  'air-draw':    { label: 'Air Draw', emoji: '🎨' },
 };
 
 /**
