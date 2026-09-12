@@ -162,6 +162,12 @@ export default function HolographicHand({
           return { x: nx, y: ny, z: p.z };
         });
 
+      case 'SCROLL_UP':
+        return DEFAULT_OPEN_PALM.map(p => ({ x: p.x, y: p.y - 10, z: p.z }));
+
+      case 'SCROLL_DOWN':
+        return DEFAULT_OPEN_PALM.map(p => ({ x: p.x, y: p.y + 8, z: p.z }));
+
       case 'ROCK':
         // Index and Pinky extended, Middle and Ring curled
         pts[8] = { x: 28, y: 15, z: 5 };
@@ -336,6 +342,36 @@ export default function HolographicHand({
             />
             <text x="60" y="63" fill="#38BDF8" fontSize="4.5" fontFamily="monospace" fontWeight="bold">
               TILT RIGHT
+            </text>
+          </g>
+        )}
+
+        {gesture === 'SCROLL_UP' && (
+          <g opacity="0.95">
+            <path
+              d="M 50 28 L 50 12 M 50 12 L 44 18 M 50 12 L 56 18"
+              stroke="#38BDF8"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <text x="32" y="8" fill="#38BDF8" fontSize="4.5" fontFamily="monospace" fontWeight="bold">
+              SWIPE UP
+            </text>
+          </g>
+        )}
+
+        {gesture === 'SCROLL_DOWN' && (
+          <g opacity="0.95">
+            <path
+              d="M 50 72 L 50 88 M 50 88 L 44 82 M 50 88 L 56 82"
+              stroke="#38BDF8"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <text x="28" y="96" fill="#38BDF8" fontSize="4.5" fontFamily="monospace" fontWeight="bold">
+              SWIPE DOWN
             </text>
           </g>
         )}

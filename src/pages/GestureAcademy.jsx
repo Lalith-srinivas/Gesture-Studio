@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import HolographicHand from '../components/HolographicHand';
 import { useHandTracking } from '../hooks/useHandTracking';
@@ -95,110 +95,123 @@ const GAME_MAP = {
   'bird-hunter': { name: 'Bird Hunter', path: '/bird-hunter', emoji: '🦅' },
 };
 
-// ── 7 Academy Lessons ─────────────────────────────────────────────────────
-const LESSONS = [
-  {
+// ── Master Gestures Dictionary ───────────────────────────────────────────
+const ALL_LESSONS = {
+  'index-point': {
     id: 'index-point',
     name: 'Index Point',
     emoji: '☝️',
     holoGesture: 'INDEX_POINT',
-    badge: 'FUNDAMENTAL',
+    badge: 'POINT / SLICE',
     badgeBg: 'bg-neo-yellow',
     description: 'Extend your index finger upwards while curling your thumb and other fingers.',
-    usage: 'Air Draw (Paint & Sketch) · Crazy Road (Lane 1)',
-    hint: 'Keep only your index finger straight up. MediaPipe will detect your drawing tip.',
+    usage: 'Air Draw · Traffic Lane 1 · Move',
+    hint: 'Point your index finger straight up. Used for drawing and lane movement.',
     verify: (gesture) => gesture === GESTURES.DRAW,
   },
-  {
+  'two-fingers': {
     id: 'two-fingers',
-    name: 'Two Fingers (Peace)',
+    name: 'Peace Sign',
     emoji: '✌️',
     holoGesture: 'TWO_FINGERS',
-    badge: 'ACTION',
+    badge: 'ERASE / ACTION',
     badgeBg: 'bg-neo-cyan',
     description: 'Raise both your index and middle fingers in a classic peace or V-sign.',
-    usage: 'Air Draw (Eraser Mode) · Crazy Road (Lane 2)',
-    hint: 'Separate your index and middle fingers slightly. Keep your ring and pinky fingers down.',
+    usage: 'Erase Mode · Traffic Lane 2 · Left',
+    hint: 'Keep index and middle fingers extended apart in a peace sign.',
     verify: (gesture) => gesture === GESTURES.ERASE,
   },
-  {
+  'rock': {
+    id: 'rock',
+    name: 'Rock Sign',
+    emoji: '🤟',
+    holoGesture: 'ROCK',
+    badge: 'PAUSE & CONTROL',
+    badgeBg: 'bg-orange-300',
+    description: 'Extend your index and pinky fingers up, keeping middle and ring fingers folded.',
+    usage: 'Traffic Lane 3 · Pause Game',
+    hint: 'Show the rock / horns sign (index + pinky up). Universal pause/resume across all games!',
+    verify: (gesture) => gesture === GESTURES.ROCK,
+  },
+  'pinch': {
     id: 'pinch',
-    name: 'Pinch Fingers',
+    name: 'Pinch Finger',
     emoji: '🤏',
     holoGesture: 'PINCH',
-    badge: 'PRECISION',
+    badge: 'GRAB & SLING',
     badgeBg: 'bg-neo-pink',
     description: 'Pinch your thumb tip and index fingertip firmly together.',
-    usage: 'Bird Hunter (Pull Slingshot) · Archery (Draw Bow) · Flappy Bird (Flap Wings)',
+    usage: 'Slingshot · Bow · Flap Bird',
     hint: 'Touch your thumb tip directly to your index tip. Hold steady.',
     verify: (gesture) => gesture === GESTURES.PINCH,
   },
-  {
-    id: 'open-palm',
-    name: 'Open Palm',
-    emoji: '✋',
-    holoGesture: 'OPEN_PALM',
-    badge: 'RELEASE & MENU',
-    badgeBg: 'bg-neo-lime',
-    description: 'Open your hand wide with all five fingers extended and separated.',
-    usage: 'Bird Hunter & Archery (Release to Fire) · Air Draw (Hover / Stop)',
-    hint: 'Spread all five fingers clearly in front of the camera view.',
-    verify: (gesture) => gesture === GESTURES.STOP,
-  },
-  {
+  'fist': {
     id: 'fist',
     name: 'Closed Fist',
     emoji: '✊',
     holoGesture: 'FIST',
     badge: 'POWER & CANCEL',
-    badgeBg: 'bg-orange-300',
+    badgeBg: 'bg-amber-300',
     description: 'Curl all fingers tightly into a solid closed fist.',
-    usage: 'Crazy Road (Nitro Boost) · Slingshot (Cancel Shot) · Air Draw (Pan Canvas)',
-    hint: 'Tuck all fingers into your palm so no extended fingertips are visible.',
+    usage: 'Cancel Aim · Nitro Boost',
+    hint: 'Tuck all fingers firmly into your palm.',
     verify: (gesture) => gesture === GESTURES.PAN,
   },
-  {
-    id: 'move-left',
-    name: 'Move Hand Left',
-    emoji: '👈',
-    holoGesture: 'MOVE_LEFT',
-    badge: 'MOTION',
+  'scroll-up': {
+    id: 'scroll-up',
+    name: 'Scroll Up',
+    emoji: '👆',
+    holoGesture: 'SCROLL_UP',
+    badge: 'NAVIGATION',
     badgeBg: 'bg-purple-300',
-    description: 'Keep your hand visible and glide it towards the left side of your screen.',
-    usage: 'Crazy Road (Steer Left) · Menu Navigation',
-    hint: 'Position your hand in the left third of your webcam frame.',
+    description: 'Move or hold your hand towards the upper part of the screen.',
+    usage: 'Scroll Up · Upward Movement',
+    hint: 'Raise your hand into the top portion of the camera frame.',
     verify: (gesture, landmarks) => {
       if (!landmarks || landmarks.length < 21) return false;
-      // In mirrored video, screen left corresponds to normalized x > 0.62 in raw coords
-      const rawX = landmarks[0].x;
-      const mirroredX = 1 - rawX;
-      return mirroredX < 0.38;
+      return landmarks[0].y < 0.40 || landmarks[8].y < 0.32;
     },
   },
-  {
-    id: 'move-right',
-    name: 'Move Hand Right',
-    emoji: '👉',
-    holoGesture: 'MOVE_RIGHT',
-    badge: 'MOTION',
+  'scroll-down': {
+    id: 'scroll-down',
+    name: 'Scroll Down',
+    emoji: '👇',
+    holoGesture: 'SCROLL_DOWN',
+    badge: 'NAVIGATION',
     badgeBg: 'bg-blue-300',
-    description: 'Keep your hand visible and glide it towards the right side of your screen.',
-    usage: 'Crazy Road (Steer Right) · Menu Navigation',
-    hint: 'Position your hand in the right third of your webcam frame.',
+    description: 'Move or hold your hand towards the lower part of the screen.',
+    usage: 'Scroll Down · Downward Movement',
+    hint: 'Lower your hand into the bottom portion of the camera frame.',
     verify: (gesture, landmarks) => {
       if (!landmarks || landmarks.length < 21) return false;
-      const rawX = landmarks[0].x;
-      const mirroredX = 1 - rawX;
-      return mirroredX > 0.62;
+      return landmarks[0].y > 0.60 || landmarks[8].y > 0.65;
     },
   },
-];
+};
+
+// Game specific gesture lesson mapping
+const GAME_LESSON_IDS = {
+  'fruit-ninja': ['index-point', 'two-fingers', 'rock'],
+  'flappy-bird': ['pinch', 'rock'],
+  'archery': ['pinch', 'rock'],
+  'bird-hunter': ['pinch', 'fist', 'rock'],
+  'hill-climb': ['index-point', 'two-fingers', 'rock', 'fist'],
+  'air-draw': ['index-point', 'two-fingers', 'fist', 'rock'],
+};
 
 export default function GestureAcademy() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const targetGameKey = searchParams.get('game');
   const targetGame = targetGameKey ? GAME_MAP[targetGameKey] : null;
+
+  // Filter lessons: specific gestures for specific game, or ALL gestures for full academy
+  const lessons = useMemo(() => {
+    if (targetGameKey && GAME_LESSON_IDS[targetGameKey]) {
+      return GAME_LESSON_IDS[targetGameKey].map((id) => ALL_LESSONS[id]).filter(Boolean);
+    }
+    return Object.values(ALL_LESSONS);
+  }, [targetGameKey]);
 
   const { completeGame, completeGlobal, resetAll, settings } = useGestureAcademy(targetGameKey);
 
@@ -226,7 +239,7 @@ export default function GestureAcademy() {
   const lessonIndexRef = useRef(lessonIndex);
   lessonIndexRef.current = lessonIndex;
 
-  const currentLesson = LESSONS[lessonIndex] || LESSONS[0];
+  const currentLesson = lessons[lessonIndex] || lessons[0];
 
   // Mobile orientation check
   useEffect(() => {
@@ -306,7 +319,7 @@ export default function GestureAcademy() {
       if (isCompleted || isAdvancingRef.current) return;
 
       const currentIdx = lessonIndexRef.current;
-      const lesson = LESSONS[currentIdx];
+      const lesson = lessons[currentIdx];
       if (!lesson) return;
 
       const isMatch = lesson.verify(gesture, landmarks);
@@ -332,14 +345,14 @@ export default function GestureAcademy() {
 
           advanceTimeoutRef.current = setTimeout(() => {
             const nextIdx = lessonIndexRef.current + 1;
-            if (nextIdx < LESSONS.length) {
+            if (nextIdx < lessons.length) {
               setLessonIndex(nextIdx);
               setMatchProgress(0);
               setIsSuccessPulsing(false);
               holdStartTimeRef.current = null;
               isAdvancingRef.current = false;
             } else {
-              // Completed all 7 lessons!
+              // Completed all lessons!
               setIsCompleted(true);
               completeGlobal();
               if (targetGameKey) completeGame(targetGameKey);
@@ -491,17 +504,17 @@ export default function GestureAcademy() {
                 <span className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-neo-lime border border-black animate-pulse" />
                   <span>
-                    Lesson {lessonIndex + 1} of {LESSONS.length}: {currentLesson.name}
+                    Lesson {lessonIndex + 1} of {lessons.length}: {currentLesson.name}
                   </span>
                 </span>
                 <span className="text-zinc-600">
-                  {Math.round(((lessonIndex) / LESSONS.length) * 100)}% Complete
+                  {Math.round(((lessonIndex) / lessons.length) * 100)}% Complete
                 </span>
               </div>
               <div className="w-full h-4 bg-zinc-100 border-2 border-black overflow-hidden relative">
                 <div
                   className="h-full bg-neo-lime border-r-2 border-black transition-all duration-300"
-                  style={{ width: `${((lessonIndex) / LESSONS.length) * 100}%` }}
+                  style={{ width: `${((lessonIndex) / lessons.length) * 100}%` }}
                 />
               </div>
             </div>
@@ -659,7 +672,7 @@ export default function GestureAcademy() {
                       setIsSuccessPulsing(false);
                       sounds.playSuccess();
                       const nextIdx = lessonIndexRef.current + 1;
-                      if (nextIdx < LESSONS.length) {
+                      if (nextIdx < lessons.length) {
                         setLessonIndex(nextIdx);
                         setMatchProgress(0);
                       } else {
@@ -686,35 +699,27 @@ export default function GestureAcademy() {
             </div>
 
             <div className="inline-block px-3 py-1 bg-neo-lime border-2 border-black font-mono font-black text-xs uppercase tracking-wider mb-4">
-              ACADEMY COMPLETED
+              {targetGame ? `${targetGame.name.toUpperCase()} TRAINING COMPLETE` : 'ACADEMY COMPLETED'}
             </div>
 
             <h1 className="font-display font-black text-3xl sm:text-5xl uppercase tracking-tight mb-3">
-              You are Gesture Certified!
+              {targetGame ? `Ready for ${targetGame.name}!` : 'You are Gesture Certified!'}
             </h1>
 
             <p className="text-zinc-700 text-base sm:text-lg font-medium max-w-lg mx-auto mb-8 leading-relaxed">
-              Congratulations! You have mastered all 7 core hand gestures recognized by Gesture Studio's vision engine. You are now ready to dominate the games.
+              {targetGame
+                ? `Congratulations! You have mastered all gestures required for ${targetGame.name}. Jump in and set your high score!`
+                : 'Congratulations! You have mastered all hand gestures recognized by Gesture Studio vision engine. You are now ready to dominate the games.'}
             </p>
 
             {/* Achievement Badges Row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-              <div className="bg-neo-cream border-2 border-black p-3 text-center">
-                <span className="text-2xl mb-1 block">☝️</span>
-                <span className="font-mono font-bold text-[11px] uppercase">Point & Slice</span>
-              </div>
-              <div className="bg-neo-cream border-2 border-black p-3 text-center">
-                <span className="text-2xl mb-1 block">🤏</span>
-                <span className="font-mono font-bold text-[11px] uppercase">Pinch & Pull</span>
-              </div>
-              <div className="bg-neo-cream border-2 border-black p-3 text-center">
-                <span className="text-2xl mb-1 block">✊</span>
-                <span className="font-mono font-bold text-[11px] uppercase">Fist Power</span>
-              </div>
-              <div className="bg-neo-cream border-2 border-black p-3 text-center">
-                <span className="text-2xl mb-1 block">✋</span>
-                <span className="font-mono font-bold text-[11px] uppercase">Release Shoot</span>
-              </div>
+            <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
+              {lessons.map((l) => (
+                <div key={l.id} className="bg-neo-cream border-2 border-black p-3 text-center min-w-[100px]">
+                  <span className="text-2xl mb-1 block">{l.emoji}</span>
+                  <span className="font-mono font-bold text-[11px] uppercase block">{l.name}</span>
+                </div>
+              ))}
             </div>
 
             {/* Action Buttons */}
