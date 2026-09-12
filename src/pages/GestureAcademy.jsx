@@ -187,11 +187,26 @@ const ALL_LESSONS = {
       return landmarks[0].y > 0.60 || landmarks[8].y > 0.65;
     },
   },
+  'move-slice': {
+    id: 'move-slice',
+    name: 'Moving / Slice',
+    emoji: '⚔️',
+    holoGesture: 'MOVE_RIGHT',
+    badge: 'SWIPE & SLICE',
+    badgeBg: 'bg-neo-lime',
+    description: 'Glide your hand across the screen to slice airborne fruits.',
+    usage: 'Fruit Ninja (Swipe to Slice)',
+    hint: 'Move your hand left and right across the camera to slice fruits.',
+    verify: (gesture, landmarks) => {
+      if (!landmarks || landmarks.length < 21) return false;
+      return true;
+    },
+  },
 };
 
 // Game specific gesture lesson mapping
 const GAME_LESSON_IDS = {
-  'fruit-ninja': ['index-point', 'two-fingers', 'rock'],
+  'fruit-ninja': ['index-point', 'move-slice'],
   'flappy-bird': ['pinch', 'rock'],
   'archery': ['pinch', 'rock'],
   'bird-hunter': ['pinch', 'fist', 'rock'],
@@ -210,7 +225,7 @@ export default function GestureAcademy() {
     if (targetGameKey && GAME_LESSON_IDS[targetGameKey]) {
       return GAME_LESSON_IDS[targetGameKey].map((id) => ALL_LESSONS[id]).filter(Boolean);
     }
-    return Object.values(ALL_LESSONS);
+    return Object.values(ALL_LESSONS).filter((l) => l.id !== 'move-slice');
   }, [targetGameKey]);
 
   const { completeGame, completeGlobal, resetAll, settings } = useGestureAcademy(targetGameKey);
@@ -220,7 +235,6 @@ export default function GestureAcademy() {
   const [isCompleted, setIsCompleted] = useState(false);
   const [showSkipModal, setShowSkipModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [isMobilePortrait, setIsMobilePortrait] = useState(false);
 
   // Live detection feedback
   const [liveGesture, setLiveGesture] = useState(GESTURES.NONE);
@@ -240,20 +254,6 @@ export default function GestureAcademy() {
   lessonIndexRef.current = lessonIndex;
 
   const currentLesson = lessons[lessonIndex] || lessons[0];
-
-  // Mobile orientation check
-  useEffect(() => {
-    const checkOrientation = () => {
-      if (window.innerWidth < 768 && window.innerHeight > window.innerWidth) {
-        setIsMobilePortrait(true);
-      } else {
-        setIsMobilePortrait(false);
-      }
-    };
-    checkOrientation();
-    window.addEventListener('resize', checkOrientation);
-    return () => window.removeEventListener('resize', checkOrientation);
-  }, []);
 
   // Confetti burst animation
   const triggerConfetti = useCallback(() => {
@@ -354,8 +354,11 @@ export default function GestureAcademy() {
             } else {
               // Completed all lessons!
               setIsCompleted(true);
-              completeGlobal();
-              if (targetGameKey) completeGame(targetGameKey);
+              if (targetGameKey) {
+                completeGame(targetGameKey);
+              } else {
+                completeGlobal();
+              }
               sounds.playFanfare();
               triggerConfetti();
               isAdvancingRef.current = false;
@@ -388,8 +391,11 @@ export default function GestureAcademy() {
   // Handle Skip Action
   const handleConfirmSkip = () => {
     sounds.playClick();
-    if (targetGameKey) completeGame(targetGameKey);
-    completeGlobal();
+    if (targetGameKey) {
+      completeGame(targetGameKey);
+    } else {
+      completeGlobal();
+    }
     setShowSkipModal(false);
     if (targetGame) {
       navigate(targetGame.path);
@@ -427,22 +433,6 @@ export default function GestureAcademy() {
         ref={confettiCanvasRef}
         className="fixed inset-0 pointer-events-none z-50"
       />
-
-      {/* ── Mobile Orientation Warning ───────────────────────────────────── */}
-      {isMobilePortrait && (
-        <div className="fixed inset-0 z-50 bg-neo-yellow flex flex-col items-center justify-center p-6 text-center border-4 border-black">
-          <span className="text-6xl mb-4 animate-bounce">📱🔄</span>
-          <h2 className="font-display font-black text-2xl uppercase tracking-tight mb-2">
-            Rotate Your Device
-          </h2>
-          <p className="font-medium text-sm text-zinc-800 max-w-xs mb-4">
-            Gesture Academy requires landscape orientation to detect hand movements with your camera.
-          </p>
-          <div className="px-4 py-2 bg-white border-2 border-black font-mono font-bold text-xs uppercase shadow-neo-sm">
-            Rotate to Landscape to Continue
-          </div>
-        </div>
-      )}
 
       {/* ── Top Header Navigation Bar ──────────────────────────────────────── */}
       <header className="w-full bg-white border-b-3 border-black px-4 py-3 flex items-center justify-between shadow-neo-sm z-30 sticky top-0">

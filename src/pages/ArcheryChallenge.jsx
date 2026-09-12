@@ -874,84 +874,89 @@ export default function ArcheryChallenge() {
   return (
     <div className="relative w-full h-screen bg-amber-50 font-sans select-none overflow-hidden flex flex-col">
       
-      {/* Portrait / Rotate Device Prompt */}
+      {/* Portrait / Rotate Device Prompt with play anyway option */}
       {orientation === 'portrait' && (
-        <div className="absolute inset-0 z-50 bg-amber-400/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center select-none">
-          <div className="bg-white border-8 border-black shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] rounded-3xl p-8 max-w-sm w-full text-center flex flex-col items-center gap-4 animate-bounce-subtle">
-            <div className="w-16 h-16 bg-yellow-300 border-4 border-black rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center text-4xl animate-spin-slow">
+        <div className="absolute inset-0 z-50 bg-amber-400/95 backdrop-blur-sm flex flex-col items-center justify-center p-4 sm:p-6 text-center select-none overflow-y-auto">
+          <div className="bg-white border-4 sm:border-8 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] sm:shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] rounded-2xl sm:rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center flex flex-col items-center gap-3 sm:gap-4 animate-bounce-subtle max-h-[92vh] overflow-y-auto my-auto">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-yellow-300 border-3 sm:border-4 border-black rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center text-3xl sm:text-4xl animate-spin-slow">
               🔄
             </div>
-            <h2 className="text-3xl font-black uppercase text-black tracking-tight -rotate-1">
+            <h2 className="text-2xl sm:text-3xl font-black uppercase text-black tracking-tight -rotate-1">
               Rotate Device
             </h2>
-            <p className="font-mono text-sm font-black text-zinc-800 uppercase leading-relaxed">
-              Please turn your phone to <span className="text-orange-600 bg-orange-100 px-1 border border-black">Landscape Mode</span> for full screen archery precision & best hand tracking!
+            <p className="font-mono text-xs sm:text-sm font-black text-zinc-800 uppercase leading-relaxed">
+              Turn phone to <span className="text-orange-600 bg-orange-100 px-1 border border-black">Landscape Mode</span> for best archery precision & hand tracking!
             </p>
-            <div className="mt-2 text-4xl">
+            <div className="mt-1 text-3xl sm:text-4xl">
               📱 ➔ 📲
             </div>
+            <button
+              onClick={() => setOrientation('landscape')}
+              className="mt-2 text-xs font-mono font-bold text-zinc-600 underline hover:text-black py-1 px-3 border border-dashed border-zinc-400 rounded-lg hover:border-black"
+            >
+              Continue in Portrait
+            </button>
           </div>
         </div>
       )}
 
       {/* --- TOP HUD OVERLAY --- */}
-      <header className="absolute top-4 left-4 right-4 z-10 flex flex-wrap justify-between items-center gap-4 pointer-events-none">
-        <div className="flex items-center gap-3 pointer-events-auto">
+      <header className="absolute top-1.5 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 z-10 flex flex-wrap justify-between items-center gap-1.5 sm:gap-4 pointer-events-none">
+        <div className="flex items-center gap-1.5 sm:gap-3 pointer-events-auto">
           {/* Back to Home Button */}
           <button
             onClick={() => navigate('/')}
-            className="bg-white hover:bg-yellow-300 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none px-3.5 py-2 rounded-xl text-xs font-mono font-black uppercase transition-all flex items-center gap-1.5"
+            className="bg-white hover:bg-yellow-300 border-2 sm:border-4 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none px-2 sm:px-3.5 py-1 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-mono font-black uppercase transition-all flex items-center gap-1"
             title="Back to Home"
           >
-            <span>←</span> HOME
+            <span>←</span> <span className="hidden xs:inline">HOME</span>
           </button>
 
           {/* Score Display */}
-          <div className="bg-yellow-400 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-4 py-2 rounded-xl">
-            <span className="text-xs font-black uppercase tracking-wider block text-black">Score</span>
-            <span className="text-3xl font-black text-black">{score}</span>
+          <div className="bg-yellow-400 border-2 sm:border-4 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-2 sm:px-4 py-0.5 sm:py-2 rounded-lg sm:rounded-xl">
+            <span className="text-[9px] sm:text-xs font-black uppercase tracking-wider block text-black leading-tight">Score</span>
+            <span className="text-base sm:text-3xl font-black text-black leading-none">{score}</span>
           </div>
 
           {/* Combo Multiplier */}
-          <div className="bg-pink-500 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-4 py-2 rounded-xl text-white">
-            <span className="text-xs font-black uppercase tracking-wider block">Combo</span>
-            <span className="text-3xl font-black">{combo}x</span>
+          <div className="bg-pink-500 border-2 sm:border-4 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-2 sm:px-4 py-0.5 sm:py-2 rounded-lg sm:rounded-xl text-white">
+            <span className="text-[9px] sm:text-xs font-black uppercase tracking-wider block leading-tight">Combo</span>
+            <span className="text-base sm:text-3xl font-black leading-none">{combo}x</span>
           </div>
 
           {/* 3 Strikes / Misses counter */}
-          <div className={`border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-4 py-2 rounded-xl text-white transition-all ${consecutiveMisses >= 2 ? 'bg-red-600 animate-pulse' : consecutiveMisses === 1 ? 'bg-amber-500' : 'bg-zinc-800'}`}>
-            <span className="text-[10px] font-black uppercase tracking-wider block">Strikes (3=Over)</span>
-            <span className="text-base font-black tracking-widest font-mono">
-              {consecutiveMisses === 0 ? '⚪ ⚪ ⚪' :
-               consecutiveMisses === 1 ? '❌ ⚪ ⚪' :
-               consecutiveMisses === 2 ? '❌ ❌ ⚪' : '❌ ❌ ❌'}
+          <div className={`border-2 sm:border-4 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-2 sm:px-4 py-0.5 sm:py-2 rounded-lg sm:rounded-xl text-white transition-all ${consecutiveMisses >= 2 ? 'bg-red-600 animate-pulse' : consecutiveMisses === 1 ? 'bg-amber-500' : 'bg-zinc-800'}`}>
+            <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-wider block leading-tight">Strikes</span>
+            <span className="text-xs sm:text-base font-black tracking-wider font-mono leading-none">
+              {consecutiveMisses === 0 ? '⚪⚪⚪' :
+               consecutiveMisses === 1 ? '❌⚪⚪' :
+               consecutiveMisses === 2 ? '❌❌⚪' : '❌❌❌'}
             </span>
           </div>
         </div>
 
         {/* Live Gesture Detection Chip */}
-        <div className="flex items-center gap-2 bg-white/95 border-3 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] px-3.5 py-1.5 rounded-xl pointer-events-auto">
-          <span className={`w-2.5 h-2.5 rounded-full border border-black ${handTracked ? 'bg-neo-lime animate-pulse' : 'bg-zinc-400'}`} />
-          <span className="text-xs font-mono font-bold text-zinc-600">GESTURE:</span>
-          <span className="text-xs font-mono font-black uppercase text-black">
-            {activeGesture === GESTURES.PINCH ? '🤏 Aiming Bow' :
-             activeGesture === GESTURES.PAN ? '✊ Cancel Shot' :
+        <div className="flex items-center gap-1.5 sm:gap-2 bg-white/95 border-2 sm:border-3 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] sm:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] px-2 sm:px-3.5 py-1 sm:py-1.5 rounded-lg sm:rounded-xl pointer-events-auto">
+          <span className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full border border-black ${handTracked ? 'bg-neo-lime animate-pulse' : 'bg-zinc-400'}`} />
+          <span className="text-[10px] sm:text-xs font-mono font-black uppercase text-black">
+            {activeGesture === GESTURES.PINCH ? '🤏 Aim' :
+             activeGesture === GESTURES.PAN ? '✊ Cancel' :
              activeGesture === GESTURES.ROCK ? '🤟 Pause' :
-             handTracked ? '✋ Hand Ready' : '🔍 Detect Hand'}
+             handTracked ? '✋ Ready' : '🔍 Hand'}
           </span>
         </div>
 
         {/* Active Powerup Banner */}
         {activePowerup && (
-          <div className="bg-purple-500 text-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-6 py-2 rounded-xl font-black text-lg animate-bounce">
+          <div className="bg-purple-500 text-white border-2 sm:border-4 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-2 sm:px-6 py-0.5 sm:py-2 rounded-lg sm:rounded-xl font-black text-xs sm:text-lg animate-bounce">
             ⚡ {activePowerup}: {powerupTimeLeft}s
           </div>
         )}
 
         {/* High Score */}
-        <div className="bg-cyan-400 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-4 py-2 rounded-xl pointer-events-auto">
-          <span className="text-xs font-black uppercase tracking-wider block text-black">High Score</span>
-          <span className="text-3xl font-black text-black">{highScore}</span>
+        <div className="bg-cyan-400 border-2 sm:border-4 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-2 sm:px-4 py-0.5 sm:py-2 rounded-lg sm:rounded-xl pointer-events-auto">
+          <span className="text-[9px] sm:text-xs font-black uppercase tracking-wider block text-black leading-tight">High Score</span>
+          <span className="text-base sm:text-3xl font-black text-black leading-none">{highScore}</span>
         </div>
       </header>
 
@@ -994,7 +999,7 @@ export default function ArcheryChallenge() {
       />
 
       {/* --- BOTTOM CONTROLS & UI --- */}
-      <footer className="absolute bottom-4 left-4 right-4 z-10 flex justify-between items-center pointer-events-none">
+      <footer className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 right-2 sm:right-4 z-10 flex justify-between items-center pointer-events-none">
         <div className="flex gap-2 pointer-events-auto">
           <button
             onClick={() => {
@@ -1002,7 +1007,7 @@ export default function ArcheryChallenge() {
               setIsMuted(muted);
               soundManager.muted = muted;
             }}
-            className="bg-white hover:bg-gray-100 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none p-3 rounded-xl font-black text-xl"
+            className="bg-white hover:bg-gray-100 border-2 sm:border-4 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none p-2 sm:p-3 rounded-xl font-black text-base sm:text-xl"
           >
             {isMuted ? '🔇' : '🔊'}
           </button>
@@ -1012,14 +1017,14 @@ export default function ArcheryChallenge() {
           {gameState === 'PLAYING' && (
             <button
               onClick={() => setGameState('PAUSED')}
-              className="bg-orange-400 hover:bg-orange-500 text-black border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none px-6 py-3 rounded-xl font-black text-lg"
+              className="bg-orange-400 hover:bg-orange-500 text-black border-2 sm:border-4 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none px-3 sm:px-6 py-1.5 sm:py-3 rounded-xl font-black text-sm sm:text-lg"
             >
               PAUSE
             </button>
           )}
           <button
             onClick={startGame}
-            className="bg-green-400 hover:bg-green-500 text-black border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none px-6 py-3 rounded-xl font-black text-lg"
+            className="bg-green-400 hover:bg-green-500 text-black border-2 sm:border-4 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none px-3 sm:px-6 py-1.5 sm:py-3 rounded-xl font-black text-sm sm:text-lg"
           >
             RESTART
           </button>
@@ -1028,44 +1033,44 @@ export default function ArcheryChallenge() {
 
       {/* --- START / OVERLAY MENU (NEO-BRUTALISM) --- */}
       {gameState !== 'PLAYING' && (
-        <div className="absolute inset-0 z-20 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border-8 border-black shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] rounded-3xl p-6 sm:p-8 max-w-lg w-full text-center flex flex-col gap-5">
-            <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-black italic transform -rotate-2">
+        <div className="absolute inset-0 z-20 bg-black/40 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white border-4 sm:border-8 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] sm:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-lg w-full text-center flex flex-col gap-3 sm:gap-4 max-h-[94vh] overflow-y-auto my-auto">
+            <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-black italic transform -rotate-2">
               ARCHERY<br />CHALLENGE
             </h1>
 
             {gameState === 'PAUSED' && (
-              <p className="text-xl font-bold bg-yellow-300 border-2 border-black p-2 rounded-lg">
+              <p className="text-base sm:text-xl font-bold bg-yellow-300 border-2 border-black p-1.5 sm:p-2 rounded-lg">
                 GAME PAUSED
               </p>
             )}
 
             {gameState === 'GAMEOVER' && (
-              <div className="bg-red-400 border-4 border-black p-4 rounded-xl text-white">
-                <span className="block font-black text-xs uppercase tracking-widest text-red-100 mb-1">
+              <div className="bg-red-400 border-2 sm:border-4 border-black p-3 sm:p-4 rounded-xl text-white">
+                <span className="block font-black text-xs uppercase tracking-widest text-red-100 mb-0.5">
                   {consecutiveMisses >= 3 ? '❌ 3 CONSECUTIVE MISSES!' : 'GAME OVER'}
                 </span>
-                <span className="block font-black text-sm uppercase tracking-wide">FINAL SCORE</span>
-                <span className="text-4xl font-black">{score}</span>
+                <span className="block font-black text-xs sm:text-sm uppercase tracking-wide">FINAL SCORE</span>
+                <span className="text-2xl sm:text-4xl font-black">{score}</span>
               </div>
             )}
 
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2 sm:gap-3">
               <button
                 onClick={() => {
                   if (gameState === 'PAUSED') setGameState('PLAYING');
                   else startGame();
                 }}
-                className="w-full bg-green-400 hover:bg-green-500 text-black border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none py-4 rounded-2xl font-black text-2xl tracking-wide uppercase transition-all"
+                className="w-full bg-green-400 hover:bg-green-500 text-black border-2 sm:border-4 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none py-2.5 sm:py-4 rounded-xl sm:rounded-2xl font-black text-lg sm:text-2xl tracking-wide uppercase transition-all"
               >
                 {gameState === 'PAUSED' ? 'RESUME' : 'PLAY NOW'}
               </button>
             </div>
 
             {/* Gesture Guide Table */}
-            <div className="text-left bg-gray-100 border-3 border-black p-4 rounded-xl text-xs">
-              <p className="font-display font-black text-sm mb-2 uppercase text-black">🎯 Hand Gesture Controls:</p>
-              <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 font-mono text-[11px] font-bold">
+            <div className="text-left bg-gray-100 border-2 sm:border-3 border-black p-2.5 sm:p-4 rounded-xl text-xs">
+              <p className="font-display font-black text-xs sm:text-sm mb-1.5 sm:mb-2 uppercase text-black">🎯 Hand Gesture Controls:</p>
+              <div className="grid grid-cols-2 gap-x-2 gap-y-1 font-mono text-[10px] sm:text-[11px] font-bold">
                 <div className="flex items-center gap-1.5"><span className="text-sm">🤏</span> <span>Pinch:</span></div>
                 <div className="text-zinc-800">Grab bowstring</div>
 

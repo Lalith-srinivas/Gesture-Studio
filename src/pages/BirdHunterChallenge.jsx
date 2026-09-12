@@ -1171,42 +1171,42 @@ export default function BirdHunterChallenge() {
       />
 
       {/* Top Neo-Brutalist HUD */}
-      <header className="absolute top-4 left-4 right-4 z-10 flex flex-wrap justify-between items-center gap-3 pointer-events-none">
-        <div className="flex items-center gap-3 pointer-events-auto">
+      <header className="absolute top-1.5 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 z-10 flex justify-between items-center gap-1.5 sm:gap-3 pointer-events-none">
+        <div className="flex items-center gap-1.5 sm:gap-3 pointer-events-auto">
           {/* Back to Home Button */}
           <button
             onClick={() => navigate('/')}
-            className="bg-white hover:bg-yellow-300 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none px-3.5 py-2 rounded-xl text-xs font-mono font-black uppercase transition-all flex items-center gap-1.5"
+            className="bg-white hover:bg-yellow-300 border-2 sm:border-4 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none px-2 sm:px-3.5 py-1 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-mono font-black uppercase transition-all flex items-center gap-1"
             title="Back to Home"
           >
-            <span>←</span> HOME
+            <span>←</span> <span className="hidden sm:inline">HOME</span>
           </button>
 
           {/* Score Card */}
-          <div className="bg-yellow-400 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-4 py-2 rounded-xl">
-            <span className="text-xs font-black uppercase tracking-wider block text-black">Score</span>
-            <span className="text-2xl sm:text-3xl font-black text-black">{score}</span>
+          <div className="bg-yellow-400 border-2 sm:border-4 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-2 sm:px-4 py-0.5 sm:py-2 rounded-lg sm:rounded-xl">
+            <span className="text-[9px] sm:text-xs font-black uppercase tracking-wider block text-black leading-none">Score</span>
+            <span className="text-base sm:text-3xl font-black text-black leading-tight">{score}</span>
           </div>
 
           {/* Combo Multiplier */}
-          <div className="bg-pink-500 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-4 py-2 rounded-xl text-white">
-            <span className="text-xs font-black uppercase tracking-wider block">Combo</span>
-            <span className="text-2xl sm:text-3xl font-black">x{combo}</span>
+          <div className="bg-pink-500 border-2 sm:border-4 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-2 sm:px-4 py-0.5 sm:py-2 rounded-lg sm:rounded-xl text-white">
+            <span className="text-[9px] sm:text-xs font-black uppercase tracking-wider block leading-none">Combo</span>
+            <span className="text-base sm:text-3xl font-black leading-tight">x{combo}</span>
           </div>
 
           {/* Strikes / 3 Misses Indicator */}
-          <div className={`border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-4 py-2 rounded-xl text-white transition-all ${consecutiveMisses >= 2 ? 'bg-red-600 animate-pulse' : consecutiveMisses === 1 ? 'bg-amber-500' : 'bg-zinc-800'}`}>
-            <span className="text-[10px] font-black uppercase tracking-wider block">Strikes (3=Over)</span>
-            <span className="text-base font-black tracking-widest font-mono">
-              {consecutiveMisses === 0 ? '⚪ ⚪ ⚪' :
-               consecutiveMisses === 1 ? '❌ ⚪ ⚪' :
-               consecutiveMisses === 2 ? '❌ ❌ ⚪' : '❌ ❌ ❌'}
+          <div className={`border-2 sm:border-4 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-2 sm:px-4 py-0.5 sm:py-2 rounded-lg sm:rounded-xl text-white transition-all ${consecutiveMisses >= 2 ? 'bg-red-600 animate-pulse' : consecutiveMisses === 1 ? 'bg-amber-500' : 'bg-zinc-800'}`}>
+            <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-wider block leading-none">Strikes</span>
+            <span className="text-xs sm:text-base font-black tracking-widest font-mono leading-tight">
+              {consecutiveMisses === 0 ? '⚪⚪⚪' :
+               consecutiveMisses === 1 ? '❌⚪⚪' :
+               consecutiveMisses === 2 ? '❌❌⚪' : '❌❌❌'}
             </span>
           </div>
         </div>
 
         {/* Live Gesture Detection Chip */}
-        <div className="flex items-center gap-2 bg-white/95 border-3 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] px-3.5 py-1.5 rounded-xl pointer-events-auto">
+        <div className="hidden md:flex items-center gap-2 bg-white/95 border-3 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] px-3.5 py-1.5 rounded-xl pointer-events-auto">
           <span className={`w-2.5 h-2.5 rounded-full border border-black ${handTracked ? 'bg-neo-lime animate-pulse' : 'bg-zinc-400'}`} />
           <span className="text-xs font-mono font-bold text-zinc-600">GESTURE:</span>
           <span className="text-xs font-mono font-black uppercase text-black">
@@ -1218,9 +1218,9 @@ export default function BirdHunterChallenge() {
         </div>
 
         {/* High Score Card */}
-        <div className="bg-cyan-400 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-4 py-2 rounded-xl pointer-events-auto">
-          <span className="text-xs font-black uppercase tracking-wider block text-black">High Score</span>
-          <span className="text-2xl sm:text-3xl font-black text-black">{highScore}</span>
+        <div className="bg-cyan-400 border-2 sm:border-4 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-2 sm:px-4 py-0.5 sm:py-2 rounded-lg sm:rounded-xl pointer-events-auto">
+          <span className="text-[9px] sm:text-xs font-black uppercase tracking-wider block text-black leading-none">High Score</span>
+          <span className="text-base sm:text-3xl font-black text-black leading-tight">{highScore}</span>
         </div>
       </header>
 
@@ -1271,23 +1271,23 @@ export default function BirdHunterChallenge() {
 
       {/* Main Menu Modal */}
       {gameState === 'MENU' && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-40 p-4">
-          <div className="bg-yellow-400 border-8 border-black shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] rounded-3xl p-6 sm:p-8 max-w-lg w-full text-center flex flex-col items-center gap-4">
-            <h1 className="text-4xl sm:text-5xl font-black uppercase text-black drop-shadow-[3px_3px_0px_#fff] -rotate-1">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-40 p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-yellow-400 border-4 sm:border-8 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] sm:shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] rounded-2xl sm:rounded-3xl p-3 sm:p-6 max-w-lg w-full text-center flex flex-col items-center gap-2 sm:gap-3.5 max-h-[94vh] overflow-y-auto my-auto">
+            <h1 className="text-2xl sm:text-5xl font-black uppercase text-black drop-shadow-[2px_2px_0px_#fff] sm:drop-shadow-[3px_3px_0px_#fff] -rotate-1">
               BIRD HUNTER
             </h1>
-            <h2 className="text-sm sm:text-base font-black uppercase text-black bg-white px-3 py-1 border-3 border-black inline-block">
+            <h2 className="text-xs sm:text-base font-black uppercase text-black bg-white px-2.5 py-0.5 sm:px-3 sm:py-1 border-2 sm:border-3 border-black inline-block">
               Slingshot Precision Challenge
             </h2>
 
-            <p className="text-xs sm:text-sm font-bold max-w-md text-zinc-900 leading-relaxed">
+            <p className="text-[11px] sm:text-sm font-bold max-w-md text-zinc-900 leading-snug sm:leading-relaxed">
               Pull back the slingshot with hand pinch gestures or mouse. Strike birds along chaotic flight paths and avoid letting 3 birds escape in a row!
             </p>
 
             {/* Gesture Guide Table */}
-            <div className="w-full text-left bg-white border-3 border-black p-3.5 rounded-xl text-xs">
-              <p className="font-display font-black text-sm mb-2 uppercase text-black">🎯 Hand Gesture Controls:</p>
-              <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 font-mono text-[11px] font-bold">
+            <div className="w-full text-left bg-white border-2 sm:border-3 border-black p-2 sm:p-3 rounded-xl text-xs">
+              <p className="font-display font-black text-xs sm:text-sm mb-1 sm:mb-1.5 uppercase text-black">🎯 Hand Gesture Controls:</p>
+              <div className="grid grid-cols-2 gap-x-2 gap-y-1 font-mono text-[10px] sm:text-[11px] font-bold">
                 <div className="flex items-center gap-1.5"><span className="text-sm">🤏</span> <span>Pinch:</span></div>
                 <div className="text-zinc-800">Grab pouch & stretch band</div>
 
@@ -1307,15 +1307,15 @@ export default function BirdHunterChallenge() {
 
             {/* Ammo Selector */}
             <div className="w-full">
-              <h3 className="text-xs font-black mb-2 uppercase tracking-wider text-black">Select Ammo Type:</h3>
-              <div className="flex justify-center gap-2 flex-wrap">
+              <h3 className="text-[10px] sm:text-xs font-black mb-1 uppercase tracking-wider text-black">Select Ammo Type:</h3>
+              <div className="flex justify-center gap-1.5 sm:gap-2 flex-wrap">
                 {PROJECTILES.map((p) => (
                   <button
                     key={p.id}
                     onClick={() => setSelectedProjectile(p)}
-                    className={`px-3 py-1.5 rounded-lg border-2 border-black font-bold text-xs flex items-center gap-1.5 transition-all ${selectedProjectile.id === p.id ? 'bg-black text-white shadow-neo-sm scale-105' : 'bg-white text-black'}`}
+                    className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border-2 border-black font-bold text-[10px] sm:text-xs flex items-center gap-1.5 transition-all ${selectedProjectile.id === p.id ? 'bg-black text-white shadow-neo-sm scale-105' : 'bg-white text-black'}`}
                   >
-                    <div className="w-3.5 h-3.5 rounded-full border border-black" style={{ backgroundColor: p.color }} />
+                    <div className="w-3 h-3 rounded-full border border-black" style={{ backgroundColor: p.color }} />
                     {p.name}
                   </button>
                 ))}
@@ -1324,7 +1324,7 @@ export default function BirdHunterChallenge() {
 
             <button
               onClick={startGame}
-              className="w-full bg-green-400 hover:bg-green-500 text-black border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none py-4 rounded-2xl font-black text-xl sm:text-2xl tracking-wide uppercase transition-all"
+              className="w-full bg-green-400 hover:bg-green-500 text-black border-3 sm:border-4 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl font-black text-base sm:text-xl tracking-wide uppercase transition-all mt-1"
             >
               START CHALLENGE
             </button>

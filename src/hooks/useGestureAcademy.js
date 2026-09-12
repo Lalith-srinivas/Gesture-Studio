@@ -40,24 +40,22 @@ export function useGestureAcademy(gameName) {
   // ── Actions ───────────────────────────────────────────────────────────────
   /**
    * Mark a specific game's tutorial as complete.
-   * Also sets global flag if all games are now done.
+   * Only affects the given game.
    */
   const completeGame = useCallback((name) => {
     const g = name || gameName;
-    if (g) localStorage.setItem(GESTURE_KEYS.game(g), 'true');
-    const allDone = GAME_NAMES.every(
-      (n) => localStorage.getItem(GESTURE_KEYS.game(n)) === 'true',
-    );
-    if (allDone) localStorage.setItem(GESTURE_KEYS.global, 'true');
+    if (g) {
+      localStorage.setItem(GESTURE_KEYS.game(g), 'true');
+    }
   }, [gameName]);
 
   /**
-   * Mark the full academy as globally complete and all game tutorials done.
-   * Called when a user finishes all 7 lessons.
+   * Mark the full academy as globally complete.
+   * Does NOT auto-complete individual game tutorials, ensuring each game
+   * still teaches its specific controls when first launched.
    */
   const completeGlobal = useCallback(() => {
     localStorage.setItem(GESTURE_KEYS.global, 'true');
-    GAME_NAMES.forEach((n) => localStorage.setItem(GESTURE_KEYS.game(n), 'true'));
   }, []);
 
   /**
