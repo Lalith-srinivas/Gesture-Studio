@@ -6,6 +6,7 @@ import AuthModal from '../components/AuthModal';
 const GAMES = [
   {
     to: '/air-draw',
+    id: 'air-draw',
     emoji: '🎨',
     tag: 'CREATIVE LAB',
     title: 'Air Draw',
@@ -18,6 +19,7 @@ const GAMES = [
   },
   {
     to: '/fruit-ninja',
+    id: 'fruit-ninja',
     emoji: '🍉',
     tag: 'ARCADE SLICE',
     title: 'Fruit Ninja',
@@ -30,6 +32,7 @@ const GAMES = [
   },
   {
     to: '/hill-climb',
+    id: 'hill-climb',
     emoji: '🏎️',
     tag: 'HIGH SPEED',
     title: 'Crazy Road',
@@ -42,6 +45,7 @@ const GAMES = [
   },
   {
     to: '/flappy-bird',
+    id: 'flappy-bird',
     emoji: '🐦',
     tag: 'RETRO ARCADE',
     title: 'Flappy Bird',
@@ -54,6 +58,7 @@ const GAMES = [
   },
   {
     to: '/archery',
+    id: 'archery',
     emoji: '🏹',
     tag: 'PRECISION BOW',
     title: 'Archery Challenge',
@@ -66,6 +71,7 @@ const GAMES = [
   },
   {
     to: '/bird-hunter',
+    id: 'bird-hunter',
     emoji: '🦅',
     tag: 'SLINGSHOT HUNT',
     title: 'Bird Hunter',
@@ -99,6 +105,7 @@ export default function Home() {
         <div className="flex-1 overflow-hidden">
           <div className="flex whitespace-nowrap animate-marquee font-mono font-black text-xs md:text-sm tracking-wider uppercase">
             <span className="mx-4">⚡ GESTURE STUDIO ⚡</span>
+            <span className="mx-4">🎓 GESTURE ACADEMY ONLINE</span>
             <span className="mx-4">✦ REAL-TIME AI HAND TRACKING ✦</span>
             <span className="mx-4">🎮 100% IN-BROWSER</span>
             <span className="mx-4">🚫 NO CONTROLLER REQUIRED</span>
@@ -111,32 +118,43 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Firebase Player Profile / Sign In Button */}
-        <button
-          onClick={() => setShowAuthModal(true)}
-          className="ml-3 px-3 py-1 bg-white hover:bg-zinc-100 border-2 border-black font-mono font-black text-xs uppercase flex items-center gap-1.5 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform shrink-0"
-        >
-          <span>{currentUser ? (isGuest ? '👤' : '⭐') : '🔑'}</span>
-          <span className="hidden sm:inline">
-            {currentUser
-              ? isGuest
-                ? 'Guest Player'
-                : userProfile?.username || 'Player'
-              : 'Sign In'}
-          </span>
-          {userProfile?.currentStreak > 0 && !isGuest && (
-            <span className="bg-amber-300 px-1 border border-black text-[10px]">
-              🔥 {userProfile.currentStreak}d
+        {/* Top Actions: Gesture Academy & Auth */}
+        <div className="flex items-center gap-2 shrink-0 ml-3">
+          <Link
+            to="/gesture-academy"
+            className="px-3 py-1 bg-[#818CF8] hover:bg-[#6366F1] text-white border-2 border-black font-mono font-black text-xs uppercase flex items-center gap-1.5 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
+          >
+            <span>🎓</span>
+            <span className="hidden sm:inline">Academy</span>
+          </Link>
+
+          {/* Firebase Player Profile / Sign In Button */}
+          <button
+            onClick={() => setShowAuthModal(true)}
+            className="px-3 py-1 bg-white hover:bg-zinc-100 border-2 border-black font-mono font-black text-xs uppercase flex items-center gap-1.5 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
+          >
+            <span>{currentUser ? (isGuest ? '👤' : '⭐') : '🔑'}</span>
+            <span className="hidden sm:inline">
+              {currentUser
+                ? isGuest
+                  ? 'Guest Player'
+                  : userProfile?.username || 'Player'
+                : 'Sign In'}
             </span>
-          )}
-        </button>
+            {userProfile?.currentStreak > 0 && !isGuest && (
+              <span className="bg-amber-300 px-1 border border-black text-[10px]">
+                🔥 {userProfile.currentStreak}d
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* ── Main Container ────────────────────────────────────────────────── */}
       <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 md:py-12 flex-1 flex flex-col items-center">
         
         {/* ── Hero Section ────────────────────────────────────────────────── */}
-        <div className="w-full max-w-4xl text-center mb-10 md:mb-14 relative flex flex-col items-center">
+        <div className="w-full max-w-4xl text-center mb-10 md:mb-12 relative flex flex-col items-center">
           
           {/* Top Pill Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white border-2 border-black shadow-neo-sm font-mono text-xs md:text-sm font-bold uppercase tracking-wider mb-6 rotate-[-1deg] hover:rotate-0 transition-transform">
@@ -173,9 +191,64 @@ export default function Home() {
           </div>
         </div>
 
+        {/* ── Featured Gesture Academy Hero Card ──────────────────────────── */}
+        <div className="w-full mb-12 bg-[#E0E7FF] border-3 md:border-4 border-black p-6 sm:p-8 shadow-neo-lg relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6 group hover:shadow-neo-xl transition-all">
+          {/* Subtle Decorative AR background text */}
+          <div className="absolute -bottom-6 -right-6 font-display font-black text-8xl text-indigo-200/40 select-none pointer-events-none uppercase">
+            ACADEMY
+          </div>
+
+          <div className="flex-1 relative z-10">
+            <div className="flex flex-wrap items-center gap-2.5 mb-3">
+              <span className="neo-tag bg-[#A5B4FC] text-black font-black">
+                NEW SYSTEM
+              </span>
+              <span className="neo-tag bg-white text-black font-mono">
+                7 INTERACTIVE LESSONS
+              </span>
+              <span className="bg-neo-lime px-2 py-0.5 border border-black font-mono font-black text-[10px] uppercase">
+                RECOMMENDED FIRST
+              </span>
+            </div>
+
+            <h2 className="font-display font-black text-2xl sm:text-4xl text-black uppercase tracking-tight mb-2 flex items-center gap-2.5">
+              <span>Gesture Academy</span>
+              <span className="text-3xl">🎓</span>
+            </h2>
+
+            <p className="text-zinc-800 text-sm sm:text-base font-medium max-w-2xl leading-relaxed mb-4">
+              Learn hand gestures before playing games. Master index point, pinch, peace sign, open palm, and fist controls with real-time AI computer vision and futuristic holographic feedback.
+            </p>
+
+            {/* Quick Gesture Pills */}
+            <div className="flex flex-wrap gap-2 text-xs font-mono font-bold">
+              <span className="bg-white border border-black px-2 py-1 shadow-neo-xs">☝️ Point</span>
+              <span className="bg-white border border-black px-2 py-1 shadow-neo-xs">✌️ Peace</span>
+              <span className="bg-white border border-black px-2 py-1 shadow-neo-xs">🤏 Pinch</span>
+              <span className="bg-white border border-black px-2 py-1 shadow-neo-xs">✋ Palm</span>
+              <span className="bg-white border border-black px-2 py-1 shadow-neo-xs">✊ Fist</span>
+              <span className="bg-white border border-black px-2 py-1 shadow-neo-xs">👈 Left</span>
+              <span className="bg-white border border-black px-2 py-1 shadow-neo-xs">👉 Right</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row md:flex-col gap-2.5 w-full md:w-auto shrink-0 relative z-10">
+            <Link
+              to="/gesture-academy"
+              className="px-8 py-4 bg-[#6366F1] hover:bg-[#4F46E5] text-white border-3 border-black font-display font-black text-sm sm:text-base uppercase tracking-wider shadow-neo hover:shadow-neo-lg active:translate-x-1 active:translate-y-1 transition-all flex items-center justify-center gap-2 text-center"
+            >
+              <span>ENTER ACADEMY</span>
+              <span className="text-lg">➔</span>
+            </Link>
+            <span className="text-center font-mono text-[11px] font-bold text-zinc-600">
+              ⚡ 2-minute quick certification
+            </span>
+          </div>
+        </div>
+
         {/* ── Games Grid ──────────────────────────────────────────────────── */}
         <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 mb-14">
-          {GAMES.map((game, idx) => (
+          {GAMES.map((game) => (
             <Link
               key={game.to}
               to={game.to}
@@ -241,9 +314,13 @@ export default function Home() {
                 </p>
               </div>
             </div>
-            <span className="neo-tag bg-neo-lime text-black">
-              READY TO DETECT
-            </span>
+            <Link
+              to="/gesture-academy"
+              className="neo-tag bg-neo-lime hover:bg-lime-400 text-black border-2 border-black font-black flex items-center gap-1.5 shadow-neo-xs transition-colors"
+            >
+              <span>🎓 OPEN ACADEMY</span>
+              <span>➔</span>
+            </Link>
           </div>
 
           {/* Gesture Cards */}
