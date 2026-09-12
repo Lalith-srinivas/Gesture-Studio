@@ -88,7 +88,6 @@ const sounds = new SoundPlayer();
 
 // ── Game Metadata Mapping ─────────────────────────────────────────────────
 const GAME_MAP = {
-  'air-draw': { name: 'Air Draw', path: '/air-draw', emoji: '🎨' },
   'fruit-ninja': { name: 'Fruit Ninja', path: '/fruit-ninja', emoji: '🍉' },
   'hill-climb': { name: 'Crazy Road', path: '/hill-climb', emoji: '🏎️' },
   'flappy-bird': { name: 'Flappy Bird', path: '/flappy-bird', emoji: '🐦' },
@@ -106,8 +105,8 @@ const ALL_LESSONS = {
     badge: 'POINT / SLICE',
     badgeBg: 'bg-neo-yellow',
     description: 'Extend your index finger upwards while curling your thumb and other fingers.',
-    usage: 'Air Draw · Traffic Lane 1 · Move',
-    hint: 'Point your index finger straight up. Used for drawing and lane movement.',
+    usage: 'Fruit Ninja · Traffic Lane 1 · Move',
+    hint: 'Point your index finger straight up. Used for slicing and lane movement.',
     verify: (gesture) => gesture === GESTURES.DRAW,
   },
   'two-fingers': {
@@ -115,10 +114,10 @@ const ALL_LESSONS = {
     name: 'Peace Sign',
     emoji: '✌️',
     holoGesture: 'TWO_FINGERS',
-    badge: 'ERASE / ACTION',
+    badge: 'ACTION / STEER',
     badgeBg: 'bg-neo-cyan',
     description: 'Raise both your index and middle fingers in a classic peace or V-sign.',
-    usage: 'Erase Mode · Traffic Lane 2 · Left',
+    usage: 'Traffic Lane 2 · Left',
     hint: 'Keep index and middle fingers extended apart in a peace sign.',
     verify: (gesture) => gesture === GESTURES.ERASE,
   },
@@ -212,7 +211,6 @@ const GAME_LESSON_IDS = {
   'archery': ['pinch', 'rock'],
   'bird-hunter': ['pinch', 'fist', 'rock'],
   'hill-climb': ['index-point', 'two-fingers', 'rock', 'fist'],
-  'air-draw': ['index-point', 'two-fingers', 'fist', 'rock'],
 };
 
 export default function GestureAcademy() {

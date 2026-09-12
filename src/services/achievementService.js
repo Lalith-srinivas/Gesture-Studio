@@ -28,7 +28,7 @@ export const ACHIEVEMENTS = [
     icon: '🎮',
     xp: 50,
     category: 'platform',
-    check: (p) => (p?.totalGamesPlayed || 0) >= 1,
+    check: (p, gr) => Boolean(gr || (p?.totalGamesPlayed || 0) >= 1 || Object.values(p?.allGameStats || {}).some(s => (s?.gamesPlayed || 0) > 0)),
   },
   {
     id: 'games_10',
@@ -147,7 +147,12 @@ export const ACHIEVEMENTS = [
     icon: '🎓',
     xp: 200,
     category: 'platform',
-    check: (p) => Boolean(p?.tutorialCompleted),
+    check: (p) => Boolean(
+      p?.tutorialCompleted ||
+      localStorage.getItem('gesture_academy_global_done') === 'true' ||
+      localStorage.getItem('gesture_academy_global_completed') === 'true' ||
+      localStorage.getItem('gesture_studio_academy_certified') === 'true'
+    ),
   },
   {
     id: 'daily_claim_first',
@@ -156,7 +161,7 @@ export const ACHIEVEMENTS = [
     icon: '🎁',
     xp: 25,
     category: 'platform',
-    check: (p) => (p?.dailyRewardDay || 0) >= 1,
+    check: (p) => (p?.dailyRewardDay || 0) >= 1 || localStorage.getItem('gesture_studio_daily_claimed') === 'true',
   },
 
   // ── Fruit Ninja ────────────────────────────────────────────────────────────
@@ -168,7 +173,7 @@ export const ACHIEVEMENTS = [
     xp: 30,
     category: 'game',
     gameId: 'fruit-ninja',
-    check: (p) => (p?.gamesPlayedByGame?.['fruit-ninja']),
+    check: (p, gr) => gr?.gameId === 'fruit-ninja' || Boolean(p?.gamesPlayedByGame?.['fruit-ninja'] || p?.allGameStats?.['fruit-ninja']?.gamesPlayed > 0),
   },
   {
     id: 'fruit_ninja_100',
@@ -178,7 +183,7 @@ export const ACHIEVEMENTS = [
     xp: 75,
     category: 'game',
     gameId: 'fruit-ninja',
-    check: (p, gr) => gr?.gameId === 'fruit-ninja' ? (gr?.score || 0) >= 100 : false,
+    check: (p, gr) => (gr?.gameId === 'fruit-ninja' && (gr?.score || 0) >= 100) || (p?.allGameStats?.['fruit-ninja']?.bestScore || 0) >= 100,
   },
   {
     id: 'fruit_ninja_300',
@@ -188,7 +193,7 @@ export const ACHIEVEMENTS = [
     xp: 150,
     category: 'game',
     gameId: 'fruit-ninja',
-    check: (p, gr) => gr?.gameId === 'fruit-ninja' ? (gr?.score || 0) >= 300 : false,
+    check: (p, gr) => (gr?.gameId === 'fruit-ninja' && (gr?.score || 0) >= 300) || (p?.allGameStats?.['fruit-ninja']?.bestScore || 0) >= 300,
   },
 
   // ── Flappy Bird ────────────────────────────────────────────────────────────
@@ -200,7 +205,7 @@ export const ACHIEVEMENTS = [
     xp: 30,
     category: 'game',
     gameId: 'flappy-bird',
-    check: (p) => (p?.gamesPlayedByGame?.['flappy-bird']),
+    check: (p, gr) => gr?.gameId === 'flappy-bird' || Boolean(p?.gamesPlayedByGame?.['flappy-bird'] || p?.allGameStats?.['flappy-bird']?.gamesPlayed > 0),
   },
   {
     id: 'flappy_10',
@@ -210,7 +215,7 @@ export const ACHIEVEMENTS = [
     xp: 75,
     category: 'game',
     gameId: 'flappy-bird',
-    check: (p, gr) => gr?.gameId === 'flappy-bird' ? (gr?.score || 0) >= 10 : false,
+    check: (p, gr) => (gr?.gameId === 'flappy-bird' && (gr?.score || 0) >= 10) || (p?.allGameStats?.['flappy-bird']?.bestScore || 0) >= 10,
   },
   {
     id: 'flappy_30',
@@ -220,7 +225,7 @@ export const ACHIEVEMENTS = [
     xp: 200,
     category: 'game',
     gameId: 'flappy-bird',
-    check: (p, gr) => gr?.gameId === 'flappy-bird' ? (gr?.score || 0) >= 30 : false,
+    check: (p, gr) => (gr?.gameId === 'flappy-bird' && (gr?.score || 0) >= 30) || (p?.allGameStats?.['flappy-bird']?.bestScore || 0) >= 30,
   },
 
   // ── Archery ────────────────────────────────────────────────────────────────
@@ -232,7 +237,7 @@ export const ACHIEVEMENTS = [
     xp: 30,
     category: 'game',
     gameId: 'archery',
-    check: (p) => (p?.gamesPlayedByGame?.['archery']),
+    check: (p, gr) => gr?.gameId === 'archery' || Boolean(p?.gamesPlayedByGame?.['archery'] || p?.allGameStats?.['archery']?.gamesPlayed > 0),
   },
   {
     id: 'archery_50',
@@ -242,7 +247,7 @@ export const ACHIEVEMENTS = [
     xp: 100,
     category: 'game',
     gameId: 'archery',
-    check: (p, gr) => gr?.gameId === 'archery' ? (gr?.score || 0) >= 50 : false,
+    check: (p, gr) => (gr?.gameId === 'archery' && (gr?.score || 0) >= 50) || (p?.allGameStats?.['archery']?.bestScore || 0) >= 50,
   },
   {
     id: 'archery_combo_5',
@@ -252,7 +257,7 @@ export const ACHIEVEMENTS = [
     xp: 125,
     category: 'game',
     gameId: 'archery',
-    check: (p, gr) => gr?.gameId === 'archery' ? (gr?.combo || 0) >= 5 : false,
+    check: (p, gr) => (gr?.gameId === 'archery' && (gr?.combo || 0) >= 5) || (p?.allGameStats?.['archery']?.highestCombo || 0) >= 5,
   },
   {
     id: 'archery_100',
@@ -262,7 +267,7 @@ export const ACHIEVEMENTS = [
     xp: 200,
     category: 'game',
     gameId: 'archery',
-    check: (p, gr) => gr?.gameId === 'archery' ? (gr?.score || 0) >= 100 : false,
+    check: (p, gr) => (gr?.gameId === 'archery' && (gr?.score || 0) >= 100) || (p?.allGameStats?.['archery']?.bestScore || 0) >= 100,
   },
 
   // ── Bird Hunter ────────────────────────────────────────────────────────────
@@ -274,7 +279,7 @@ export const ACHIEVEMENTS = [
     xp: 30,
     category: 'game',
     gameId: 'bird-hunter',
-    check: (p) => (p?.gamesPlayedByGame?.['bird-hunter']),
+    check: (p, gr) => gr?.gameId === 'bird-hunter' || Boolean(p?.gamesPlayedByGame?.['bird-hunter'] || p?.allGameStats?.['bird-hunter']?.gamesPlayed > 0),
   },
   {
     id: 'bird_hunter_50',
@@ -284,7 +289,7 @@ export const ACHIEVEMENTS = [
     xp: 100,
     category: 'game',
     gameId: 'bird-hunter',
-    check: (p, gr) => gr?.gameId === 'bird-hunter' ? (gr?.score || 0) >= 50 : false,
+    check: (p, gr) => (gr?.gameId === 'bird-hunter' && (gr?.score || 0) >= 50) || (p?.allGameStats?.['bird-hunter']?.bestScore || 0) >= 50,
   },
   {
     id: 'bird_hunter_200',
@@ -294,7 +299,7 @@ export const ACHIEVEMENTS = [
     xp: 200,
     category: 'game',
     gameId: 'bird-hunter',
-    check: (p, gr) => gr?.gameId === 'bird-hunter' ? (gr?.score || 0) >= 200 : false,
+    check: (p, gr) => (gr?.gameId === 'bird-hunter' && (gr?.score || 0) >= 200) || (p?.allGameStats?.['bird-hunter']?.bestScore || 0) >= 200,
   },
 
   // ── Crazy Road ────────────────────────────────────────────────────────────
@@ -306,7 +311,7 @@ export const ACHIEVEMENTS = [
     xp: 30,
     category: 'game',
     gameId: 'hill-climb',
-    check: (p) => (p?.gamesPlayedByGame?.['hill-climb']),
+    check: (p, gr) => gr?.gameId === 'hill-climb' || Boolean(p?.gamesPlayedByGame?.['hill-climb'] || p?.allGameStats?.['hill-climb']?.gamesPlayed > 0),
   },
   {
     id: 'crazy_road_500',
@@ -316,7 +321,7 @@ export const ACHIEVEMENTS = [
     xp: 150,
     category: 'game',
     gameId: 'hill-climb',
-    check: (p, gr) => gr?.gameId === 'hill-climb' ? (gr?.score || 0) >= 500 : false,
+    check: (p, gr) => (gr?.gameId === 'hill-climb' && (gr?.score || 0) >= 500) || (p?.allGameStats?.['hill-climb']?.bestScore || 0) >= 500,
   },
 ];
 

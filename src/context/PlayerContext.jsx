@@ -7,7 +7,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { doc, getDoc, onSnapshot, collection, getDocs, setDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, collection, getDocs, setDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../firebase/firebase';
 import { useAuth } from '../hooks/useAuth';
 import { getLevelFromXP } from '../services/xpService';
@@ -149,7 +149,7 @@ export function PlayerProvider({ children }) {
     };
   }, [uid]);
 
-  // ── Load game stats subcollection ──────────────────────────────────────────
+  // ── Load game stats and unlocked achievements subcollections ───────────────
   useEffect(() => {
     if (!uid) return;
     const fetchStats = async () => {
@@ -164,8 +164,52 @@ export function PlayerProvider({ children }) {
         }
       } catch { /* silent */ }
     };
+
+    const fetchSubAchievements = async () => {
+      try {
+        const colRef = collection(db, 'users', uid, 'unlockedAchievements');
+        const snap = await getDocs(colRef);
+        const subIds = [];
+        snap.forEach((d) => subIds.push(d.id));
+        if (subIds.length > 0) {
+          setUnlockedAchievements((prev) => Array.from(new Set([...prev, ...subIds])));
+        }
+      } catch { /* silent */ }
+    };
+
     fetchStats();
+    fetchSubAchievements();
   }, [uid, playerData?.totalGamesPlayed]);
+
+  // ── Auto-reconcile earned achievements from current stats & state ──────────
+  useEffect(() => {
+    if (!playerData) return;
+    const contextData = { ...playerData, allGameStats };
+    const newlyQualified = [];
+
+    for (const ach of ACHIEVEMENTS) {
+      if (unlockedAchievements.includes(ach.id)) continue;
+      try {
+        if (ach.check(contextData)) {
+          newlyQualified.push(ach.id);
+        }
+      } catch { /* silent */ }
+    }
+
+    if (newlyQualified.length > 0) {
+      setUnlockedAchievements((prev) => {
+        const combined = Array.from(new Set([...prev, ...newlyQualified]));
+        if (uid) {
+          const cached = getCachedPlayer(uid) || {};
+          saveCachedPlayer(uid, { ...cached, achievementsUnlocked: combined });
+          setDoc(doc(db, 'users', uid), {
+            achievementsUnlocked: arrayUnion(...newlyQualified),
+          }, { merge: true }).catch(() => {});
+        }
+        return combined;
+      });
+    }
+  }, [uid, playerData, allGameStats, unlockedAchievements]);
 
   // ── Derived XP info ────────────────────────────────────────────────────────
   const xpInfo = playerData ? getLevelFromXP(playerData.xp || 0) : getLevelFromXP(0);
@@ -239,6 +283,8 @@ export function PlayerProvider({ children }) {
       }
       if (result.unlockedAchievements?.length > 0) {
         setPendingAchievements((prev) => [...prev, ...result.unlockedAchievements]);
+        const ids = result.unlockedAchievements.map((a) => a.id);
+        setUnlockedAchievements((prev) => Array.from(new Set([...prev, ...ids])));
       }
 
       setLastGameResult(result);
@@ -266,6 +312,8 @@ export function PlayerProvider({ children }) {
       saveCachedPlayer(uid, updated);
       return updated;
     });
+
+    setUnlockedAchievements((prev) => Array.from(new Set([...prev, 'gesture_master'])));
 
     try {
       localStorage.setItem('gesture_academy_global_done', 'true');
@@ -302,10 +350,20 @@ export function PlayerProvider({ children }) {
           level: getLevelFromXP(newXP).level,
           dailyRewardDay: day,
           lastDailyRewardDate: today,
+          achievementsUnlocked: Array.from(new Set([...(current.achievementsUnlocked || []), 'daily_claim_first'])),
         };
         saveCachedPlayer(uid, updated);
         return updated;
       });
+
+      setUnlockedAchievements((prev) => Array.from(new Set([...prev, 'daily_claim_first'])));
+
+      try {
+        localStorage.setItem('gesture_studio_daily_claimed', 'true');
+        setDoc(doc(db, 'users', uid), {
+          achievementsUnlocked: arrayUnion('daily_claim_first'),
+        }, { merge: true }).catch(() => {});
+      } catch { /* silent */ }
     }
     return result;
   }, [uid, playerData]);

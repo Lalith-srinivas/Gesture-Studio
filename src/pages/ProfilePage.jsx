@@ -79,8 +79,17 @@ export default function ProfilePage() {
 
   const handleLogout = async () => { await logout(); navigate('/'); };
 
+  const checkUnlocked = (ach) => {
+    return (
+      unlockedAchievements.includes(ach.id) ||
+      Boolean(ach.check && ach.check({ ...playerData, allGameStats }))
+    );
+  };
+
+  const unlockedCount = ACHIEVEMENTS.filter(checkUnlocked).length;
+
   const filteredAchs = ACHIEVEMENTS.filter((a) => {
-    if (achFilter === 'unlocked') return unlockedAchievements.includes(a.id);
+    if (achFilter === 'unlocked') return checkUnlocked(a);
     if (achFilter === 'platform') return a.category === 'platform';
     if (achFilter === 'game') return a.category === 'game';
     return true;
@@ -207,7 +216,7 @@ export default function ProfilePage() {
               <StatCard icon="🏆" label="Longest Streak" value={`${playerData?.longestGameStreak || 0}D`} bg="bg-amber-50" />
               <StatCard icon="🎮" label="Games Played" value={playerData?.totalGamesPlayed || 0} bg="bg-neo-cyanLight" />
               <StatCard icon="⭐" label="Total Score" value={(playerData?.totalScore || 0).toLocaleString()} bg="bg-neo-cyanLight" />
-              <StatCard icon="🥇" label="Achievements" value={`${unlockedAchievements.length}/${ACHIEVEMENTS.length}`} bg="bg-[#E0E7FF]" />
+              <StatCard icon="🥇" label="Achievements" value={`${unlockedCount}/${ACHIEVEMENTS.length}`} bg="bg-[#E0E7FF]" />
               <StatCard icon="⚡" label="Total XP" value={(playerData?.xp || 0).toLocaleString()} bg="bg-neo-yellow" />
             </div>
 
@@ -301,11 +310,11 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="font-display font-black text-xl uppercase">🥇 Achievements</h2>
-                <p className="text-xs font-mono text-zinc-600 mt-0.5">{unlockedAchievements.length} / {ACHIEVEMENTS.length} Unlocked</p>
+                <p className="text-xs font-mono text-zinc-600 mt-0.5">{unlockedCount} / {ACHIEVEMENTS.length} Unlocked</p>
               </div>
               {/* Progress bar */}
               <div className="w-32 h-3 bg-zinc-200 border-2 border-black">
-                <div className="h-full bg-neo-lime transition-all" style={{ width: `${Math.round((unlockedAchievements.length / ACHIEVEMENTS.length) * 100)}%` }} />
+                <div className="h-full bg-neo-lime transition-all" style={{ width: `${Math.round((unlockedCount / ACHIEVEMENTS.length) * 100)}%` }} />
               </div>
             </div>
 
@@ -325,7 +334,7 @@ export default function ProfilePage() {
             {/* Achievement Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {filteredAchs.map((ach) => {
-                const isUnlocked = unlockedAchievements.includes(ach.id);
+                const isUnlocked = checkUnlocked(ach);
                 const progress = ach.progress ? getAchievementProgress(ach.id, playerData) : null;
                 return (
                   <div

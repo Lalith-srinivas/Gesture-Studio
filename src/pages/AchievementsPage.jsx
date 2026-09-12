@@ -16,18 +16,26 @@ const FILTER_OPTIONS = [
 ];
 
 export default function AchievementsPage() {
-  const { unlockedAchievements, playerData, loading } = usePlayer();
+  const { unlockedAchievements, playerData, allGameStats, loading } = usePlayer();
   const [filter, setFilter] = useState('all');
 
+  const checkUnlocked = (ach) => {
+    return (
+      unlockedAchievements.includes(ach.id) ||
+      Boolean(ach.check && ach.check({ ...playerData, allGameStats }))
+    );
+  };
+
   const filtered = ACHIEVEMENTS.filter((a) => {
-    if (filter === 'unlocked') return unlockedAchievements.includes(a.id);
-    if (filter === 'locked')   return !unlockedAchievements.includes(a.id);
+    const isUnl = checkUnlocked(a);
+    if (filter === 'unlocked') return isUnl;
+    if (filter === 'locked')   return !isUnl;
     if (filter === 'platform') return a.category === 'platform';
     if (filter === 'game')     return a.category === 'game';
     return true;
   });
 
-  const unlocked = unlockedAchievements.length;
+  const unlocked = ACHIEVEMENTS.filter(checkUnlocked).length;
   const total = ACHIEVEMENTS.length;
   const percent = Math.round((unlocked / total) * 100);
 
@@ -103,7 +111,7 @@ export default function AchievementsPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {filtered.map((ach) => {
-              const isUnlocked = unlockedAchievements.includes(ach.id);
+              const isUnlocked = checkUnlocked(ach);
               const progress = ach.progress ? getAchievementProgress(ach.id, playerData) : null;
               const gameInfo = ach.gameId ? GAME_LABELS[ach.gameId] : null;
 

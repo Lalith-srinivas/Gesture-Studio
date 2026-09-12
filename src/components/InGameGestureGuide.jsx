@@ -43,15 +43,6 @@ const GAME_GESTURE_INFO = {
       { emoji: '✊', label: 'Fist', desc: 'Nitro Boost' },
     ],
   },
-  'air-draw': {
-    title: 'Air Draw Controls',
-    tips: [
-      { emoji: '☝️', label: 'Index', desc: 'Draw in mid-air' },
-      { emoji: '✌️', label: 'Peace', desc: 'Eraser mode' },
-      { emoji: '✊', label: 'Fist', desc: 'Pan canvas' },
-      { emoji: '✋', label: 'Palm', desc: 'Stop / Hover' },
-    ],
-  },
 };
 
 export default function InGameGestureGuide({ gameName }) {

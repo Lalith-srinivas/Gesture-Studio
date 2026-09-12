@@ -75,8 +75,8 @@ const GAMES = [
 ];
 
 const GESTURE_GUIDES = [
-  { emoji: '☝️', name: 'Index Point', use: 'Air Draw · Traffic Lane 1 · Move' },
-  { emoji: '✌️', name: 'Peace Sign', use: 'Erase Mode · Traffic Lane 2 · Left' },
+  { emoji: '☝️', name: 'Index Point', use: 'Fruit Ninja · Traffic Lane 1 · Move' },
+  { emoji: '✌️', name: 'Peace Sign', use: 'Traffic Lane 2 · Left' },
   { emoji: '🤟', name: 'Rock Sign', use: 'Traffic Lane 3 · Pause Game' },
   { emoji: '🤏', name: 'Pinch Finger', use: 'Slingshot · Bow · Flap Bird' },
   { emoji: '✊', name: 'Closed Fist', use: 'Cancel Aim · Nitro Boost' },
