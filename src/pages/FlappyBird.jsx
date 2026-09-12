@@ -18,6 +18,8 @@ import { useNavigate } from "react-router-dom";
 import { useHandTracking } from "../hooks/useHandTracking";
 import { GESTURES } from "../utils/gestureDetector";
 import { playPinchSound, playFailSound, resumeAudio } from "../utils/soundEffects";
+import { usePlayer } from "../hooks/usePlayer";
+import PostGameProgression from "../components/PostGameProgression";
 
 /* ─── Constants ─────────────────────────────────────────── */
 const BASE_W = 480;
@@ -76,6 +78,9 @@ export default function FlappyBird({ onReady }) {
   const lastGestureRef = useRef(false);
   const [uiState, setUiState] = useState("idle"); // idle | playing | dead
   const [currentGesture, setCurrentGesture] = useState(GESTURES.NONE);
+  const { recordGameResult } = usePlayer();
+  const [lastProgressionResult, setLastProgressionResult] = useState(null);
+  const sessionRecordedRef = useRef(false);
 
   /* ── Init game state ── */
   function createState(scale) {
@@ -197,6 +202,16 @@ export default function FlappyBird({ onReady }) {
       s.phase = "dead";
       setUiState("dead");
       saveHighScore(s.score);
+      if (!sessionRecordedRef.current) {
+        sessionRecordedRef.current = true;
+        recordGameResult({
+          gameId: 'flappy-bird',
+          score: s.score,
+          sessionId: `flappy_${Date.now()}_${Math.random()}`,
+        }).then((res) => {
+          if (res) setLastProgressionResult(res);
+        });
+      }
     }
   }
 
@@ -398,6 +413,8 @@ export default function FlappyBird({ onReady }) {
   /* ── Start / Restart ── */
   function startGame() {
     resumeAudio();
+    sessionRecordedRef.current = false;
+    setLastProgressionResult(null);
     const canvas = canvasRef.current;
     if (!canvas) return;
     const scale = resizeCanvas() || stateRef.current?.scale || 1;
@@ -581,10 +598,12 @@ export default function FlappyBird({ onReady }) {
                 </div>
               </div>
 
+              <PostGameProgression result={lastProgressionResult} />
+
               <button
                 id="flappy-action-btn"
                 onClick={restartGame}
-                className="neo-btn-primary w-full py-3 text-base uppercase"
+                className="neo-btn-primary w-full py-3 text-base uppercase mt-2"
               >
                 ↺ PLAY AGAIN
               </button>

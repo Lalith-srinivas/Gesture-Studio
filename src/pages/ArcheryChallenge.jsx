@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useHandTracking } from '../hooks/useHandTracking';
 import { GESTURES } from '../utils/gestureDetector';
 import { mapHandToScreen } from '../utils/resolution';
+import { usePlayer } from '../hooks/usePlayer';
+import PostGameProgression from '../components/PostGameProgression';
 
 /**
  * ArcheryChallenge.jsx
@@ -103,6 +105,9 @@ export default function ArcheryChallenge() {
   const [activeGesture, setActiveGesture] = useState(GESTURES.NONE);
   const [handTracked, setHandTracked] = useState(false);
   const [orientation, setOrientation] = useState('landscape');
+  const { recordGameResult } = usePlayer();
+  const [lastProgressionResult, setLastProgressionResult] = useState(null);
+  const sessionRecordedRef = useRef(false);
 
   // Handle Orientation
   useEffect(() => {
@@ -338,6 +343,8 @@ export default function ArcheryChallenge() {
   // --- GAME START & RESET ---
   const startGame = () => {
     soundManager.init();
+    sessionRecordedRef.current = false;
+    setLastProgressionResult(null);
     const canvas = canvasRef.current;
     const bowX = canvas ? Math.floor(canvas.width * 0.35) : 300;
     stateRef.current = {
@@ -463,6 +470,17 @@ export default function ArcheryChallenge() {
             addFloatingText(`MISS! (${s.consecutiveMisses}/3)`, t.x, t.y, '#EF4444');
             if (s.consecutiveMisses >= 3) {
               setGameState('GAMEOVER');
+              if (!sessionRecordedRef.current) {
+                sessionRecordedRef.current = true;
+                recordGameResult({
+                  gameId: 'archery',
+                  score: s.score,
+                  combo: s.combo,
+                  sessionId: `archery_${Date.now()}_${Math.random()}`,
+                }).then((res) => {
+                  if (res) setLastProgressionResult(res);
+                });
+              }
             }
             return false;
           }
@@ -1046,13 +1064,16 @@ export default function ArcheryChallenge() {
             )}
 
             {gameState === 'GAMEOVER' && (
-              <div className="bg-red-400 border-2 sm:border-4 border-black p-3 sm:p-4 rounded-xl text-white">
-                <span className="block font-black text-xs uppercase tracking-widest text-red-100 mb-0.5">
-                  {consecutiveMisses >= 3 ? '❌ 3 CONSECUTIVE MISSES!' : 'GAME OVER'}
-                </span>
-                <span className="block font-black text-xs sm:text-sm uppercase tracking-wide">FINAL SCORE</span>
-                <span className="text-2xl sm:text-4xl font-black">{score}</span>
-              </div>
+              <>
+                <div className="bg-red-400 border-2 sm:border-4 border-black p-3 sm:p-4 rounded-xl text-white">
+                  <span className="block font-black text-xs uppercase tracking-widest text-red-100 mb-0.5">
+                    {consecutiveMisses >= 3 ? '❌ 3 CONSECUTIVE MISSES!' : 'GAME OVER'}
+                  </span>
+                  <span className="block font-black text-xs sm:text-sm uppercase tracking-wide">FINAL SCORE</span>
+                  <span className="text-2xl sm:text-4xl font-black">{score}</span>
+                </div>
+                <PostGameProgression result={lastProgressionResult} />
+              </>
             )}
 
             <div className="flex flex-col gap-2 sm:gap-3">

@@ -1,10 +1,11 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useHandTracking } from '../hooks/useHandTracking';
 import DrawingCanvas from '../components/DrawingCanvas';
 import Toolbar from '../components/Toolbar';
 import ModeIndicator from '../components/ModeIndicator';
 import { GESTURES, getGestureLabel } from '../utils/gestureDetector';
+import { usePlayer } from '../hooks/usePlayer';
 
 const GESTURE_HINTS = [
   GESTURES.DRAW,
@@ -48,9 +49,22 @@ export default function AirDraw() {
     onGesture: handleGesture,
   });
 
+  const { recordGameResult } = usePlayer();
+  const sessionRecordedRef = useRef(false);
+
   // ── Action handlers ───────────────────────────────────────────────────────
   const handleClearCanvas = () => drawCanvasRef.current?.clearCanvas();
-  const handleSaveCanvas  = () => drawCanvasRef.current?.saveCanvas();
+  const handleSaveCanvas  = () => {
+    drawCanvasRef.current?.saveCanvas();
+    if (!sessionRecordedRef.current) {
+      sessionRecordedRef.current = true;
+      recordGameResult({
+        gameId: 'air-draw',
+        score: 50,
+        sessionId: `air_draw_${Date.now()}`,
+      });
+    }
+  };
 
   return (
     <div className="w-full h-full flex flex-col bg-[#FFFDF5] text-black overflow-hidden absolute inset-0 font-sans selection:bg-neo-yellow">

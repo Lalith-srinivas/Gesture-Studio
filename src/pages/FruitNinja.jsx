@@ -4,6 +4,8 @@ import { mapHandToScreen } from "../utils/resolution";
 import { useHandTracking } from "../hooks/useHandTracking";
 import { GESTURES } from "../utils/gestureDetector";
 import { playSliceSound, playBombSound, resumeAudio } from "../utils/soundEffects";
+import { usePlayer } from "../hooks/usePlayer";
+import PostGameProgression from "../components/PostGameProgression";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -130,6 +132,9 @@ export default function FruitNinja() {
   const [bombFlash, setBombFlash] = useState(false);
   const [slowmo, setSlowmo] = useState(false);
   const [overReason, setOverReason] = useState("");
+  const { recordGameResult } = usePlayer();
+  const [lastProgressionResult, setLastProgressionResult] = useState(null);
+  const sessionRecordedRef = useRef(false);
 
   // Stable ref so the tick loop can call endGame without stale closures
   const endGameRef = useRef(null);
@@ -206,7 +211,18 @@ export default function FruitNinja() {
       localStorage.setItem("fn_highscore", String(next));
       return next;
     });
-  }, []);
+
+    if (!sessionRecordedRef.current) {
+      sessionRecordedRef.current = true;
+      recordGameResult({
+        gameId: 'fruit-ninja',
+        score: final,
+        sessionId: `fn_${Date.now()}_${Math.random()}`,
+      }).then((res) => {
+        if (res) setLastProgressionResult(res);
+      });
+    }
+  }, [recordGameResult]);
 
   useEffect(() => { endGameRef.current = endGame; }, [endGame]);
 
@@ -531,6 +547,8 @@ export default function FruitNinja() {
   // ── Start / Restart ───────────────────────────────────────────────────────
   const startGame = useCallback(() => {
     resumeAudio();
+    sessionRecordedRef.current = false;
+    setLastProgressionResult(null);
     const s = stateRef.current;
     if (s.animId) cancelAnimationFrame(s.animId);
     if (s.spawnTimer) clearInterval(s.spawnTimer);
@@ -763,6 +781,8 @@ export default function FruitNinja() {
                     💣 {displayBombs} / {MAX_BOMBS} bombs
                   </div>
                 </div>
+
+                <PostGameProgression result={lastProgressionResult} />
               </div>
             )}
 

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import AuthModal from '../components/AuthModal';
+import ProfileDropdown from '../components/ProfileDropdown';
 
 const GAMES = [
   {
@@ -118,40 +119,30 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Top Actions: Gesture Academy & Auth */}
+        {/* Top Actions: Gesture Academy, Leaderboards & Profile Dropdown */}
         <div className="flex items-center gap-2 shrink-0 ml-3">
           <Link
             to="/gesture-academy"
-            className="px-3 py-1 bg-[#818CF8] hover:bg-[#6366F1] text-white border-2 border-black font-mono font-black text-xs uppercase flex items-center gap-1.5 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
+            className="px-2.5 sm:px-3 py-1 bg-[#818CF8] hover:bg-[#6366F1] text-white border-2 border-black font-mono font-black text-xs uppercase flex items-center gap-1.5 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
           >
             <span>🎓</span>
             <span className="hidden sm:inline">Academy</span>
           </Link>
 
-          {/* Firebase Player Profile / Sign In Button */}
-          <button
-            onClick={() => setShowAuthModal(true)}
-            className="px-3 py-1 bg-white hover:bg-zinc-100 border-2 border-black font-mono font-black text-xs uppercase flex items-center gap-1.5 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
+          <Link
+            to="/leaderboard"
+            className="px-2.5 sm:px-3 py-1 bg-neo-yellow hover:bg-yellow-400 text-black border-2 border-black font-mono font-black text-xs uppercase flex items-center gap-1.5 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
           >
-            <span>{currentUser ? (isGuest ? '👤' : '⭐') : '🔑'}</span>
-            <span className="hidden sm:inline">
-              {currentUser
-                ? isGuest
-                  ? 'Guest Player'
-                  : userProfile?.username || 'Player'
-                : 'Sign In'}
-            </span>
-            {userProfile?.currentStreak > 0 && !isGuest && (
-              <span className="bg-amber-300 px-1 border border-black text-[10px]">
-                🔥 {userProfile.currentStreak}d
-              </span>
-            )}
-          </button>
+            <span>🏆</span>
+            <span className="hidden sm:inline">Leaderboard</span>
+          </Link>
+
+          <ProfileDropdown />
         </div>
       </div>
 
       {/* ── Main Container ────────────────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 md:py-12 flex-1 flex flex-col items-center">
+      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 md:py-12 flex-1 flex flex-col items-center pb-24 md:pb-12">
         
         {/* ── Hero Section ────────────────────────────────────────────────── */}
         <div className="w-full max-w-4xl text-center mb-10 md:mb-12 relative flex flex-col items-center">

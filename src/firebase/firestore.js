@@ -37,7 +37,8 @@ export const SUPPORTED_GAMES = {
   CRAZY_ROAD: 'Crazy Road',
   FLAPPY_BIRD: 'Flappy Bird',
   ARCHERY: 'Archery Challenge',
-  BIRD_HUNTER: 'Bird Hunter Challenge'
+  BIRD_HUNTER: 'Bird Hunter Challenge',
+  AIR_DRAW: 'Air Draw',
 };
 
 // --- LOCAL CACHE HELPERS ---
@@ -131,17 +132,28 @@ export const getOrCreateUserProfile = async (user, additionalData = {}) => {
       return merged;
     } else {
       // Create new user profile document
+      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+      const guestHandle = `Guest_${randomSuffix}`;
+
       const newProfile = {
         uid: user.uid,
-        username: user.displayName || additionalData.username || (user.isAnonymous ? 'Guest Player' : 'Challenger'),
+        username: user.displayName || additionalData.username || (user.isAnonymous ? guestHandle : 'Player'),
         email: user.email || '',
         isAnonymous: Boolean(user.isAnonymous),
-        avatar: user.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.uid}`,
+        avatar: user.photoURL || '🎮',
         joinedAt: new Date().toISOString(),
         lastLogin: new Date().toISOString(),
         currentStreak: 1,
         longestStreak: 1,
+        currentGameStreak: 0,
+        longestGameStreak: 0,
+        lastGamePlayedDate: null,
+        dailyRewardDay: 0,
+        lastDailyRewardDate: null,
+        achievementsUnlocked: [],
+        gamesPlayedByGame: {},
         gamesPlayed: 0,
+        totalGamesPlayed: 0,
         totalScore: 0,
         xp: 0,
         level: 1,

@@ -10,6 +10,8 @@ import {
   playCrashSound,
   resumeAudio
 } from '../utils/soundEffects';
+import { usePlayer } from '../hooks/usePlayer';
+import PostGameProgression from '../components/PostGameProgression';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS & GAME CONFIG
@@ -326,6 +328,9 @@ export default function TrafficRiderGame() {
 
   const [activeGesture, setActiveGesture] = useState(GESTURES.NONE);
   const [highScore, setHighScore] = useState(() => parseInt(localStorage.getItem(HIGH_SCORE_KEY) || '0', 10));
+  const { recordGameResult } = usePlayer();
+  const [lastProgressionResult, setLastProgressionResult] = useState(null);
+  const sessionRecordedRef = useRef(false);
 
   // HUD DOM Refs
   const scoreRef = useRef(null);
@@ -382,7 +387,18 @@ export default function TrafficRiderGame() {
     if (olTitleRef.current) olTitleRef.current.textContent = '💥 CRASH!';
     if (olSubRef.current) olSubRef.current.textContent = `${isNewHigh ? 'New High Score:' : 'Final Score:'} ${Math.floor(gs.score)}`;
     if (overlayRef.current) overlayRef.current.style.display = 'flex';
-  }, [saveHighScore]);
+
+    if (!sessionRecordedRef.current) {
+      sessionRecordedRef.current = true;
+      recordGameResult({
+        gameId: 'hill-climb',
+        score: Math.floor(gs.score),
+        sessionId: `cr_${Date.now()}_${Math.random()}`,
+      }).then((res) => {
+        if (res) setLastProgressionResult(res);
+      });
+    }
+  }, [saveHighScore, recordGameResult]);
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // GAME LOOP
@@ -555,6 +571,8 @@ export default function TrafficRiderGame() {
   const startGame = useCallback(() => {
     resumeAudio();
     startCarEngineSound();
+    sessionRecordedRef.current = false;
+    setLastProgressionResult(null);
     gsRef.current = createGameState();
     gsRef.current.running = true;
     if (overlayRef.current) overlayRef.current.style.display = 'none';
@@ -669,6 +687,7 @@ export default function TrafficRiderGame() {
             <p ref={olSubRef} className="font-mono text-xs font-bold text-zinc-700 my-3">
               DODGE TRAFFIC & BOOST TO WIN!
             </p>
+            <PostGameProgression result={lastProgressionResult} />
             <button onClick={startGame} className="neo-btn-primary w-full py-3 text-sm sm:text-base uppercase tracking-wider mt-2">
               RACE NOW ➔
             </button>

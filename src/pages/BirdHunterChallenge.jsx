@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useHandTracking } from '../hooks/useHandTracking';
 import { GESTURES } from '../utils/gestureDetector';
 import { mapHandToScreen } from '../utils/resolution';
+import { usePlayer } from '../hooks/usePlayer';
+import PostGameProgression from '../components/PostGameProgression';
 
 // --- UTILS & CONSTANTS ---
 const BIRD_TYPES = ['NORMAL', 'GOLDEN', 'FAST', 'TINY', 'GIANT', 'GHOST'];
@@ -71,6 +73,9 @@ export default function BirdHunterChallenge() {
   const [powerupTimeLeft, setPowerupTimeLeft] = useState(0);
   const [selectedProjectile, setSelectedProjectile] = useState(PROJECTILES[0]);
   const [isMuted, setIsMuted] = useState(false);
+  const { recordGameResult } = usePlayer();
+  const [lastProgressionResult, setLastProgressionResult] = useState(null);
+  const sessionRecordedRef = useRef(false);
 
   // Gesture tracking refs
   const lastGestureRef = useRef(GESTURES.NONE);
@@ -401,6 +406,8 @@ export default function BirdHunterChallenge() {
   // --- GAME START & RESET ---
   const startGame = () => {
     audio.init();
+    sessionRecordedRef.current = false;
+    setLastProgressionResult(null);
     const canvas = canvasRef.current;
     const w = canvas ? canvas.width : 800;
     const h = canvas ? canvas.height : 600;
@@ -691,6 +698,16 @@ export default function BirdHunterChallenge() {
             addFloatingText(missX, missY, `MISS! (${g.consecutiveMisses}/3)`, '#EF4444');
             if (g.consecutiveMisses >= 3) {
               setGameState('GAMEOVER');
+              if (!sessionRecordedRef.current) {
+                sessionRecordedRef.current = true;
+                recordGameResult({
+                  gameId: 'bird-hunter',
+                  score: g.score || 0,
+                  sessionId: `bh_${Date.now()}_${Math.random()}`,
+                }).then((res) => {
+                  if (res) setLastProgressionResult(res);
+                });
+              }
             }
             return false;
           }
@@ -1377,6 +1394,8 @@ export default function BirdHunterChallenge() {
               <span className="block font-black text-xs text-red-100 uppercase">FINAL SCORE</span>
               <span className="text-4xl font-black">{score}</span>
             </div>
+
+            <PostGameProgression result={lastProgressionResult} />
 
             <button
               onClick={startGame}

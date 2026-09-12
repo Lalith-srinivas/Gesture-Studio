@@ -4,6 +4,7 @@ import HolographicHand from '../components/HolographicHand';
 import { useHandTracking } from '../hooks/useHandTracking';
 import { GESTURES } from '../utils/gestureDetector';
 import { useGestureAcademy } from '../hooks/useGestureAcademy';
+import { usePlayer } from '../hooks/usePlayer';
 
 // ── Web Audio Sound Synthesis ─────────────────────────────────────────────
 class SoundPlayer {
@@ -219,6 +220,7 @@ export default function GestureAcademy() {
   const [searchParams] = useSearchParams();
   const targetGameKey = searchParams.get('game');
   const targetGame = targetGameKey ? GAME_MAP[targetGameKey] : null;
+  const { recordAcademyCompletion } = usePlayer();
 
   // Filter lessons: specific gestures for specific game, or ALL gestures for full academy
   const lessons = useMemo(() => {
@@ -358,6 +360,7 @@ export default function GestureAcademy() {
                 completeGame(targetGameKey);
               } else {
                 completeGlobal();
+                recordAcademyCompletion?.();
               }
               sounds.playFanfare();
               triggerConfetti();
