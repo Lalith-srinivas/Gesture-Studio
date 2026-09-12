@@ -219,11 +219,14 @@ export default function GestureAcademy() {
   const overlayCanvasRef = useRef(null);
   const confettiCanvasRef = useRef(null);
 
-  // Timing ref to avoid stale closures
+  // Timing and transition refs to avoid race conditions & duplicate advances across camera frames
   const holdStartTimeRef = useRef(null);
   const advanceTimeoutRef = useRef(null);
+  const isAdvancingRef = useRef(false);
+  const lessonIndexRef = useRef(lessonIndex);
+  lessonIndexRef.current = lessonIndex;
 
-  const currentLesson = LESSONS[lessonIndex];
+  const currentLesson = LESSONS[lessonIndex] || LESSONS[0];
 
   // Mobile orientation check
   useEffect(() => {
@@ -299,9 +302,11 @@ export default function GestureAcademy() {
     (gesture, indexTip, dims, landmarks) => {
       setLiveGesture(gesture);
 
-      if (isCompleted || isSuccessPulsing) return;
+      // Lock out during completion or active transition to avoid duplicate advances
+      if (isCompleted || isAdvancingRef.current) return;
 
-      const lesson = LESSONS[lessonIndex];
+      const currentIdx = lessonIndexRef.current;
+      const lesson = LESSONS[currentIdx];
       if (!lesson) return;
 
       const isMatch = lesson.verify(gesture, landmarks);
@@ -315,17 +320,24 @@ export default function GestureAcademy() {
         const progress = Math.min(100, Math.round((elapsed / requiredHold) * 100));
         setMatchProgress(progress);
 
-        if (progress >= 100 && !isSuccessPulsing) {
+        if (progress >= 100 && !isAdvancingRef.current) {
+          isAdvancingRef.current = true;
           setIsSuccessPulsing(true);
           sounds.playSuccess();
           triggerConfetti();
 
+          if (advanceTimeoutRef.current) {
+            clearTimeout(advanceTimeoutRef.current);
+          }
+
           advanceTimeoutRef.current = setTimeout(() => {
-            if (lessonIndex + 1 < LESSONS.length) {
-              setLessonIndex((prev) => prev + 1);
+            const nextIdx = lessonIndexRef.current + 1;
+            if (nextIdx < LESSONS.length) {
+              setLessonIndex(nextIdx);
               setMatchProgress(0);
               setIsSuccessPulsing(false);
               holdStartTimeRef.current = null;
+              isAdvancingRef.current = false;
             } else {
               // Completed all 7 lessons!
               setIsCompleted(true);
@@ -333,6 +345,7 @@ export default function GestureAcademy() {
               if (targetGameKey) completeGame(targetGameKey);
               sounds.playFanfare();
               triggerConfetti();
+              isAdvancingRef.current = false;
             }
           }, 800);
         }
@@ -342,7 +355,7 @@ export default function GestureAcademy() {
         setMatchProgress((prev) => Math.max(0, prev - 15));
       }
     },
-    [lessonIndex, isCompleted, isSuccessPulsing, triggerConfetti, completeGlobal, completeGame, targetGameKey]
+    [isCompleted, triggerConfetti, completeGlobal, completeGame, targetGameKey]
   );
 
   // Initialize MediaPipe via useHandTracking hook
@@ -385,6 +398,8 @@ export default function GestureAcademy() {
   // Restart Academy
   const handleReplay = () => {
     sounds.playClick();
+    if (advanceTimeoutRef.current) clearTimeout(advanceTimeoutRef.current);
+    isAdvancingRef.current = false;
     setLessonIndex(0);
     setIsCompleted(false);
     setMatchProgress(0);
@@ -618,6 +633,10 @@ export default function GestureAcademy() {
                     disabled={lessonIndex === 0}
                     onClick={() => {
                       sounds.playClick();
+                      if (advanceTimeoutRef.current) clearTimeout(advanceTimeoutRef.current);
+                      isAdvancingRef.current = false;
+                      holdStartTimeRef.current = null;
+                      setIsSuccessPulsing(false);
                       setLessonIndex((prev) => Math.max(0, prev - 1));
                       setMatchProgress(0);
                     }}
@@ -634,9 +653,14 @@ export default function GestureAcademy() {
                   <button
                     onClick={() => {
                       sounds.playClick();
+                      if (advanceTimeoutRef.current) clearTimeout(advanceTimeoutRef.current);
+                      isAdvancingRef.current = false;
+                      holdStartTimeRef.current = null;
+                      setIsSuccessPulsing(false);
                       sounds.playSuccess();
-                      if (lessonIndex + 1 < LESSONS.length) {
-                        setLessonIndex((prev) => prev + 1);
+                      const nextIdx = lessonIndexRef.current + 1;
+                      if (nextIdx < LESSONS.length) {
+                        setLessonIndex(nextIdx);
                         setMatchProgress(0);
                       } else {
                         setIsCompleted(true);

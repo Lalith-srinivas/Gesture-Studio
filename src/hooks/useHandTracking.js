@@ -15,6 +15,11 @@ export function useHandTracking({ videoRef, overlayCanvasRef, onGesture }) {
   const handsRef  = useRef(null);
   const cameraRef = useRef(null);
   const activeRef = useRef(true);
+  const onGestureRef = useRef(onGesture);
+
+  useEffect(() => {
+    onGestureRef.current = onGesture;
+  }, [onGesture]);
 
   // Draw landmark dots on overlay canvas
   const drawLandmarks = useCallback((canvas, landmarks, video) => {
@@ -110,7 +115,7 @@ export function useHandTracking({ videoRef, overlayCanvasRef, onGesture }) {
           const ctx = canvas.getContext('2d');
           ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
-        onGesture(GESTURES.NONE, null);
+        onGestureRef.current?.(GESTURES.NONE, null);
         return;
       }
 
@@ -121,7 +126,7 @@ export function useHandTracking({ videoRef, overlayCanvasRef, onGesture }) {
       const gesture  = detectGesture(landmarks);
       const indexTip = landmarks[8];
       const dims     = video ? { width: video.videoWidth, height: video.videoHeight } : null;
-      onGesture(gesture, indexTip, dims, landmarks);
+      onGestureRef.current?.(gesture, indexTip, dims, landmarks);
     });
 
     handsRef.current = hands;
