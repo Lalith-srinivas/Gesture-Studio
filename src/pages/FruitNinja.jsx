@@ -607,7 +607,7 @@ export default function FruitNinja() {
         const video = videoRef.current;
         if (!video) return;
 
-        hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+        hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${f}` });
         hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
         hands.onResults(res => {
           if (!res.multiHandLandmarks?.length) { lastTip = null; return; }

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { usePlayer } from '../hooks/usePlayer';
+import { useGestureAcademy } from '../hooks/useGestureAcademy';
 import AuthModal from '../components/AuthModal';
 import ProfileDropdown from '../components/ProfileDropdown';
 
@@ -95,7 +97,17 @@ const GESTURE_GUIDES = [
 
 export default function Home() {
   const { currentUser, userProfile, isGuest } = useAuth();
+  const { playerData } = usePlayer();
+  const { isGlobalDone, isGameDone: _isGameDone, GAME_NAMES } = useGestureAcademy();
   const [showAuthModal, setShowAuthModal] = useState(false);
+
+  // Academy is globally complete if either the hook says so OR playerData confirms it
+  const academyCompleted = isGlobalDone || playerData?.tutorialCompleted === true;
+
+  // Per-game tutorial completion helper
+  const isGameTutorialDone = (gameId) => {
+    return localStorage.getItem(`gesture_tutorial_${gameId}`) === 'true';
+  };
 
   return (
     <div className="w-full min-h-screen bg-neo-dots text-black flex flex-col font-sans selection:bg-neo-yellow selection:text-black">
@@ -197,9 +209,15 @@ export default function Home() {
               <span className="neo-tag bg-white text-black font-mono">
                 7 INTERACTIVE LESSONS
               </span>
-              <span className="bg-neo-lime px-2 py-0.5 border border-black font-mono font-black text-[10px] uppercase">
-                RECOMMENDED FIRST
-              </span>
+              {academyCompleted ? (
+                <span className="bg-neo-lime px-2 py-0.5 border-2 border-black font-mono font-black text-[10px] uppercase flex items-center gap-1 shadow-neo-xs">
+                  ✅ COMPLETED
+                </span>
+              ) : (
+                <span className="bg-neo-yellow px-2 py-0.5 border border-black font-mono font-black text-[10px] uppercase animate-pulse">
+                  RECOMMENDED FIRST
+                </span>
+              )}
             </div>
 
             <h2 className="font-display font-black text-2xl sm:text-4xl text-black uppercase tracking-tight mb-2 flex items-center gap-2.5">
@@ -226,13 +244,17 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row md:flex-col gap-2.5 w-full md:w-auto shrink-0 relative z-10">
             <Link
               to="/gesture-academy"
-              className="px-8 py-4 bg-[#6366F1] hover:bg-[#4F46E5] text-white border-3 border-black font-display font-black text-sm sm:text-base uppercase tracking-wider shadow-neo hover:shadow-neo-lg active:translate-x-1 active:translate-y-1 transition-all flex items-center justify-center gap-2 text-center"
+              className={`px-8 py-4 text-white border-3 border-black font-display font-black text-sm sm:text-base uppercase tracking-wider shadow-neo hover:shadow-neo-lg active:translate-x-1 active:translate-y-1 transition-all flex items-center justify-center gap-2 text-center ${
+                academyCompleted
+                  ? 'bg-[#16A34A] hover:bg-[#15803D]'
+                  : 'bg-[#6366F1] hover:bg-[#4F46E5]'
+              }`}
             >
-              <span>ENTER ACADEMY</span>
+              <span>{academyCompleted ? 'REVISIT ACADEMY' : 'ENTER ACADEMY'}</span>
               <span className="text-lg">➔</span>
             </Link>
             <span className="text-center font-mono text-[11px] font-bold text-zinc-600">
-              ⚡ 2-minute quick certification
+              {academyCompleted ? '✅ Certification earned!' : '⚡ 2-minute quick certification'}
             </span>
           </div>
         </div>

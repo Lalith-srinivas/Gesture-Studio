@@ -130,8 +130,9 @@ export default function LeaderboardPage() {
           <h2 className="font-display font-black text-2xl uppercase">
             {TABS.find((t) => t.id === selectedGame)?.label || 'LEADERBOARD'}
           </h2>
-          <p className="text-xs font-mono text-zinc-500 mt-0.5">
-            {selectedGame === 'global' ? 'Ranked by total score across all games' : 'Ranked by best score in this game'}
+          <p className="text-xs font-mono text-zinc-500 mt-0.5 flex items-center gap-1">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            {selectedGame === 'global' ? 'Live · ranked by total score across all games' : 'Live · ranked by best score in this game'}
           </p>
         </div>
 
@@ -158,7 +159,9 @@ export default function LeaderboardPage() {
           <div className="py-12 text-center bg-white border-3 border-black shadow-neo-sm">
             <p className="text-5xl mb-3">🏆</p>
             <p className="font-display font-black text-lg uppercase">No scores yet!</p>
-            <p className="font-mono text-sm text-zinc-600 mt-1">Be the first to play and claim #1!</p>
+            <p className="font-mono text-sm text-zinc-600 mt-1 max-w-xs mx-auto">
+              Play any game to submit your first score and appear on the live leaderboard!
+            </p>
             <Link to="/" className="inline-block mt-4 px-5 py-2.5 bg-neo-yellow border-3 border-black font-mono font-black text-xs uppercase shadow-neo-sm hover:shadow-neo active:translate-y-0.5">
               PLAY GAMES →
             </Link>

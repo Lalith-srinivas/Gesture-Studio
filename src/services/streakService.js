@@ -15,7 +15,7 @@
  *   - Missed days → reset to 1
  */
 
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase/firebase';
 
 /**
@@ -92,12 +92,16 @@ export function calculateGameStreak(playerData) {
 export async function persistGameStreak(uid, streakUpdate) {
   if (!uid || !streakUpdate) return;
   try {
+    localStorage.setItem(`gesture_studio_streak_${uid}`, JSON.stringify(streakUpdate));
+  } catch { /* silent */ }
+
+  try {
     const userRef = doc(db, 'users', uid);
-    await updateDoc(userRef, {
+    await setDoc(userRef, {
       currentGameStreak: streakUpdate.currentGameStreak,
       longestGameStreak: streakUpdate.longestGameStreak,
       lastGamePlayedDate: streakUpdate.lastGamePlayedDate,
-    });
+    }, { merge: true });
   } catch (err) {
     console.warn('[Streak] Failed to persist streak to Firestore:', err?.message);
   }

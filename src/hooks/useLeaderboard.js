@@ -1,42 +1,80 @@
 /**
  * useLeaderboard
- * Fetches global or per-game leaderboard data with loading/error state.
+ * ─────────────
+ * Subscribes to live Firestore leaderboard data.
+ * Falls back to local cache when offline.
+ * Returns [] when there's genuinely no data yet (not a loading/error state).
  */
-import { useState, useEffect } from 'react';
-import { getGlobalLeaderboard, getGameLeaderboard } from '../services/leaderboardService';
+import { useState, useEffect, useCallback } from 'react';
+import {
+  subscribeGlobalLeaderboard,
+  subscribeGameLeaderboard,
+  getGlobalLeaderboard,
+  getGameLeaderboard,
+} from '../services/leaderboardService';
 
 /**
- * @param {string|'global'} gameId — 'global' for global leaderboard, or a game ID
- * @param {number} [limit=50]
+ * @param {string} gameId  — 'global' for global leaderboard, or a game ID
+ * @param {number} [topN]  — max entries to return (default 50)
  */
-export function useLeaderboard(gameId = 'global', limit = 50) {
+export function useLeaderboard(gameId = 'global', topN = 50) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    try {
+      const result =
+        gameId === 'global'
+          ? await getGlobalLeaderboard(topN)
+          : await getGameLeaderboard(gameId, topN);
+      setData(result);
+    } catch (err) {
+      setError(err?.message || 'Failed to load leaderboard');
+    } finally {
+      setLoading(false);
+    }
+  }, [gameId, topN]);
 
-    const fetch = async () => {
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    setData([]);
+
+    // Subscribe to live updates
+    const unsub =
+      gameId === 'global'
+        ? subscribeGlobalLeaderboard(topN, (entries) => {
+            setData(entries);
+            setLoading(false);
+          })
+        : subscribeGameLeaderboard(gameId, topN, (entries) => {
+            setData(entries);
+            setLoading(false);
+          });
+
+    // Also do a one-time fetch immediately so cached data appears instantly
+    // while the subscription initializes
+    const fetchOnce = async () => {
       try {
         const result =
           gameId === 'global'
-            ? await getGlobalLeaderboard(limit)
-            : await getGameLeaderboard(gameId, limit);
-        if (!cancelled) setData(result);
-      } catch (err) {
-        if (!cancelled) setError(err?.message || 'Failed to load leaderboard');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+            ? await getGlobalLeaderboard(topN)
+            : await getGameLeaderboard(gameId, topN);
+        // Only use if we haven't received a live snapshot yet
+        setData((prev) => (prev.length === 0 ? result : prev));
+      } catch { /* silent — subscription will handle it */ }
+      setLoading(false);
     };
 
-    fetch();
-    return () => { cancelled = true; };
-  }, [gameId, limit]);
+    fetchOnce();
 
-  return { data, loading, error, refetch: () => setLoading(true) };
+    return () => {
+      if (typeof unsub === 'function') unsub();
+    };
+  }, [gameId, topN]);
+
+  return { data, loading, error, refetch: load };
 }
-

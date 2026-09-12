@@ -20,6 +20,23 @@ import { PlayerProvider, usePlayer } from './context/PlayerContext';
 
 const GestureAcademy = lazy(() => import('./pages/GestureAcademy'));
 
+// ── One-time migration: clear old seed-based leaderboard cache (v1 keys) ─────
+// This runs once and removes fake placeholder data from localStorage so the
+// leaderboard loads fresh from Firestore with only real player scores.
+try {
+  const OLD_LB_KEYS = [
+    'gesture_studio_lb_global',
+    'gesture_studio_lb_fruit-ninja',
+    'gesture_studio_lb_flappy-bird',
+    'gesture_studio_lb_archery',
+    'gesture_studio_lb_bird-hunter',
+    'gesture_studio_lb_hill-climb',
+    'gesture_studio_lb_air-draw',
+  ];
+  OLD_LB_KEYS.forEach((k) => localStorage.removeItem(k));
+} catch { /* silent */ }
+
+
 /**
  * Renders GestureCursor only on pages that don't have their own camera/tracking.
  * AirDraw, FruitNinja, HillClimb, GestureAcademy, etc. manage their own camera/canvas, so skip cursor there.

@@ -153,22 +153,22 @@ export async function recordGameResult({
 
       // Update achievementsUnlocked array on root doc
       try {
-        await updateDoc(doc(db, 'users', uid), {
+        await setDoc(doc(db, 'users', uid), {
           achievementsUnlocked: allUnlocked,
-        });
+        }, { merge: true });
       } catch { /* silent */ }
     }
 
     // ── 9. Update user root document ──────────────────────────────────────────
     try {
-      await updateDoc(doc(db, 'users', uid), {
+      await setDoc(doc(db, 'users', uid), {
         xp: increment(totalXPEarned),
         level: newLevel,
         totalGamesPlayed: increment(1),
         totalScore: increment(score),
         gamesPlayedByGame,
         lastActiveAt: new Date().toISOString(),
-      });
+      }, { merge: true });
     } catch (err) {
       console.warn('[Progression] Failed to update user root:', err?.message);
     }
@@ -234,11 +234,16 @@ export async function recordAcademyCompletion(uid, playerData) {
   const xpEarned = XP_CONFIG.GESTURE_ACADEMY_COMPLETE;
 
   try {
-    await updateDoc(doc(db, 'users', uid), {
+    localStorage.setItem('gesture_academy_global_done', 'true');
+    localStorage.setItem('gesture_studio_academy_certified', 'true');
+  } catch { /* silent */ }
+
+  try {
+    await setDoc(doc(db, 'users', uid), {
       tutorialCompleted: true,
       tutorialCompletedAt: new Date().toISOString(),
       xp: increment(xpEarned),
-    });
+    }, { merge: true });
 
     // Unlock Gesture Master achievement if not already
     const alreadyUnlocked = playerData?.achievementsUnlocked || [];
@@ -252,15 +257,15 @@ export async function recordAcademyCompletion(uid, playerData) {
         unlockedAt: new Date().toISOString(),
       }, { merge: true });
 
-      await updateDoc(doc(db, 'users', uid), {
+      await setDoc(doc(db, 'users', uid), {
         achievementsUnlocked: [...alreadyUnlocked, 'gesture_master'],
-      });
+      }, { merge: true });
     }
 
     return { xpEarned };
   } catch (err) {
     console.warn('[Progression] Academy completion error:', err?.message);
-    return { xpEarned: 0 };
+    return { xpEarned };
   }
 }
 
