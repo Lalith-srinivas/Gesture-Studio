@@ -91,13 +91,18 @@ export function AuthProvider({ children }) {
   }, [syncProfile]);
 
   // Guest login
-  const loginAsGuest = async () => {
+  const loginAsGuest = async (customUsername = '') => {
     setAuthError(null);
     try { localStorage.removeItem('gesture_explicit_logout'); } catch {}
     const result = await signInAsGuest();
     if (result.error) {
       setAuthError(result.error);
     } else if (result.user) {
+      if (customUsername && customUsername.trim()) {
+        await updateUserProfile(result.user.uid, {
+          username: customUsername.trim(),
+        });
+      }
       setCurrentUser(result.user);
       try {
         localStorage.setItem('gesture_studio_last_uid', result.user.uid);

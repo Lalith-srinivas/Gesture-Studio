@@ -15,6 +15,7 @@ import TutorialGate from './components/TutorialGate';
 import BottomNav from './components/BottomNav';
 import AchievementToastContainer from './components/AchievementToast';
 import LevelUpModal from './components/LevelUpModal';
+import WelcomeModal from './components/WelcomeModal';
 import { AuthProvider } from './context/AuthContext';
 import { PlayerProvider, usePlayer } from './context/PlayerContext';
 
@@ -80,6 +81,7 @@ function GlobalProgressionModals() {
   const { pendingLevelUp, clearPendingLevelUp } = usePlayer();
   return (
     <>
+      <WelcomeModal />
       <AchievementToastContainer />
       <LevelUpModal levelUpData={pendingLevelUp} onClose={clearPendingLevelUp} />
     </>
