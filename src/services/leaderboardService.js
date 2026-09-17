@@ -67,34 +67,84 @@ function invalidateCache(key) {
 
 /**
  * Update the global leaderboard entry for a user.
+ * Only overwrites totalScore if the new score is >= existing score in Firestore.
  */
 export async function updateGlobalLeaderboard(uid, playerData) {
   if (!uid) return;
-  const entry = {
-    uid,
-    username: playerData.username || 'Player',
-    avatar: playerData.avatar || '🎮',
-    totalScore: playerData.totalScore || 0,
-    level: playerData.level || 1,
-    updatedAt: serverTimestamp(),
-  };
+  const newTotal = playerData.totalScore || 0;
 
   try {
     const ref = doc(db, 'leaderboards', 'global', 'entries', uid);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const existingTotal = snap.data()?.totalScore || 0;
+      if (newTotal < existingTotal) {
+        // Keep the higher score in Firestore, only update metadata
+        await setDoc(ref, {
+          uid,
+          username: playerData.username || 'Player',
+          avatar: playerData.avatar || '🎮',
+          level: Math.max(playerData.level || 1, snap.data()?.level || 1),
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+        invalidateCache('global');
+        return;
+      }
+    }
+
+    const entry = {
+      uid,
+      username: playerData.username || 'Player',
+      avatar: playerData.avatar || '🎮',
+      totalScore: newTotal,
+      level: playerData.level || 1,
+      updatedAt: serverTimestamp(),
+    };
     await setDoc(ref, entry, { merge: true });
     invalidateCache('global');
+
+    // Optimistically update local cache
+    try {
+      const cached = getLocalCache('global') || [];
+      const filtered = cached.filter((e) => e.uid !== uid);
+      filtered.push(entry);
+      filtered.sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
+      setLocalCache('global', filtered.slice(0, LEADERBOARD_LIMIT));
+    } catch { /* silent */ }
   } catch (err) {
     console.warn('[Leaderboard] Firestore global write failed:', err?.message);
   }
+}
 
-  // Optimistically update local cache
+/**
+ * Propagate username and avatar updates across all leaderboard entries for a user
+ * (Global leaderboard + all per-game leaderboards).
+ */
+export async function updateLeaderboardIdentity(uid, { username, avatar }) {
+  if (!uid) return;
+  const updates = { updatedAt: serverTimestamp() };
+  if (username) updates.username = username;
+  if (avatar) updates.avatar = avatar;
+
   try {
-    const cached = getLocalCache('global') || [];
-    const filtered = cached.filter((e) => e.uid !== uid);
-    filtered.push(entry);
-    filtered.sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
-    setLocalCache('global', filtered.slice(0, LEADERBOARD_LIMIT));
-  } catch { /* silent */ }
+    // 1. Update Global leaderboard
+    const globalRef = doc(db, 'leaderboards', 'global', 'entries', uid);
+    await setDoc(globalRef, updates, { merge: true }).catch(() => {});
+    invalidateCache('global');
+
+    // 2. Update each game's leaderboard
+    const gameIds = Object.keys(GAME_LABELS);
+    for (const gameId of gameIds) {
+      const gameRef = doc(db, 'leaderboards', gameId, 'entries', uid);
+      const snap = await getDoc(gameRef).catch(() => null);
+      if (snap && snap.exists()) {
+        await setDoc(gameRef, updates, { merge: true }).catch(() => {});
+        invalidateCache(gameId);
+      }
+    }
+  } catch (err) {
+    console.warn('[Leaderboard] updateLeaderboardIdentity error:', err?.message);
+  }
 }
 
 /**

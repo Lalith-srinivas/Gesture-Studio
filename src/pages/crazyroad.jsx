@@ -327,8 +327,12 @@ export default function TrafficRiderGame() {
   const handStateRef = useRef({ detected: false, gesture: GESTURES.NONE });
 
   const [activeGesture, setActiveGesture] = useState(GESTURES.NONE);
-  const [highScore, setHighScore] = useState(() => parseInt(localStorage.getItem(HIGH_SCORE_KEY) || '0', 10));
   const { recordGameResult, allGameStats } = usePlayer();
+  const [highScore, setHighScore] = useState(() => {
+    const remote = allGameStats?.['hill-climb']?.bestScore || 0;
+    const local = parseInt(localStorage.getItem(HIGH_SCORE_KEY) || '0', 10);
+    return Math.max(remote, local);
+  });
   const [lastProgressionResult, setLastProgressionResult] = useState(null);
   const sessionRecordedRef = useRef(false);
 

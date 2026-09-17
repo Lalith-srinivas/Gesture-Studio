@@ -125,14 +125,16 @@ export default function FruitNinja() {
   const [displayScore, setDisplayScore] = useState(0);
   const [displayMisses, setDisplayMisses] = useState(0);
   const [displayBombs, setDisplayBombs] = useState(0);
-  const [highScore, setHighScore] = useState(
-    () => parseInt(localStorage.getItem("fn_highscore") || "0", 10)
-  );
+  const { recordGameResult, allGameStats } = usePlayer();
+  const [highScore, setHighScore] = useState(() => {
+    const remote = allGameStats?.['fruit-ninja']?.bestScore || 0;
+    const local = parseInt(localStorage.getItem("fn_highscore") || "0", 10);
+    return Math.max(remote, local);
+  });
   const [gameState, setGameState] = useState("idle");
   const [bombFlash, setBombFlash] = useState(false);
   const [slowmo, setSlowmo] = useState(false);
   const [overReason, setOverReason] = useState("");
-  const { recordGameResult, allGameStats } = usePlayer();
   const [lastProgressionResult, setLastProgressionResult] = useState(null);
   const sessionRecordedRef = useRef(false);
 

@@ -67,13 +67,17 @@ export default function BirdHunterChallenge() {
   const [handTracked, setHandTracked] = useState(false);
   const [score, setScore] = useState(0);
   const [combo, setCombo] = useState(0);
-  const [highScore, setHighScore] = useState(0);
+  const { recordGameResult, allGameStats } = usePlayer();
+  const [highScore, setHighScore] = useState(() => {
+    const remote = allGameStats?.['bird-hunter']?.bestScore || 0;
+    const local = parseInt(localStorage.getItem('birdHunterHighScore') || '0', 10);
+    return Math.max(remote, local);
+  });
   const [consecutiveMisses, setConsecutiveMisses] = useState(0);
   const [activePowerup, setActivePowerup] = useState(null);
   const [powerupTimeLeft, setPowerupTimeLeft] = useState(0);
   const [selectedProjectile, setSelectedProjectile] = useState(PROJECTILES[0]);
   const [isMuted, setIsMuted] = useState(false);
-  const { recordGameResult, allGameStats } = usePlayer();
   const [lastProgressionResult, setLastProgressionResult] = useState(null);
   const sessionRecordedRef = useRef(false);
 

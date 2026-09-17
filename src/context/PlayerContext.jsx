@@ -116,8 +116,14 @@ export function PlayerProvider({ children }) {
           const data = snap.data();
           const cached = getCachedPlayer(uid) || {};
           // Preserve whichever has higher progress (e.g. played offline while rules were locked)
+          const resolvedUsername = (data.username && data.username !== 'Player' && !data.username.startsWith('Guest_'))
+            ? data.username
+            : (currentUser?.displayName || data.username || 'Player');
+
           const merged = {
             ...data,
+            username: resolvedUsername,
+            avatar: data.avatar || currentUser?.photoURL || '🎮',
             totalScore: Math.max(data.totalScore || 0, cached.totalScore || 0),
             xp: Math.max(data.xp || 0, cached.xp || 0),
             level: Math.max(data.level || 1, cached.level || 1),
@@ -131,9 +137,20 @@ export function PlayerProvider({ children }) {
           if (Array.isArray(merged.achievementsUnlocked)) {
             setUnlockedAchievements(merged.achievementsUnlocked);
           }
-          // If local cache had higher progress, push the merged state back to Firestore
-          if ((merged.totalScore || 0) > (data.totalScore || 0) || (merged.xp || 0) > (data.xp || 0)) {
-            setDoc(userRef, merged, { merge: true }).catch(() => {});
+          // If username changed or local cache had higher progress, push back to Firestore
+          const updatesNeeded = {};
+          if (resolvedUsername !== data.username) {
+            updatesNeeded.username = resolvedUsername;
+          }
+          if ((merged.totalScore || 0) > (data.totalScore || 0)) {
+            updatesNeeded.totalScore = merged.totalScore;
+          }
+          if ((merged.xp || 0) > (data.xp || 0)) {
+            updatesNeeded.xp = merged.xp;
+            updatesNeeded.level = merged.level;
+          }
+          if (Object.keys(updatesNeeded).length > 0) {
+            setDoc(userRef, updatesNeeded, { merge: true }).catch(() => {});
           }
           // Ensure player's total score is present in the global leaderboard!
           if ((merged.totalScore || 0) > 0) {

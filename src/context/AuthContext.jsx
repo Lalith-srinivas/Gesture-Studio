@@ -136,6 +136,14 @@ export function AuthProvider({ children }) {
     const result = await registerWithEmail(email, password, displayName);
     if (result.error) {
       setAuthError(result.error);
+    } else if (result.user) {
+      const cleanName = (displayName || '').trim() || 'Player';
+      await updateUserProfile(result.user.uid, {
+        username: cleanName,
+        isAnonymous: false,
+        email: email.trim()
+      });
+      await syncProfile(result.user);
     }
     return result;
   };

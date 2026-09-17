@@ -93,9 +93,15 @@ export default function ArcheryChallenge() {
   const videoRef = useRef(null);
   const handOverlayRef = useRef(null);
 
+  const { recordGameResult, allGameStats } = usePlayer();
+
   // Game UI State
   const [score, setScore] = useState(0);
-  const [highScore, setHighScore] = useState(0);
+  const [highScore, setHighScore] = useState(() => {
+    const remote = allGameStats?.['archery']?.bestScore || 0;
+    const local = parseInt(localStorage.getItem('archery_high_score') || '0', 10);
+    return Math.max(remote, local);
+  });
   const [combo, setCombo] = useState(0);
   const [consecutiveMisses, setConsecutiveMisses] = useState(0);
   const [gameState, setGameState] = useState('MENU'); // MENU, PLAYING, PAUSED, GAMEOVER
@@ -105,7 +111,6 @@ export default function ArcheryChallenge() {
   const [activeGesture, setActiveGesture] = useState(GESTURES.NONE);
   const [handTracked, setHandTracked] = useState(false);
   const [orientation, setOrientation] = useState('landscape');
-  const { recordGameResult, allGameStats } = usePlayer();
   const [lastProgressionResult, setLastProgressionResult] = useState(null);
   const sessionRecordedRef = useRef(false);
 

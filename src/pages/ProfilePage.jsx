@@ -5,6 +5,7 @@
 import React, { useState, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { doc, updateDoc } from 'firebase/firestore';
+import { updateProfile } from 'firebase/auth';
 import { db } from '../firebase/firebase';
 import { useAuth } from '../hooks/useAuth';
 import { usePlayer } from '../hooks/usePlayer';
@@ -15,6 +16,7 @@ import { useGestureAcademy } from '../hooks/useGestureAcademy';
 import { ACHIEVEMENTS, getAchievementProgress } from '../services/achievementService';
 import { getWeeklyStreakVisualization } from '../services/streakService';
 import { GAME_LABELS } from '../services/gameStatsService';
+import { updateLeaderboardIdentity } from '../services/leaderboardService';
 
 const AVATAR_PRESETS = ['🎮', '🏆', '⚡', '🔥', '🎯', '🎨', '🦅', '🌟'];
 
@@ -60,16 +62,26 @@ export default function ProfilePage() {
     if (!trimmed || !currentUser?.uid) { setEditingUsername(false); return; }
     setSavingUsername(true);
     try {
+      // 1. Update Firestore user document
       await updateDoc(doc(db, 'users', currentUser.uid), { username: trimmed });
+      // 2. Update Firebase Auth displayName
+      if (currentUser) {
+        await updateProfile(currentUser, { displayName: trimmed }).catch(() => {});
+      }
+      // 3. Update all Leaderboards immediately
+      await updateLeaderboardIdentity(currentUser.uid, { username: trimmed });
     } catch { /* silent */ }
     setSavingUsername(false);
     setEditingUsername(false);
-  }, [usernameVal, currentUser?.uid]);
+  }, [usernameVal, currentUser]);
 
   const saveAvatar = useCallback(async (emoji) => {
     if (!currentUser?.uid) return;
     setShowAvatarPicker(false);
-    try { await updateDoc(doc(db, 'users', currentUser.uid), { avatar: emoji }); } catch { /* silent */ }
+    try {
+      await updateDoc(doc(db, 'users', currentUser.uid), { avatar: emoji });
+      await updateLeaderboardIdentity(currentUser.uid, { avatar: emoji });
+    } catch { /* silent */ }
   }, [currentUser?.uid]);
 
   const handleResetTutorial = () => {

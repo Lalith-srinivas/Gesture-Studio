@@ -126,6 +126,20 @@ export const getOrCreateUserProfile = async (user, additionalData = {}) => {
         updates.longestStreak = streakInfo.longestStreak;
       }
 
+      // If user has a real displayName and doc has fallback 'Player' or 'Guest_...', sync it
+      if (
+        user.displayName &&
+        (!data.username || data.username === 'Player' || data.username.startsWith('Guest_'))
+      ) {
+        updates.username = user.displayName;
+      }
+      if (user.email && !data.email) {
+        updates.email = user.email;
+      }
+      if (data.isAnonymous && !user.isAnonymous) {
+        updates.isAnonymous = false;
+      }
+
       await updateDoc(userRef, updates);
       const merged = { ...data, ...updates };
       cacheLocally(`user_${user.uid}`, merged);

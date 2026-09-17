@@ -39,11 +39,19 @@ export default function AuthModal({ isOpen, onClose }) {
     setLocalMsg(null);
     try {
       if (isGuest) {
-        // Link existing guest account so progress is preserved
+        // Try linking guest first to preserve any new scores
         const res = await linkGoogleAccount();
         if (!res.error) {
           setLocalMsg('Account successfully linked with Google! All progress preserved.');
           setTimeout(onClose, 1200);
+          return;
+        }
+        // If the Google account is already registered on another device, log into it directly!
+        const loginRes = await loginWithGoogle();
+        if (!loginRes.error) {
+          onClose();
+        } else {
+          setLocalMsg(loginRes.error);
         }
       } else {
         const res = await loginWithGoogle();
