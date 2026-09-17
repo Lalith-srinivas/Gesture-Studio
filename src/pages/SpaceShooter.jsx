@@ -1896,7 +1896,7 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
                 PLAY AGAIN
               </NeoButton>
               <NeoButton onClick={exitGame} color={COLORS.lavender}>
-                EXIT
+                ← BACK TO HOME
               </NeoButton>
             </div>
           </div>

@@ -126,22 +126,24 @@ export default function WelcomeModal() {
     setGuestUsername(pick);
   };
 
-  if (!isOpen) {
-    return <AuthModal isOpen={showAuthModal} onClose={() => { setShowAuthModal(false); handleDismiss(); }} />;
-  }
-
-  return (
-    <>
+  if (showAuthModal) {
+    return (
       <AuthModal
-        isOpen={showAuthModal}
+        isOpen={true}
         onClose={() => {
           setShowAuthModal(false);
-          // If user successfully logged in, dismiss welcome modal
           if (currentUser && !currentUser.isAnonymous) {
             handleDismiss();
           }
         }}
       />
+    );
+  }
+
+  if (!isOpen) return null;
+
+  return (
+    <>
 
       <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 select-none animate-fadeIn font-sans">
         <div className="relative w-full max-w-lg bg-white border-4 border-black shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] rounded-2xl p-6 sm:p-8">

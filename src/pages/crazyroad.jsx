@@ -707,9 +707,18 @@ export default function TrafficRiderGame() {
               DODGE TRAFFIC & BOOST TO WIN!
             </p>
             <PostGameProgression result={lastProgressionResult} />
-            <button onClick={startGame} className="neo-btn-primary w-full py-3 text-sm sm:text-base uppercase tracking-wider mt-2">
-              RACE NOW ➔
-            </button>
+            <div className="flex flex-col gap-2 w-full mt-2">
+              <button onClick={startGame} className="neo-btn-primary w-full py-3 text-sm sm:text-base uppercase tracking-wider">
+                RACE NOW ➔
+              </button>
+              <button
+                onClick={() => navigate('/')}
+                className="w-full py-2.5 bg-white hover:bg-zinc-100 text-black border-3 border-black font-mono font-black text-xs uppercase shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-all flex items-center justify-center gap-1.5"
+              >
+                <span>←</span>
+                <span>BACK TO HOME</span>
+              </button>
+            </div>
           </div>
         </div>
 

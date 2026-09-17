@@ -1094,15 +1094,22 @@ export default function ArcheryChallenge() {
               </>
             )}
 
-            <div className="flex flex-col gap-2 sm:gap-3">
+            <div className="flex flex-col gap-2 sm:gap-2.5">
               <button
                 onClick={() => {
                   if (gameState === 'PAUSED') setGameState('PLAYING');
                   else startGame();
                 }}
-                className="w-full bg-green-400 hover:bg-green-500 text-black border-2 sm:border-4 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none py-2.5 sm:py-4 rounded-xl sm:rounded-2xl font-black text-lg sm:text-2xl tracking-wide uppercase transition-all"
+                className="w-full bg-green-400 hover:bg-green-500 text-black border-2 sm:border-4 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl font-black text-lg sm:text-xl tracking-wide uppercase transition-all"
               >
                 {gameState === 'PAUSED' ? 'RESUME' : 'PLAY NOW'}
+              </button>
+              <button
+                onClick={() => navigate('/')}
+                className="w-full bg-white hover:bg-gray-100 text-black border-2 sm:border-4 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none py-2 sm:py-2.5 rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm tracking-wide uppercase transition-all flex items-center justify-center gap-1.5"
+              >
+                <span>←</span>
+                <span>BACK TO HOME</span>
               </button>
             </div>
 

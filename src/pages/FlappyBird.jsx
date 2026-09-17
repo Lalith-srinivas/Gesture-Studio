@@ -613,13 +613,22 @@ export default function FlappyBird({ onReady }) {
 
               <PostGameProgression result={lastProgressionResult} />
 
-              <button
-                id="flappy-action-btn"
-                onClick={restartGame}
-                className="neo-btn-primary w-full py-3 text-base uppercase mt-2"
-              >
-                ↺ PLAY AGAIN
-              </button>
+              <div className="flex flex-col gap-2 w-full mt-2">
+                <button
+                  id="flappy-action-btn"
+                  onClick={restartGame}
+                  className="neo-btn-primary w-full py-3 text-base uppercase"
+                >
+                  ↺ PLAY AGAIN
+                </button>
+                <button
+                  onClick={() => navigate('/')}
+                  className="w-full py-2.5 bg-white hover:bg-zinc-100 text-black border-3 border-black font-mono font-black text-xs uppercase shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-all flex items-center justify-center gap-1.5"
+                >
+                  <span>←</span>
+                  <span>BACK TO HOME</span>
+                </button>
+              </div>
             </div>
           </Overlay>
         )}

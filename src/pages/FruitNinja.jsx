@@ -802,13 +802,23 @@ export default function FruitNinja() {
               </div>
             )}
 
-            {/* CTA button */}
+            {/* CTA buttons */}
             <button
               onClick={startGame}
               className="neo-btn-primary w-full py-3.5 text-base uppercase tracking-wider mt-2"
             >
               {gameState === "idle" ? "▶ START SLICING" : "↺ PLAY AGAIN"}
             </button>
+
+            {gameState === "over" && (
+              <button
+                onClick={() => navigate('/')}
+                className="w-full py-3 mt-2.5 bg-white hover:bg-zinc-100 text-black border-3 border-black font-mono font-black text-xs uppercase shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-all flex items-center justify-center gap-1.5"
+              >
+                <span>←</span>
+                <span>BACK TO HOME</span>
+              </button>
+            )}
 
             {/* Rules */}
             {gameState === "idle" && (
