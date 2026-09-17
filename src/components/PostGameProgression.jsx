@@ -2,14 +2,29 @@
  * PostGameProgression — Compact progression summary shown after a game ends.
  * Renders inside/below existing game-over UI — does NOT replace it.
  */
-import React from 'react';
+import React, { useState } from 'react';
+import { useAd } from '../context/AdContext';
 
 export default function PostGameProgression({ result, onClose }) {
+  const [bonusClaimed, setBonusClaimed] = useState(false);
+  const { showRewardedAd } = useAd();
+
   if (!result || result.error === 'Duplicate session') return null;
 
   const { xpEarned, isPersonalBest, prevBest, newLevel, unlockedAchievements = [], currentStreak } = result;
 
   if (xpEarned === 0 && !isPersonalBest && unlockedAchievements.length === 0) return null;
+
+  const handleClaimBonus = () => {
+    showRewardedAd({
+      rewardTitle: 'Match Bonus XP',
+      rewardDescription: 'Watch a short sponsored message to earn bonus XP for this match!',
+      rewardAmount: '+25 XP',
+      onRewarded: () => {
+        setBonusClaimed(true);
+      },
+    });
+  };
 
   return (
     <div className="mt-3 bg-zinc-900 border-3 border-neo-yellow p-4 rounded-xl text-white">
@@ -62,6 +77,23 @@ export default function PostGameProgression({ result, onClose }) {
           ))}
         </div>
       )}
+
+      {/* ── Optional Rewarded Ad Placement (Safe buffer, opt-in) ── */}
+      <div className="mt-3 pt-2.5 border-t border-zinc-800 flex items-center justify-between gap-2">
+        {bonusClaimed ? (
+          <div className="w-full py-1.5 px-2 bg-neo-lime/20 border border-neo-lime text-neo-lime font-mono font-bold text-xs text-center rounded-lg">
+            ✅ +25 BONUS XP CLAIMED!
+          </div>
+        ) : (
+          <button
+            onClick={handleClaimBonus}
+            className="w-full py-2 px-3 bg-neo-yellow/20 hover:bg-neo-yellow/30 border border-neo-yellow/60 hover:border-neo-yellow text-neo-yellow font-mono font-bold text-xs uppercase flex items-center justify-center gap-1.5 rounded-lg transition-all active:scale-[0.98]"
+          >
+            <span>🎁</span>
+            <span>Watch Short Ad for +25 XP</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }

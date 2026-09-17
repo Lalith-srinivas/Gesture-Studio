@@ -20,6 +20,7 @@ import { GESTURES } from "../utils/gestureDetector";
 import { playPinchSound, playFailSound, resumeAudio } from "../utils/soundEffects";
 import { usePlayer } from "../hooks/usePlayer";
 import PostGameProgression from "../components/PostGameProgression";
+import AdSlot from "../components/ads/AdSlot";
 
 /* ─── Constants ─────────────────────────────────────────── */
 const BASE_W = 480;
@@ -612,6 +613,11 @@ export default function FlappyBird({ onReady }) {
               </div>
 
               <PostGameProgression result={lastProgressionResult} />
+
+              {/* Game Over Ad Space with safe buffer before CTA buttons */}
+              <div className="w-full my-3 flex justify-center">
+                <AdSlot placement="game-over" format="banner" className="max-w-[280px] sm:max-w-[340px]" />
+              </div>
 
               <div className="flex flex-col gap-2 w-full mt-2">
                 <button

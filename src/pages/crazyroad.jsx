@@ -12,6 +12,7 @@ import {
 } from '../utils/soundEffects';
 import { usePlayer } from '../hooks/usePlayer';
 import PostGameProgression from '../components/PostGameProgression';
+import AdSlot from '../components/ads/AdSlot';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS & GAME CONFIG
@@ -707,6 +708,13 @@ export default function TrafficRiderGame() {
               DODGE TRAFFIC & BOOST TO WIN!
             </p>
             <PostGameProgression result={lastProgressionResult} />
+
+            {lastProgressionResult && (
+              <div className="w-full my-3 flex justify-center">
+                <AdSlot placement="game-over" format="banner" className="max-w-[280px] sm:max-w-[340px]" />
+              </div>
+            )}
+
             <div className="flex flex-col gap-2 w-full mt-2">
               <button onClick={startGame} className="neo-btn-primary w-full py-3 text-sm sm:text-base uppercase tracking-wider">
                 RACE NOW ➔

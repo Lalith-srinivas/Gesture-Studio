@@ -5,6 +5,7 @@ import { usePlayer } from '../hooks/usePlayer';
 import { useGestureAcademy } from '../hooks/useGestureAcademy';
 import AuthModal from '../components/AuthModal';
 import ProfileDropdown from '../components/ProfileDropdown';
+import AdSlot from '../components/ads/AdSlot';
 
 const GAMES = [
   {
@@ -256,6 +257,11 @@ export default function Home() {
               {academyCompleted ? '✅ Certification earned!' : '⚡ 2-minute quick certification'}
             </span>
           </div>
+        </div>
+
+        {/* ── Responsive Ad Slot (Controlled height, zero CLS) ───────────── */}
+        <div className="w-full flex justify-center mb-8">
+          <AdSlot placement="home" format="responsive" className="max-w-4xl" />
         </div>
 
         {/* ── Games Grid ──────────────────────────────────────────────────── */}

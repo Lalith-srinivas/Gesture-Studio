@@ -5,6 +5,7 @@ import { GESTURES } from "../utils/gestureDetector";
 import { usePlayer } from "../hooks/usePlayer";
 import PostGameProgression from "../components/PostGameProgression";
 import InGameGestureGuide from "../components/InGameGestureGuide";
+import AdSlot from "../components/ads/AdSlot";
 
 /**
  * SpaceShooter.jsx
@@ -1891,7 +1892,12 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
 
             <PostGameProgression result={lastProgressionResult} />
 
-            <div className="flex flex-col gap-3 mt-5">
+            {/* Dedicated Game Over Ad Slot */}
+            <div className="w-full my-3 flex justify-center">
+              <AdSlot placement="game-over" format="banner" className="max-w-[280px] sm:max-w-[340px]" />
+            </div>
+
+            <div className="flex flex-col gap-3 mt-4">
               <NeoButton onClick={restartGame} color={COLORS.green}>
                 PLAY AGAIN
               </NeoButton>

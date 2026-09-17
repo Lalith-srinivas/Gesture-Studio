@@ -18,6 +18,7 @@ import LevelUpModal from './components/LevelUpModal';
 import WelcomeModal from './components/WelcomeModal';
 import { AuthProvider } from './context/AuthContext';
 import { PlayerProvider, usePlayer } from './context/PlayerContext';
+import { AdProvider } from './context/AdContext';
 
 const GestureAcademy = lazy(() => import('./pages/GestureAcademy'));
 
@@ -104,79 +105,81 @@ export default function App() {
   return (
     <AuthProvider>
       <PlayerProvider>
-        <Router>
-          <ConditionalCursor />
-          <GlobalProgressionModals />
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/leaderboard" element={<LeaderboardPage />} />
-            <Route path="/achievements" element={<AchievementsPage />} />
-            <Route
-              path="/gesture-academy"
-              element={
-                <Suspense
-                  fallback={
-                    <div className="min-h-screen bg-neo-dots flex items-center justify-center font-display font-black text-xl">
-                      LOADING GESTURE ACADEMY...
-                    </div>
-                  }
-                >
-                  <GestureAcademy />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/fruit-ninja"
-              element={
-                <TutorialGate gameName="fruit-ninja">
-                  <FruitNinja />
-                </TutorialGate>
-              }
-            />
-            <Route
-              path="/hill-climb"
-              element={
-                <TutorialGate gameName="hill-climb">
-                  <HillClimbGame />
-                </TutorialGate>
-              }
-            />
-            <Route
-              path="/flappy-bird"
-              element={
-                <TutorialGate gameName="flappy-bird">
-                  <FlappyBird />
-                </TutorialGate>
-              }
-            />
-            <Route
-              path="/archery"
-              element={
-                <TutorialGate gameName="archery">
-                  <ArcheryChallenge />
-                </TutorialGate>
-              }
-            />
-            <Route
-              path="/bird-hunter"
-              element={
-                <TutorialGate gameName="bird-hunter">
-                  <BirdHunterChallenge />
-                </TutorialGate>
-              }
-            />
-            <Route
-              path="/space-shooter"
-              element={
-                <TutorialGate gameName="space-shooter">
-                  <SpaceShooter />
-                </TutorialGate>
-              }
-            />
-          </Routes>
-          <ConditionalBottomNav />
-        </Router>
+        <AdProvider>
+          <Router>
+            <ConditionalCursor />
+            <GlobalProgressionModals />
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/leaderboard" element={<LeaderboardPage />} />
+              <Route path="/achievements" element={<AchievementsPage />} />
+              <Route
+                path="/gesture-academy"
+                element={
+                  <Suspense
+                    fallback={
+                      <div className="min-h-screen bg-neo-dots flex items-center justify-center font-display font-black text-xl">
+                        LOADING GESTURE ACADEMY...
+                      </div>
+                    }
+                  >
+                    <GestureAcademy />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/fruit-ninja"
+                element={
+                  <TutorialGate gameName="fruit-ninja">
+                    <FruitNinja />
+                  </TutorialGate>
+                }
+              />
+              <Route
+                path="/hill-climb"
+                element={
+                  <TutorialGate gameName="hill-climb">
+                    <HillClimbGame />
+                  </TutorialGate>
+                }
+              />
+              <Route
+                path="/flappy-bird"
+                element={
+                  <TutorialGate gameName="flappy-bird">
+                    <FlappyBird />
+                  </TutorialGate>
+                }
+              />
+              <Route
+                path="/archery"
+                element={
+                  <TutorialGate gameName="archery">
+                    <ArcheryChallenge />
+                  </TutorialGate>
+                }
+              />
+              <Route
+                path="/bird-hunter"
+                element={
+                  <TutorialGate gameName="bird-hunter">
+                    <BirdHunterChallenge />
+                  </TutorialGate>
+                }
+              />
+              <Route
+                path="/space-shooter"
+                element={
+                  <TutorialGate gameName="space-shooter">
+                    <SpaceShooter />
+                  </TutorialGate>
+                }
+              />
+            </Routes>
+            <ConditionalBottomNav />
+          </Router>
+        </AdProvider>
       </PlayerProvider>
     </AuthProvider>
   );

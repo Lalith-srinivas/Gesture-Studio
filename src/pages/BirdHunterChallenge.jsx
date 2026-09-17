@@ -5,6 +5,7 @@ import { GESTURES } from '../utils/gestureDetector';
 import { mapHandToScreen } from '../utils/resolution';
 import { usePlayer } from '../hooks/usePlayer';
 import PostGameProgression from '../components/PostGameProgression';
+import AdSlot from '../components/ads/AdSlot';
 
 // --- UTILS & CONSTANTS ---
 const BIRD_TYPES = ['NORMAL', 'GOLDEN', 'FAST', 'TINY', 'GIANT', 'GHOST'];
@@ -1413,6 +1414,11 @@ export default function BirdHunterChallenge() {
             </div>
 
             <PostGameProgression result={lastProgressionResult} />
+
+            {/* Dedicated Game Over Ad Slot */}
+            <div className="w-full my-3 flex justify-center">
+              <AdSlot placement="game-over" format="banner" className="max-w-[280px] sm:max-w-[340px]" />
+            </div>
 
             <button
               onClick={startGame}

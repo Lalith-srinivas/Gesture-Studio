@@ -5,6 +5,7 @@ import { GESTURES } from '../utils/gestureDetector';
 import { mapHandToScreen } from '../utils/resolution';
 import { usePlayer } from '../hooks/usePlayer';
 import PostGameProgression from '../components/PostGameProgression';
+import AdSlot from '../components/ads/AdSlot';
 
 /**
  * ArcheryChallenge.jsx
@@ -1091,6 +1092,9 @@ export default function ArcheryChallenge() {
                   <span className="text-2xl sm:text-4xl font-black">{score}</span>
                 </div>
                 <PostGameProgression result={lastProgressionResult} />
+                <div className="w-full my-3 flex justify-center">
+                  <AdSlot placement="game-over" format="banner" className="max-w-[280px] sm:max-w-[340px]" />
+                </div>
               </>
             )}
 

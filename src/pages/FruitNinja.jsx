@@ -6,6 +6,7 @@ import { GESTURES } from "../utils/gestureDetector";
 import { playSliceSound, playBombSound, resumeAudio } from "../utils/soundEffects";
 import { usePlayer } from "../hooks/usePlayer";
 import PostGameProgression from "../components/PostGameProgression";
+import AdSlot from "../components/ads/AdSlot";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -799,6 +800,11 @@ export default function FruitNinja() {
                 </div>
 
                 <PostGameProgression result={lastProgressionResult} />
+
+                {/* Safe Game Over Ad Placement */}
+                <div className="w-full my-3.5 flex justify-center">
+                  <AdSlot placement="game-over" format="banner" className="max-w-[320px] sm:max-w-[400px]" />
+                </div>
               </div>
             )}
 
