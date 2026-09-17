@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://gesturestudio.vercel.app/sitemap.xml
+
