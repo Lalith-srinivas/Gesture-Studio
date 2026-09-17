@@ -15,6 +15,7 @@ import { recordGameResult as _recordGameResult, recordAcademyCompletion as _reco
 import { canClaimTodayReward, claimDailyReward as _claimDailyReward, getNextClaimDay, getTodayDateString } from '../services/dailyRewardService';
 import { ACHIEVEMENTS } from '../services/achievementService';
 import { updateGlobalLeaderboard, updateGameLeaderboard } from '../services/leaderboardService';
+import { migrateAllUsersToLeaderboard } from '../services/leaderboardMigration';
 
 const PlayerContext = createContext(null);
 
@@ -100,6 +101,10 @@ export function PlayerProvider({ children }) {
       setLoading(false);
       return;
     }
+
+    // One-time migration: backfill ALL users' scores into the leaderboard.
+    // Guarded internally by localStorage so it only runs once per device.
+    migrateAllUsersToLeaderboard().catch(() => {});
 
     if (listenerUnsub.current) listenerUnsub.current();
 
