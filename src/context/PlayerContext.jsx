@@ -108,20 +108,36 @@ export function PlayerProvider({ children }) {
       (snap) => {
         if (snap.exists()) {
           const data = snap.data();
-          setPlayerData(data);
-          saveCachedPlayer(uid, data);
-          setDailyRewardClaimed(!canClaimTodayReward(data));
-          if (Array.isArray(data.achievementsUnlocked)) {
-            setUnlockedAchievements(data.achievementsUnlocked);
+          const cached = getCachedPlayer(uid) || {};
+          // Preserve whichever has higher progress (e.g. played offline while rules were locked)
+          const merged = {
+            ...data,
+            totalScore: Math.max(data.totalScore || 0, cached.totalScore || 0),
+            xp: Math.max(data.xp || 0, cached.xp || 0),
+            level: Math.max(data.level || 1, cached.level || 1),
+            totalGamesPlayed: Math.max(data.totalGamesPlayed || 0, cached.totalGamesPlayed || 0),
+            currentGameStreak: Math.max(data.currentGameStreak || 0, cached.currentGameStreak || 0),
+            longestGameStreak: Math.max(data.longestGameStreak || 0, cached.longestGameStreak || 0),
+          };
+          setPlayerData(merged);
+          saveCachedPlayer(uid, merged);
+          setDailyRewardClaimed(!canClaimTodayReward(merged));
+          if (Array.isArray(merged.achievementsUnlocked)) {
+            setUnlockedAchievements(merged.achievementsUnlocked);
+          }
+          // If local cache had higher progress, push the merged state back to Firestore
+          if ((merged.totalScore || 0) > (data.totalScore || 0) || (merged.xp || 0) > (data.xp || 0)) {
+            setDoc(userRef, merged, { merge: true }).catch(() => {});
           }
           // Ensure player's total score is present in the global leaderboard!
-          if ((data.totalScore || 0) > 0) {
-            updateGlobalLeaderboard(uid, data).catch(() => {});
+          if ((merged.totalScore || 0) > 0) {
+            updateGlobalLeaderboard(uid, merged).catch(() => {});
           }
         } else {
-          // Document does not exist in Firestore yet: initialize it with userProfile or guest defaults
+          // Document does not exist in Firestore yet: initialize it with cached data + user profile
+          const cached = getCachedPlayer(uid) || {};
           const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-          const initial = userProfile || {
+          const initial = {
             uid,
             username: currentUser.displayName || (currentUser.isAnonymous ? `Guest_${randomSuffix}` : 'Player'),
             avatar: '🎮',
@@ -136,16 +152,31 @@ export function PlayerProvider({ children }) {
             lastDailyRewardDate: null,
             achievementsUnlocked: [],
             tutorialCompleted: localStorage.getItem('gesture_academy_global_done') === 'true',
+            ...cached,
+            ...(userProfile || {}),
+            // Ensure numeric progress from cache is preserved
+            totalScore: Math.max(cached.totalScore || 0, userProfile?.totalScore || 0),
+            xp: Math.max(cached.xp || 0, userProfile?.xp || 0),
+            level: Math.max(cached.level || 1, userProfile?.level || 1),
+            totalGamesPlayed: Math.max(cached.totalGamesPlayed || 0, userProfile?.totalGamesPlayed || 0),
           };
           setPlayerData(initial);
           saveCachedPlayer(uid, initial);
           setDoc(userRef, initial, { merge: true }).catch(() => {});
+          if (initial.totalScore > 0) {
+            updateGlobalLeaderboard(uid, initial).catch(() => {});
+          }
         }
         setLoading(false);
       },
       (err) => {
-        console.warn('[PlayerContext] Snapshot error, running in offline/cache mode:', err?.message);
-        if (!playerData && userProfile) setPlayerData(userProfile);
+        console.warn('[PlayerContext] Snapshot error, running in offline/cache mode:', err?.code, err?.message);
+        const cached = getCachedPlayer(uid);
+        if (cached) {
+          setPlayerData(cached);
+        } else if (userProfile) {
+          setPlayerData(userProfile);
+        }
         setLoading(false);
       }
     );
