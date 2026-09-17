@@ -148,8 +148,13 @@ export default function WelcomeModal() {
       <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 select-none animate-fadeIn font-sans">
         <div className="relative w-full max-w-lg bg-white border-4 border-black shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] rounded-2xl p-6 sm:p-8">
           
-          {/* Header Badge */}
-          <div className="text-center mb-6">
+          {/* Header Badge & Logo */}
+          <div className="text-center mb-6 flex flex-col items-center">
+            <img
+              src="/gesturestudio.png"
+              alt="Gesture Studio Logo"
+              className="w-16 h-16 object-contain filter drop-shadow-[3px_3px_0px_rgba(0,0,0,1)] mb-2"
+            />
             <div className="inline-block px-3 py-1 bg-neo-yellow border-2 border-black font-mono font-black text-xs uppercase -rotate-2 mb-2 shadow-neo-sm">
               ✨ WELCOME TO GESTURE STUDIO ✨
             </div>

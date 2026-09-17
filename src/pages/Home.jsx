@@ -116,6 +116,17 @@ export default function Home() {
       
       {/* ── Top Neo Marquee Ticker & Auth Action ───────────────────────────── */}
       <div className="w-full bg-neo-yellow border-b-3 border-black py-2 flex items-center justify-between px-3 shadow-neo-sm select-none relative z-30">
+        <Link to="/" className="flex items-center gap-2 mr-3 shrink-0 group">
+          <img
+            src="/gesturestudio.png"
+            alt="Gesture Studio Logo"
+            className="w-7 h-7 object-contain filter drop-shadow-[1.5px_1.5px_0px_rgba(0,0,0,1)] group-hover:scale-110 transition-transform"
+          />
+          <span className="font-display font-black text-xs md:text-sm uppercase tracking-tight hidden lg:inline text-black">
+            GESTURE STUDIO
+          </span>
+        </Link>
+
         <div className="flex-1 overflow-hidden">
           <div className="flex whitespace-nowrap animate-marquee font-mono font-black text-xs md:text-sm tracking-wider uppercase">
             <span className="mx-4">⚡ GESTURE STUDIO ⚡</span>
@@ -166,18 +177,25 @@ export default function Home() {
             <span className="bg-neo-pink px-1.5 py-0.2 border border-black text-[10px]">v2.0</span>
           </div>
 
-          {/* Main Title */}
-          <div className="relative inline-block mb-4">
-            <h1 className="font-display font-black text-4xl sm:text-6xl md:text-7xl tracking-tight uppercase leading-[0.95] text-black">
-              Gesture Studio
-            </h1>
-            
-            {/* Sticker Badges */}
-            <div className="hidden sm:block absolute -top-4 -right-10 bg-neo-cyan px-3 py-1 border-2 border-black shadow-neo-sm font-mono font-black text-xs uppercase rotate-12">
-              TOUCHLESS! ✋
-            </div>
-            <div className="hidden sm:block absolute -bottom-3 -left-8 bg-neo-yellow px-3 py-1 border-2 border-black shadow-neo-sm font-mono font-black text-xs uppercase -rotate-6">
-              AI MAGIC ✨
+          {/* Main Title & Brand Logo Icon */}
+          <div className="relative flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 mb-4">
+            <img
+              src="/gesturestudio.png"
+              alt="Gesture Studio Logo"
+              className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 object-contain filter drop-shadow-[4px_4px_0px_rgba(0,0,0,1)] hover:rotate-6 hover:scale-105 transition-all duration-200"
+            />
+            <div className="relative inline-block text-center sm:text-left">
+              <h1 className="font-display font-black text-4xl sm:text-6xl md:text-7xl tracking-tight uppercase leading-[0.95] text-black">
+                Gesture Studio
+              </h1>
+              
+              {/* Sticker Badges */}
+              <div className="hidden sm:block absolute -top-4 -right-10 bg-neo-cyan px-3 py-1 border-2 border-black shadow-neo-sm font-mono font-black text-xs uppercase rotate-12">
+                TOUCHLESS! ✋
+              </div>
+              <div className="hidden sm:block absolute -bottom-3 -left-8 bg-neo-yellow px-3 py-1 border-2 border-black shadow-neo-sm font-mono font-black text-xs uppercase -rotate-6">
+                AI MAGIC ✨
+              </div>
             </div>
           </div>
 
@@ -362,7 +380,10 @@ export default function Home() {
 
         {/* ── Footer ──────────────────────────────────────────────────────── */}
         <footer className="mt-12 text-center text-xs font-mono font-bold text-zinc-600 flex flex-wrap items-center justify-center gap-4">
-          <span>⚡ GESTURE STUDIO</span>
+          <div className="flex items-center gap-2">
+            <img src="/gesturestudio.png" alt="Gesture Studio" className="w-5 h-5 object-contain" />
+            <span>GESTURE STUDIO</span>
+          </div>
           <span>•</span>
           <span>BUILT WITH REACT 19 & TAILWIND</span>
           <span>•</span>

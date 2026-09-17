@@ -101,8 +101,9 @@ export default function LeaderboardPage() {
 
       {/* ── Top Bar ─────────────────────────────────────────────────────── */}
       <div className="sticky top-0 z-30 w-full bg-neo-yellow border-b-3 border-black shadow-neo-sm flex items-center justify-between px-4 py-2.5">
-        <Link to="/" className="flex items-center gap-1.5 font-mono font-black text-xs uppercase hover:underline">
-          ← HOME
+        <Link to="/" className="flex items-center gap-2 font-mono font-black text-xs uppercase hover:underline">
+          <img src="/gesturestudio.png" alt="Gesture Studio" className="w-5 h-5 object-contain" />
+          <span>← HOME</span>
         </Link>
         <h1 className="font-display font-black text-base uppercase tracking-tight">🏆 LEADERBOARDS</h1>
         <div className="w-16" />
