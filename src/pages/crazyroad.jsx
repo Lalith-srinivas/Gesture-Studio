@@ -328,9 +328,24 @@ export default function TrafficRiderGame() {
 
   const [activeGesture, setActiveGesture] = useState(GESTURES.NONE);
   const [highScore, setHighScore] = useState(() => parseInt(localStorage.getItem(HIGH_SCORE_KEY) || '0', 10));
-  const { recordGameResult } = usePlayer();
+  const { recordGameResult, allGameStats } = usePlayer();
   const [lastProgressionResult, setLastProgressionResult] = useState(null);
   const sessionRecordedRef = useRef(false);
+
+  // Sync high score from Firestore allGameStats across all devices/origins
+  useEffect(() => {
+    const firestoreBest = allGameStats?.['hill-climb']?.bestScore || 0;
+    if (firestoreBest > 0) {
+      setHighScore((prev) => {
+        const higher = Math.max(prev, firestoreBest);
+        try {
+          localStorage.setItem(HIGH_SCORE_KEY, String(higher));
+        } catch {}
+        if (gsRef.current) gsRef.current.highScore = higher;
+        return higher;
+      });
+    }
+  }, [allGameStats]);
 
   // HUD DOM Refs
   const scoreRef = useRef(null);

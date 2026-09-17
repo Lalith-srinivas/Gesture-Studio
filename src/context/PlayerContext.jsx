@@ -53,13 +53,14 @@ function saveCachedStats(uid, stats) {
 
 export function PlayerProvider({ children }) {
   const { currentUser, userProfile } = useAuth();
+  const effectiveUid = currentUser?.uid || localStorage.getItem('gesture_studio_last_uid') || 'guest_default';
   const uid = currentUser?.uid || null;
 
   // Initialize with local cache immediately for zero-lag UI
-  const [playerData, setPlayerData] = useState(() => getCachedPlayer(uid));
-  const [allGameStats, setAllGameStats] = useState(() => getCachedStats(uid));
+  const [playerData, setPlayerData] = useState(() => getCachedPlayer(effectiveUid));
+  const [allGameStats, setAllGameStats] = useState(() => getCachedStats(effectiveUid) || {});
   const [unlockedAchievements, setUnlockedAchievements] = useState(() => {
-    const cached = getCachedPlayer(uid);
+    const cached = getCachedPlayer(effectiveUid);
     return cached?.achievementsUnlocked || [];
   });
   const [loading, setLoading] = useState(!playerData);
@@ -71,7 +72,7 @@ export function PlayerProvider({ children }) {
 
   // Daily reward
   const [dailyRewardClaimed, setDailyRewardClaimed] = useState(() => {
-    const cached = getCachedPlayer(uid);
+    const cached = getCachedPlayer(effectiveUid);
     return !canClaimTodayReward(cached);
   });
 
@@ -79,23 +80,24 @@ export function PlayerProvider({ children }) {
 
   // ── Sync with Firebase on mount or user change ─────────────────────────────
   useEffect(() => {
-    if (!uid) {
-      setPlayerData(null);
-      setAllGameStats({});
-      setUnlockedAchievements([]);
-      setLoading(false);
-      return;
-    }
+    const targetUid = uid || effectiveUid;
+    if (!targetUid) return;
 
     // Hydrate from cache immediately
-    const cached = getCachedPlayer(uid);
+    const cached = getCachedPlayer(targetUid);
     if (cached) {
       setPlayerData(cached);
       setDailyRewardClaimed(!canClaimTodayReward(cached));
     }
-    const cachedStats = getCachedStats(uid);
-    if (Object.keys(cachedStats).length > 0) {
+    const cachedStats = getCachedStats(targetUid);
+    if (cachedStats && Object.keys(cachedStats).length > 0) {
       setAllGameStats(cachedStats);
+    }
+
+    if (!uid) {
+      // Waiting for auth to resolve — keep cached profile visible, don't wipe to null!
+      setLoading(false);
+      return;
     }
 
     if (listenerUnsub.current) listenerUnsub.current();
@@ -111,6 +113,10 @@ export function PlayerProvider({ children }) {
           setDailyRewardClaimed(!canClaimTodayReward(data));
           if (Array.isArray(data.achievementsUnlocked)) {
             setUnlockedAchievements(data.achievementsUnlocked);
+          }
+          // Ensure player's total score is present in the global leaderboard!
+          if ((data.totalScore || 0) > 0) {
+            updateGlobalLeaderboard(uid, data).catch(() => {});
           }
         } else {
           // Document does not exist in Firestore yet: initialize it with userProfile or guest defaults
@@ -181,14 +187,20 @@ export function PlayerProvider({ children }) {
     fetchSubAchievements();
   }, [uid, playerData?.totalGamesPlayed]);
 
+  const unlockedAchievementsRef = useRef(unlockedAchievements);
+  useEffect(() => {
+    unlockedAchievementsRef.current = unlockedAchievements;
+  }, [unlockedAchievements]);
+
   // ── Auto-reconcile earned achievements from current stats & state ──────────
   useEffect(() => {
     if (!playerData) return;
     const contextData = { ...playerData, allGameStats };
     const newlyQualified = [];
+    const currentUnlocked = unlockedAchievementsRef.current;
 
     for (const ach of ACHIEVEMENTS) {
-      if (unlockedAchievements.includes(ach.id)) continue;
+      if (currentUnlocked.includes(ach.id)) continue;
       try {
         if (ach.check(contextData)) {
           newlyQualified.push(ach.id);
@@ -199,6 +211,7 @@ export function PlayerProvider({ children }) {
     if (newlyQualified.length > 0) {
       setUnlockedAchievements((prev) => {
         const combined = Array.from(new Set([...prev, ...newlyQualified]));
+        unlockedAchievementsRef.current = combined;
         if (uid) {
           const cached = getCachedPlayer(uid) || {};
           saveCachedPlayer(uid, { ...cached, achievementsUnlocked: combined });
@@ -209,21 +222,22 @@ export function PlayerProvider({ children }) {
         return combined;
       });
     }
-  }, [uid, playerData, allGameStats, unlockedAchievements]);
+  }, [uid, playerData?.totalGamesPlayed, playerData?.totalScore, playerData?.level, allGameStats]);
 
   // ── Derived XP info ────────────────────────────────────────────────────────
   const xpInfo = playerData ? getLevelFromXP(playerData.xp || 0) : getLevelFromXP(0);
 
   // ── recordGameResult ───────────────────────────────────────────────────────
   const recordGameResult = useCallback(async (params) => {
-    if (!uid) return null;
+    const targetUid = uid || effectiveUid;
+    if (!targetUid) return null;
 
     const currentScore = params.score || 0;
     const currentPrevScore = playerData?.totalScore || 0;
 
     const result = await _recordGameResult({
       ...params,
-      uid,
+      uid: targetUid,
       username: playerData?.username || currentUser?.displayName || 'Player',
       avatar: playerData?.avatar || '🎮',
       playerData,
@@ -295,8 +309,9 @@ export function PlayerProvider({ children }) {
 
   // ── recordAcademyCompletion ────────────────────────────────────────────────
   const recordAcademyCompletion = useCallback(async () => {
-    if (!uid) return null;
-    const result = await _recordAcademy(uid, playerData);
+    const targetUid = uid || effectiveUid;
+    if (!targetUid) return null;
+    const result = await _recordAcademy(targetUid, playerData);
 
     const xpEarned = result?.xpEarned || 200;
     setPlayerData((prev) => {
@@ -309,7 +324,7 @@ export function PlayerProvider({ children }) {
         level: getLevelFromXP(newXP).level,
         achievementsUnlocked: Array.from(new Set([...(current.achievementsUnlocked || []), 'gesture_master'])),
       };
-      saveCachedPlayer(uid, updated);
+      saveCachedPlayer(targetUid, updated);
       return updated;
     });
 
@@ -326,12 +341,13 @@ export function PlayerProvider({ children }) {
     ]);
 
     return result;
-  }, [uid, playerData]);
+  }, [uid, effectiveUid, playerData]);
 
   // ── claimDailyReward ───────────────────────────────────────────────────────
   const claimDailyReward = useCallback(async () => {
-    if (!uid) return null;
-    const result = await _claimDailyReward(uid, playerData);
+    const targetUid = uid || effectiveUid;
+    if (!targetUid) return null;
+    const result = await _claimDailyReward(targetUid, playerData);
 
     if (!result?.error || (result?.xpEarned && result.xpEarned > 0)) {
       const xpEarned = result.xpEarned || 50;
@@ -352,7 +368,7 @@ export function PlayerProvider({ children }) {
           lastDailyRewardDate: today,
           achievementsUnlocked: Array.from(new Set([...(current.achievementsUnlocked || []), 'daily_claim_first'])),
         };
-        saveCachedPlayer(uid, updated);
+        saveCachedPlayer(targetUid, updated);
         return updated;
       });
 
@@ -360,13 +376,13 @@ export function PlayerProvider({ children }) {
 
       try {
         localStorage.setItem('gesture_studio_daily_claimed', 'true');
-        setDoc(doc(db, 'users', uid), {
+        setDoc(doc(db, 'users', targetUid), {
           achievementsUnlocked: arrayUnion('daily_claim_first'),
         }, { merge: true }).catch(() => {});
       } catch { /* silent */ }
     }
     return result;
-  }, [uid, playerData]);
+  }, [uid, effectiveUid, playerData]);
 
   // ── Clear notifications ───────────────────────────────────────────────────
   const clearPendingLevelUp = useCallback(() => setPendingLevelUp(null), []);

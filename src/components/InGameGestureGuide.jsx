@@ -43,6 +43,14 @@ const GAME_GESTURE_INFO = {
       { emoji: '✊', label: 'Fist', desc: 'Nitro Boost' },
     ],
   },
+  'space-shooter': {
+    title: 'Space Shooter Controls',
+    tips: [
+      { emoji: '☝️', label: 'Point / Move', desc: 'Steer ship smoothly' },
+      { emoji: '🤏', label: 'Pinch', desc: 'EMP Blast / Clear screen' },
+      { emoji: '🤟', label: 'Rock', desc: 'Pause / Resume game' },
+    ],
+  },
 };
 
 export default function InGameGestureGuide({ gameName }) {

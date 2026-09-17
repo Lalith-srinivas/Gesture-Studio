@@ -136,8 +136,14 @@ export const ACHIEVEMENTS = [
     category: 'platform',
     check: (p) => {
       const games = p?.gamesPlayedByGame || {};
-      const required = ['fruit-ninja', 'flappy-bird', 'archery', 'bird-hunter', 'hill-climb'];
-      return required.every((g) => games[g]);
+      const required = ['fruit-ninja', 'flappy-bird', 'archery', 'bird-hunter', 'hill-climb', 'space-shooter'];
+      return required.every((g) => games[g] || (p?.allGameStats?.[g]?.gamesPlayed > 0));
+    },
+    progress: (p) => {
+      const games = p?.gamesPlayedByGame || {};
+      const required = ['fruit-ninja', 'flappy-bird', 'archery', 'bird-hunter', 'hill-climb', 'space-shooter'];
+      const count = required.filter((g) => games[g] || (p?.allGameStats?.[g]?.gamesPlayed > 0)).length;
+      return { current: count, target: required.length };
     },
   },
   {
@@ -317,11 +323,43 @@ export const ACHIEVEMENTS = [
     id: 'crazy_road_500',
     title: 'Speed Demon',
     description: 'Score 500 or more in Crazy Road.',
-    icon: '🚀',
+    icon: '🏎️',
     xp: 150,
     category: 'game',
     gameId: 'hill-climb',
     check: (p, gr) => (gr?.gameId === 'hill-climb' && (gr?.score || 0) >= 500) || (p?.allGameStats?.['hill-climb']?.bestScore || 0) >= 500,
+  },
+
+  // ── Space Shooter ──────────────────────────────────────────────────────────
+  {
+    id: 'space_shooter_first',
+    title: 'Void Voyager',
+    description: 'Play your first flight in Space Shooter.',
+    icon: '🚀',
+    xp: 30,
+    category: 'game',
+    gameId: 'space-shooter',
+    check: (p, gr) => gr?.gameId === 'space-shooter' || Boolean(p?.gamesPlayedByGame?.['space-shooter'] || p?.allGameStats?.['space-shooter']?.gamesPlayed > 0),
+  },
+  {
+    id: 'space_shooter_1000',
+    title: 'Starfighter Ace',
+    description: 'Score 1,000 or more in Space Shooter.',
+    icon: '✨',
+    xp: 120,
+    category: 'game',
+    gameId: 'space-shooter',
+    check: (p, gr) => (gr?.gameId === 'space-shooter' && (gr?.score || 0) >= 1000) || (p?.allGameStats?.['space-shooter']?.bestScore || 0) >= 1000,
+  },
+  {
+    id: 'space_shooter_wave5',
+    title: 'Void Vanguard',
+    description: 'Survive to Wave 5 in Space Shooter.',
+    icon: '🛸',
+    xp: 200,
+    category: 'game',
+    gameId: 'space-shooter',
+    check: (p, gr) => (gr?.gameId === 'space-shooter' && (gr?.wave || 0) >= 5) || (p?.allGameStats?.['space-shooter']?.highestCombo || 0) >= 5,
   },
 ];
 

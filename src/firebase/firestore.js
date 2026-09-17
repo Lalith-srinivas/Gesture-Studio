@@ -38,7 +38,7 @@ export const SUPPORTED_GAMES = {
   FLAPPY_BIRD: 'Flappy Bird',
   ARCHERY: 'Archery Challenge',
   BIRD_HUNTER: 'Bird Hunter Challenge',
-  AIR_DRAW: 'Air Draw',
+  SPACE_SHOOTER: 'Space Shooter',
 };
 
 // --- LOCAL CACHE HELPERS ---

@@ -132,9 +132,23 @@ export default function FruitNinja() {
   const [bombFlash, setBombFlash] = useState(false);
   const [slowmo, setSlowmo] = useState(false);
   const [overReason, setOverReason] = useState("");
-  const { recordGameResult } = usePlayer();
+  const { recordGameResult, allGameStats } = usePlayer();
   const [lastProgressionResult, setLastProgressionResult] = useState(null);
   const sessionRecordedRef = useRef(false);
+
+  // Sync high score from Firestore allGameStats across all devices/origins
+  useEffect(() => {
+    const firestoreBest = allGameStats?.['fruit-ninja']?.bestScore || 0;
+    if (firestoreBest > 0) {
+      setHighScore((prev) => {
+        const higher = Math.max(prev, firestoreBest);
+        try {
+          localStorage.setItem("fn_highscore", String(higher));
+        } catch {}
+        return higher;
+      });
+    }
+  }, [allGameStats]);
 
   // Stable ref so the tick loop can call endGame without stale closures
   const endGameRef = useRef(null);

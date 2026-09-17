@@ -5,7 +5,7 @@
  * - Offline support prepared
  */
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
@@ -25,6 +25,7 @@ export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfi
 
 // Service instances
 export const auth = getAuth(app);
+setPersistence(auth, browserLocalPersistence).catch(() => {});
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 

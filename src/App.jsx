@@ -6,6 +6,7 @@ import HillClimbGame from './pages/crazyroad';
 import FlappyBird from './pages/FlappyBird';
 import ArcheryChallenge from './pages/ArcheryChallenge';
 import BirdHunterChallenge from './pages/BirdHunterChallenge';
+import SpaceShooter from './pages/SpaceShooter';
 import ProfilePage from './pages/ProfilePage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import AchievementsPage from './pages/AchievementsPage';
@@ -45,6 +46,7 @@ function ConditionalCursor() {
     '/flappy-bird',
     '/archery',
     '/bird-hunter',
+    '/space-shooter',
     '/gesture-academy',
   ];
   const hasOwnCamera = pagesWithOwnCamera.some((p) => location.pathname.startsWith(p));
@@ -64,6 +66,7 @@ function ConditionalBottomNav() {
     '/flappy-bird',
     '/archery',
     '/bird-hunter',
+    '/space-shooter',
   ];
   const isInActiveGame = activeGames.some((p) => location.pathname.startsWith(p));
   if (isInActiveGame) return null;
@@ -146,6 +149,14 @@ export default function App() {
               element={
                 <TutorialGate gameName="bird-hunter">
                   <BirdHunterChallenge />
+                </TutorialGate>
+              }
+            />
+            <Route
+              path="/space-shooter"
+              element={
+                <TutorialGate gameName="space-shooter">
+                  <SpaceShooter />
                 </TutorialGate>
               }
             />

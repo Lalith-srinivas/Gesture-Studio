@@ -72,13 +72,26 @@ const GAMES = [
     buttonBg: 'bg-[#0284C7] hover:bg-[#0369A1] text-white',
     badgeText: 'text-black',
   },
+  {
+    to: '/space-shooter',
+    id: 'space-shooter',
+    emoji: '🚀',
+    tag: 'SPACE ARCADE',
+    title: 'Space Shooter',
+    desc: 'Survive endless waves of galactic invaders! Steer with your index finger, trigger EMP blasts with pinch, and conquer the cosmos!',
+    bg: 'bg-[#DDD6FE]',
+    accent: 'bg-[#A78BFA]',
+    badgeBg: 'bg-[#C4B5FD]',
+    buttonBg: 'bg-[#7C3AED] hover:bg-[#6D28D9] text-white',
+    badgeText: 'text-black',
+  },
 ];
 
 const GESTURE_GUIDES = [
-  { emoji: '☝️', name: 'Index Point', use: 'Fruit Ninja · Traffic Lane 1 · Move' },
+  { emoji: '☝️', name: 'Index Point', use: 'Fruit Ninja · Move Ship · Traffic' },
   { emoji: '✌️', name: 'Peace Sign', use: 'Traffic Lane 2 · Left' },
-  { emoji: '🤟', name: 'Rock Sign', use: 'Traffic Lane 3 · Pause Game' },
-  { emoji: '🤏', name: 'Pinch Finger', use: 'Slingshot · Bow · Flap Bird' },
+  { emoji: '🤟', name: 'Rock Sign', use: 'Traffic Lane 3 · Pause / Resume' },
+  { emoji: '🤏', name: 'Pinch Finger', use: 'EMP Blast · Slingshot · Bow · Flap' },
   { emoji: '✊', name: 'Closed Fist', use: 'Cancel Aim · Nitro Boost' },
 ];
 

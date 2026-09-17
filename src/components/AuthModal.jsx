@@ -59,7 +59,13 @@ export default function AuthModal({ isOpen, onClose }) {
     setLocalMsg(null);
     try {
       const res = await loginAsGuest();
-      if (!res.error) onClose();
+      if (!res?.error) {
+        onClose();
+      } else {
+        setLocalMsg(res.error);
+      }
+    } catch {
+      onClose();
     } finally {
       setLoadingAction(false);
     }

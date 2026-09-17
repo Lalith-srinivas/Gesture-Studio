@@ -78,9 +78,20 @@ export default function FlappyBird({ onReady }) {
   const lastGestureRef = useRef(false);
   const [uiState, setUiState] = useState("idle"); // idle | playing | dead
   const [currentGesture, setCurrentGesture] = useState(GESTURES.NONE);
-  const { recordGameResult } = usePlayer();
+  const { recordGameResult, allGameStats } = usePlayer();
   const [lastProgressionResult, setLastProgressionResult] = useState(null);
   const sessionRecordedRef = useRef(false);
+
+  // Sync high score from Firestore allGameStats across all devices/origins
+  useEffect(() => {
+    const remote = allGameStats?.['flappy-bird']?.bestScore || 0;
+    if (remote > 0) {
+      try {
+        const local = parseInt(localStorage.getItem("flappy_hs") || "0", 10);
+        if (remote > local) localStorage.setItem("flappy_hs", String(remote));
+      } catch {}
+    }
+  }, [allGameStats]);
 
   /* ── Init game state ── */
   function createState(scale) {
@@ -367,7 +378,9 @@ export default function FlappyBird({ onReady }) {
   /* ── High Score ── */
   function getHighScore() {
     try {
-      return parseInt(localStorage.getItem("flappy_hs") || "0", 10);
+      const local = parseInt(localStorage.getItem("flappy_hs") || "0", 10);
+      const remote = allGameStats?.['flappy-bird']?.bestScore || 0;
+      return Math.max(local, remote);
     } catch {
       return 0;
     }

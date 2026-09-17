@@ -105,7 +105,7 @@ export default function ArcheryChallenge() {
   const [activeGesture, setActiveGesture] = useState(GESTURES.NONE);
   const [handTracked, setHandTracked] = useState(false);
   const [orientation, setOrientation] = useState('landscape');
-  const { recordGameResult } = usePlayer();
+  const { recordGameResult, allGameStats } = usePlayer();
   const [lastProgressionResult, setLastProgressionResult] = useState(null);
   const sessionRecordedRef = useRef(false);
 
@@ -147,11 +147,24 @@ export default function ArcheryChallenge() {
     powerupItems: []
   });
 
-  // --- LOCAL STORAGE HIGH SCORE ---
+  // --- HIGH SCORE SYNC ---
   useEffect(() => {
     const savedScore = localStorage.getItem('archery_high_score');
     if (savedScore) setHighScore(parseInt(savedScore, 10));
   }, []);
+
+  useEffect(() => {
+    const firestoreBest = allGameStats?.['archery']?.bestScore || 0;
+    if (firestoreBest > 0) {
+      setHighScore((prev) => {
+        const higher = Math.max(prev, firestoreBest);
+        try {
+          localStorage.setItem('archery_high_score', higher.toString());
+        } catch {}
+        return higher;
+      });
+    }
+  }, [allGameStats]);
 
   const updateHighScore = (newScore) => {
     if (newScore > highScore) {

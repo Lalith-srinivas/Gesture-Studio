@@ -73,7 +73,7 @@ export default function BirdHunterChallenge() {
   const [powerupTimeLeft, setPowerupTimeLeft] = useState(0);
   const [selectedProjectile, setSelectedProjectile] = useState(PROJECTILES[0]);
   const [isMuted, setIsMuted] = useState(false);
-  const { recordGameResult } = usePlayer();
+  const { recordGameResult, allGameStats } = usePlayer();
   const [lastProgressionResult, setLastProgressionResult] = useState(null);
   const sessionRecordedRef = useRef(false);
 
@@ -115,6 +115,19 @@ export default function BirdHunterChallenge() {
       setHighScore(parsed);
     }
   }, []);
+
+  useEffect(() => {
+    const firestoreBest = allGameStats?.['bird-hunter']?.bestScore || 0;
+    if (firestoreBest > 0) {
+      setHighScore((prev) => {
+        const higher = Math.max(prev, firestoreBest);
+        try {
+          localStorage.setItem('birdHunterHighScore', higher.toString());
+        } catch {}
+        return higher;
+      });
+    }
+  }, [allGameStats]);
 
   const updateHighScore = (newScore) => {
     if (newScore > highScore) {

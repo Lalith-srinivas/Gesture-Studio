@@ -93,6 +93,7 @@ const GAME_MAP = {
   'flappy-bird': { name: 'Flappy Bird', path: '/flappy-bird', emoji: '🐦' },
   'archery': { name: 'Archery Challenge', path: '/archery', emoji: '🏹' },
   'bird-hunter': { name: 'Bird Hunter', path: '/bird-hunter', emoji: '🦅' },
+  'space-shooter': { name: 'Space Shooter', path: '/space-shooter', emoji: '🚀' },
 };
 
 // ── Master Gestures Dictionary ───────────────────────────────────────────
@@ -105,8 +106,8 @@ const ALL_LESSONS = {
     badge: 'POINT / SLICE',
     badgeBg: 'bg-neo-yellow',
     description: 'Extend your index finger upwards while curling your thumb and other fingers.',
-    usage: 'Fruit Ninja · Traffic Lane 1 · Move',
-    hint: 'Point your index finger straight up. Used for slicing and lane movement.',
+    usage: 'Fruit Ninja · Space Pilot · Move',
+    hint: 'Point your index finger straight up. Steers your starship or slices fruits!',
     verify: (gesture) => gesture === GESTURES.DRAW,
   },
   'two-fingers': {
@@ -129,7 +130,7 @@ const ALL_LESSONS = {
     badge: 'PAUSE & CONTROL',
     badgeBg: 'bg-orange-300',
     description: 'Extend your index and pinky fingers up, keeping middle and ring fingers folded.',
-    usage: 'Traffic Lane 3 · Pause Game',
+    usage: 'Universal Pause / Resume Across All Games',
     hint: 'Show the rock / horns sign (index + pinky up). Universal pause/resume across all games!',
     verify: (gesture) => gesture === GESTURES.ROCK,
   },
@@ -138,11 +139,11 @@ const ALL_LESSONS = {
     name: 'Pinch Finger',
     emoji: '🤏',
     holoGesture: 'PINCH',
-    badge: 'GRAB & SLING',
+    badge: 'GRAB & ACTION',
     badgeBg: 'bg-neo-pink',
     description: 'Pinch your thumb tip and index fingertip firmly together.',
-    usage: 'Slingshot · Bow · Flap Bird',
-    hint: 'Touch your thumb tip directly to your index tip. Hold steady.',
+    usage: 'Slingshot · Bow · Flap · EMP Blast',
+    hint: 'Touch thumb to index tip. Triggers EMP blast in Space Shooter or draws bow.',
     verify: (gesture) => gesture === GESTURES.PINCH,
   },
   'fist': {
@@ -211,6 +212,7 @@ const GAME_LESSON_IDS = {
   'archery': ['pinch', 'rock'],
   'bird-hunter': ['pinch', 'fist', 'rock'],
   'hill-climb': ['index-point', 'two-fingers', 'rock', 'fist'],
+  'space-shooter': ['index-point', 'pinch', 'rock'],
 };
 
 export default function GestureAcademy() {
