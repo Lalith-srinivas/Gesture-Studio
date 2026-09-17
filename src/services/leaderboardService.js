@@ -16,6 +16,7 @@
 import {
   doc,
   setDoc,
+  getDoc,
   collection,
   query,
   orderBy,
@@ -98,6 +99,7 @@ export async function updateGlobalLeaderboard(uid, playerData) {
 
 /**
  * Update the per-game leaderboard with a player's best score.
+ * Only overwrites if the new score is higher than the existing one in Firestore.
  */
 export async function updateGameLeaderboard(uid, gameId, playerData, score) {
   if (!uid || !gameId) return;
@@ -111,6 +113,25 @@ export async function updateGameLeaderboard(uid, gameId, playerData, score) {
 
   try {
     const ref = doc(db, 'leaderboards', gameId, 'entries', uid);
+
+    // Read existing entry to ensure we only keep the best score
+    const existingSnap = await getDoc(ref);
+    if (existingSnap.exists()) {
+      const existingScore = existingSnap.data()?.score || 0;
+      if (score <= existingScore) {
+        // New score is not better — update username/avatar but keep the higher score
+        await setDoc(ref, {
+          uid,
+          username: playerData.username || 'Player',
+          avatar: playerData.avatar || '🎮',
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+        invalidateCache(gameId);
+        return;
+      }
+    }
+
+    // New score is higher (or no existing entry) — write the full entry
     await setDoc(ref, entry, { merge: true });
     invalidateCache(gameId);
   } catch (err) {

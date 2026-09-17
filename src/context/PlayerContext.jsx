@@ -14,6 +14,7 @@ import { getLevelFromXP } from '../services/xpService';
 import { recordGameResult as _recordGameResult, recordAcademyCompletion as _recordAcademy } from '../services/progressionService';
 import { canClaimTodayReward, claimDailyReward as _claimDailyReward, getNextClaimDay, getTodayDateString } from '../services/dailyRewardService';
 import { ACHIEVEMENTS } from '../services/achievementService';
+import { updateGlobalLeaderboard, updateGameLeaderboard } from '../services/leaderboardService';
 
 const PlayerContext = createContext(null);
 
@@ -195,6 +196,49 @@ export function PlayerProvider({ children }) {
         const snap = await getDocs(colRef);
         const result = {};
         snap.forEach((d) => { result[d.id] = d.data(); });
+
+        // Auto-sync legacy localStorage high scores into gameStats & per-game leaderboards!
+        const LEGACY_MAP = [
+          { gameId: 'fruit-ninja', key: 'fn_highscore' },
+          { gameId: 'flappy-bird', key: 'flappy_hs' },
+          { gameId: 'hill-climb', key: 'traffic_rider_high_score' },
+          { gameId: 'archery', key: 'archery_high_score' },
+          { gameId: 'bird-hunter', key: 'birdHunterHighScore' },
+          { gameId: 'space-shooter', key: 'spaceShooterHighScore' },
+        ];
+
+        for (const item of LEGACY_MAP) {
+          try {
+            const rawVal = localStorage.getItem(item.key);
+            const localScore = rawVal ? parseInt(rawVal, 10) : 0;
+            const remoteScore = result[item.gameId]?.bestScore || 0;
+            const best = Math.max(localScore, remoteScore);
+
+            if (best > 0) {
+              if (localScore > remoteScore) {
+                const statsDocRef = doc(db, 'users', uid, 'gameStats', item.gameId);
+                await setDoc(statsDocRef, {
+                  gameId: item.gameId,
+                  bestScore: best,
+                  lastPlayed: new Date().toISOString(),
+                }, { merge: true });
+                result[item.gameId] = { ...(result[item.gameId] || {}), gameId: item.gameId, bestScore: best };
+              }
+            }
+          } catch { /* silent */ }
+        }
+
+        // Sync ALL gameStats bestScores to per-game leaderboards on login.
+        // This ensures every game the user has ever played shows up on the leaderboard,
+        // not just games with legacy localStorage keys.
+        const playerInfo = playerData || { username: currentUser?.displayName || 'Player', avatar: '🎮' };
+        for (const [gameId, stats] of Object.entries(result)) {
+          const bestScore = stats?.bestScore || 0;
+          if (bestScore > 0) {
+            updateGameLeaderboard(uid, gameId, playerInfo, bestScore).catch(() => {});
+          }
+        }
+
         if (Object.keys(result).length > 0) {
           setAllGameStats(result);
           saveCachedStats(uid, result);
