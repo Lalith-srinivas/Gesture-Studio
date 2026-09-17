@@ -21,18 +21,30 @@ import { PlayerProvider, usePlayer } from './context/PlayerContext';
 
 const GestureAcademy = lazy(() => import('./pages/GestureAcademy'));
 
-// ── One-time migration: clear old seed-based leaderboard cache keys ──────────
+// ── One-time cache reset for clean slate (prevents stale ghosts) ────────────
 try {
-  const OLD_LB_KEYS = [
-    'gesture_studio_lb_global',
-    'gesture_studio_lb_fruit-ninja',
-    'gesture_studio_lb_flappy-bird',
-    'gesture_studio_lb_archery',
-    'gesture_studio_lb_bird-hunter',
-    'gesture_studio_lb_hill-climb',
-    'gesture_studio_lb_air-draw',
-  ];
-  OLD_LB_KEYS.forEach((k) => localStorage.removeItem(k));
+  if (localStorage.getItem('gs_clean_reset_v4') !== 'true') {
+    // Clear all player profile caches, leaderboard caches, and legacy high scores
+    Object.keys(localStorage).forEach((key) => {
+      if (
+        key.startsWith('gesture_studio_player_') ||
+        key.startsWith('gesture_studio_stats_') ||
+        key.startsWith('gs_lb_') ||
+        key.startsWith('gesture_studio_lb_') ||
+        key.includes('highscore') ||
+        key.includes('HighScore') ||
+        key === 'fn_highscore' ||
+        key === 'flappy_hs' ||
+        key === 'traffic_rider_high_score' ||
+        key === 'archery_high_score' ||
+        key === 'birdHunterHighScore' ||
+        key === 'spaceShooterHighScore'
+      ) {
+        localStorage.removeItem(key);
+      }
+    });
+    localStorage.setItem('gs_clean_reset_v4', 'true');
+  }
 } catch { /* silent */ }
 
 /**

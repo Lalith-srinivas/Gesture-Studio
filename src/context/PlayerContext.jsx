@@ -14,8 +14,7 @@ import { getLevelFromXP } from '../services/xpService';
 import { recordGameResult as _recordGameResult, recordAcademyCompletion as _recordAcademy } from '../services/progressionService';
 import { canClaimTodayReward, claimDailyReward as _claimDailyReward, getNextClaimDay, getTodayDateString } from '../services/dailyRewardService';
 import { ACHIEVEMENTS } from '../services/achievementService';
-import { updateGlobalLeaderboard, updateGameLeaderboard } from '../services/leaderboardService';
-import { migrateAllUsersToLeaderboard } from '../services/leaderboardMigration';
+import { updateGlobalLeaderboard, updateGameLeaderboard, purgeOrphanedLeaderboardEntries } from '../services/leaderboardService';
 
 const PlayerContext = createContext(null);
 
@@ -102,9 +101,8 @@ export function PlayerProvider({ children }) {
       return;
     }
 
-    // One-time migration: backfill ALL users' scores into the leaderboard.
-    // Guarded internally by localStorage so it only runs once per device.
-    migrateAllUsersToLeaderboard().catch(() => {});
+    // Automatically purge orphaned leaderboard entries from deleted accounts
+    purgeOrphanedLeaderboardEntries().catch(() => {});
 
     if (listenerUnsub.current) listenerUnsub.current();
 
@@ -251,13 +249,31 @@ export function PlayerProvider({ children }) {
         }
 
         // Sync ALL gameStats bestScores to per-game leaderboards on login.
-        // This ensures every game the user has ever played shows up on the leaderboard,
-        // not just games with legacy localStorage keys.
+        // This ensures every game the user has ever played shows up on the leaderboard.
         const playerInfo = playerData || { username: currentUser?.displayName || 'Player', avatar: '🎮' };
+        let sumGameBest = 0;
         for (const [gameId, stats] of Object.entries(result)) {
           const bestScore = stats?.bestScore || 0;
           if (bestScore > 0) {
+            sumGameBest += bestScore;
             updateGameLeaderboard(uid, gameId, playerInfo, bestScore).catch(() => {});
+          }
+        }
+
+        // Immediately ensure the global leaderboard has the player's overall score!
+        const existingTotal = playerData?.totalScore || 0;
+        const finalTotal = Math.max(existingTotal, sumGameBest);
+
+        if (finalTotal > 0) {
+          updateGlobalLeaderboard(uid, {
+            ...playerInfo,
+            totalScore: finalTotal,
+            level: playerData?.level || 1,
+          }).catch(() => {});
+
+          if (finalTotal > existingTotal) {
+            setPlayerData((prev) => ({ ...(prev || {}), totalScore: finalTotal }));
+            setDoc(doc(db, 'users', uid), { totalScore: finalTotal }, { merge: true }).catch(() => {});
           }
         }
 

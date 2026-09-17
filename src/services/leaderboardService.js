@@ -17,6 +17,7 @@ import {
   doc,
   setDoc,
   getDoc,
+  deleteDoc,
   collection,
   query,
   orderBy,
@@ -120,7 +121,7 @@ export async function updateGlobalLeaderboard(uid, playerData) {
  * Propagate username and avatar updates across all leaderboard entries for a user
  * (Global leaderboard + all per-game leaderboards).
  */
-export async function updateLeaderboardIdentity(uid, { username, avatar }) {
+export async function updateLeaderboardIdentity(uid, { username, avatar, totalScore }) {
   if (!uid) return;
   const updates = { updatedAt: serverTimestamp() };
   if (username) updates.username = username;
@@ -129,7 +130,18 @@ export async function updateLeaderboardIdentity(uid, { username, avatar }) {
   try {
     // 1. Update Global leaderboard
     const globalRef = doc(db, 'leaderboards', 'global', 'entries', uid);
-    await setDoc(globalRef, updates, { merge: true }).catch(() => {});
+    const snap = await getDoc(globalRef).catch(() => null);
+    if (snap && snap.exists()) {
+      await setDoc(globalRef, updates, { merge: true }).catch(() => {});
+    } else {
+      // Must ensure totalScore is a number so orderBy('totalScore') indexes it!
+      await setDoc(globalRef, {
+        ...updates,
+        uid,
+        totalScore: totalScore ?? 0,
+        level: 1,
+      }, { merge: true }).catch(() => {});
+    }
     invalidateCache('global');
 
     // 2. Update each game's leaderboard
@@ -144,6 +156,40 @@ export async function updateLeaderboardIdentity(uid, { username, avatar }) {
     }
   } catch (err) {
     console.warn('[Leaderboard] updateLeaderboardIdentity error:', err?.message);
+  }
+}
+
+/**
+ * Remove orphaned leaderboard documents belonging to deleted user accounts.
+ */
+export async function purgeOrphanedLeaderboardEntries() {
+  try {
+    // 1. Get all currently valid user UIDs from users collection
+    const usersSnap = await getDocs(collection(db, 'users'));
+    const validUids = new Set(usersSnap.docs.map((d) => d.id));
+
+    // 2. Check and clean global leaderboard
+    const globalEntriesSnap = await getDocs(collection(db, 'leaderboards', 'global', 'entries'));
+    for (const d of globalEntriesSnap.docs) {
+      if (!validUids.has(d.id)) {
+        await deleteDoc(d.ref).catch(() => {});
+      }
+    }
+    invalidateCache('global');
+
+    // 3. Check and clean all game leaderboards
+    const gameIds = Object.keys(GAME_LABELS);
+    for (const gameId of gameIds) {
+      const gameEntriesSnap = await getDocs(collection(db, 'leaderboards', gameId, 'entries'));
+      for (const d of gameEntriesSnap.docs) {
+        if (!validUids.has(d.id)) {
+          await deleteDoc(d.ref).catch(() => {});
+        }
+      }
+      invalidateCache(gameId);
+    }
+  } catch (err) {
+    console.warn('[Leaderboard] purgeOrphanedLeaderboardEntries error:', err?.message);
   }
 }
 
@@ -224,6 +270,42 @@ export async function getGlobalLeaderboard(topN = LEADERBOARD_LIMIT) {
   return _refreshGlobalCache(topN);
 }
 
+/**
+ * Deduplicate entries so the same player (e.g. from previous guest sessions or emoji variations)
+ * appears only once with their highest score.
+ */
+function deduplicateLeaderboardEntries(rawItems) {
+  const seen = new Map();
+  for (const item of rawItems) {
+    const rawName = (item.username || '').trim();
+    // Normalize: strip whitespace, emojis, and variation selectors (e.g. \uFE0F)
+    const normalized = rawName.toLowerCase().replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\p{Emoji_Modifier}\p{Emoji_Component}\s\uFE00-\uFE0F]/gu, '');
+    const key = normalized || item.uid;
+
+    const currentScore = item.score ?? item.totalScore ?? 0;
+    if (currentScore <= 0) continue; // Skip zero scores
+
+    if (!seen.has(key)) {
+      seen.set(key, item);
+    } else {
+      const existing = seen.get(key);
+      const existingScore = existing.score ?? existing.totalScore ?? 0;
+      if (currentScore > existingScore) {
+        seen.set(key, item);
+      }
+    }
+  }
+
+  const unique = Array.from(seen.values());
+  unique.sort((a, b) => {
+    const scoreA = a.score ?? a.totalScore ?? 0;
+    const scoreB = b.score ?? b.totalScore ?? 0;
+    return scoreB - scoreA;
+  });
+
+  return unique.map((item, idx) => ({ ...item, rank: idx + 1 }));
+}
+
 async function _refreshGlobalCache(topN = LEADERBOARD_LIMIT) {
   try {
     const entriesRef = collection(db, 'leaderboards', 'global', 'entries');
@@ -233,7 +315,7 @@ async function _refreshGlobalCache(topN = LEADERBOARD_LIMIT) {
     const items = [];
     snap.forEach((d) => items.push({ uid: d.id, ...d.data() }));
 
-    const ranked = items.map((item, idx) => ({ ...item, rank: idx + 1 }));
+    const ranked = deduplicateLeaderboardEntries(items);
     setLocalCache('global', ranked);
     return ranked;
   } catch (err) {
@@ -244,7 +326,7 @@ async function _refreshGlobalCache(topN = LEADERBOARD_LIMIT) {
       if (raw) {
         const { data } = JSON.parse(raw);
         if (data?.length > 0) {
-          return data.map((item, idx) => ({ ...item, rank: idx + 1 }));
+          return deduplicateLeaderboardEntries(data);
         }
       }
     } catch { /* silent */ }
@@ -276,7 +358,7 @@ async function _refreshGameCache(gameId, topN = LEADERBOARD_LIMIT) {
     const items = [];
     snap.forEach((d) => items.push({ uid: d.id, ...d.data() }));
 
-    const ranked = items.map((item, idx) => ({ ...item, rank: idx + 1 }));
+    const ranked = deduplicateLeaderboardEntries(items);
     setLocalCache(gameId, ranked);
     return ranked;
   } catch (err) {
@@ -286,7 +368,7 @@ async function _refreshGameCache(gameId, topN = LEADERBOARD_LIMIT) {
       if (raw) {
         const { data } = JSON.parse(raw);
         if (data?.length > 0) {
-          return data.map((item, idx) => ({ ...item, rank: idx + 1 }));
+          return deduplicateLeaderboardEntries(data);
         }
       }
     } catch { /* silent */ }
@@ -305,7 +387,7 @@ export function subscribeGlobalLeaderboard(topN = LEADERBOARD_LIMIT, onUpdate) {
     return onSnapshot(q, (snap) => {
       const items = [];
       snap.forEach((d) => items.push({ uid: d.id, ...d.data() }));
-      const ranked = items.map((item, idx) => ({ ...item, rank: idx + 1 }));
+      const ranked = deduplicateLeaderboardEntries(items);
       setLocalCache('global', ranked);
       onUpdate(ranked);
     }, (err) => {
@@ -327,7 +409,7 @@ export function subscribeGameLeaderboard(gameId, topN = LEADERBOARD_LIMIT, onUpd
     return onSnapshot(q, (snap) => {
       const items = [];
       snap.forEach((d) => items.push({ uid: d.id, ...d.data() }));
-      const ranked = items.map((item, idx) => ({ ...item, rank: idx + 1 }));
+      const ranked = deduplicateLeaderboardEntries(items);
       setLocalCache(gameId, ranked);
       onUpdate(ranked);
     }, (err) => {
