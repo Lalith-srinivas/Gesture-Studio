@@ -99,10 +99,12 @@ export async function claimDailyReward(uid, playerData) {
   const xpEarned = reward.xp;
 
   try {
+    const nowMs = Date.now();
     const userRef = doc(db, 'users', uid);
     await setDoc(userRef, {
       dailyRewardDay: nextDay,
       lastDailyRewardDate: today,
+      lastDailyRewardTimestamp: nowMs,
       xp: increment(xpEarned),
     }, { merge: true });
 
@@ -110,6 +112,7 @@ export async function claimDailyReward(uid, playerData) {
       localStorage.setItem(`gesture_studio_daily_${uid}`, JSON.stringify({
         day: nextDay,
         lastDate: today,
+        timestamp: nowMs,
         xpEarned
       }));
     } catch { /* silent */ }

@@ -16,6 +16,7 @@ import BottomNav from './components/BottomNav';
 import AchievementToastContainer from './components/AchievementToast';
 import LevelUpModal from './components/LevelUpModal';
 import WelcomeModal from './components/WelcomeModal';
+import AutoDailyRewardModal from './components/AutoDailyRewardModal';
 import { AuthProvider } from './context/AuthContext';
 import { PlayerProvider, usePlayer } from './context/PlayerContext';
 import { AdProvider } from './context/AdContext';
@@ -95,6 +96,7 @@ function GlobalProgressionModals() {
   return (
     <>
       <WelcomeModal />
+      <AutoDailyRewardModal />
       <AchievementToastContainer />
       <LevelUpModal levelUpData={pendingLevelUp} onClose={clearPendingLevelUp} />
     </>

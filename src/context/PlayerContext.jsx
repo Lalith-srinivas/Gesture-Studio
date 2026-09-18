@@ -479,6 +479,7 @@ export function PlayerProvider({ children }) {
           level: getLevelFromXP(newXP).level,
           dailyRewardDay: day,
           lastDailyRewardDate: today,
+          lastDailyRewardTimestamp: Date.now(),
           achievementsUnlocked: Array.from(new Set([...(current.achievementsUnlocked || []), 'daily_claim_first'])),
         };
         saveCachedPlayer(targetUid, updated);
