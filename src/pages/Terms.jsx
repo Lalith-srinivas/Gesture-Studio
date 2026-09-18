@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useLayoutEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 
 /**
@@ -11,7 +11,9 @@ import { Link } from 'react-router-dom';
  */
 
 export default function Terms() {
-  useEffect(() => {
+  const topAnchorRef = useRef(null);
+
+  useLayoutEffect(() => {
     document.title = 'Terms of Use | Gesture Studio';
     const metaDesc = document.querySelector('meta[name="description"]');
     if (metaDesc) {
@@ -20,17 +22,42 @@ export default function Terms() {
         'Terms of Use for Gesture Studio. Read our rules of play, account guidelines, acceptable use policies, and legal terms.'
       );
     }
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-    if (document.documentElement) document.documentElement.scrollTop = 0;
-    if (document.body) document.body.scrollTop = 0;
-    const root = document.getElementById('root');
-    if (root) root.scrollTop = 0;
+
+    if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+
+    const scrollToTop = () => {
+      window.scrollTo(0, 0);
+      if (document.documentElement) document.documentElement.scrollTop = 0;
+      if (document.body) document.body.scrollTop = 0;
+      if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
+      const root = document.getElementById('root');
+      if (root) root.scrollTop = 0;
+      topAnchorRef.current?.scrollIntoView({ behavior: 'instant', block: 'start' });
+    };
+
+    scrollToTop();
+    const raf = requestAnimationFrame(scrollToTop);
+    const t1 = setTimeout(scrollToTop, 0);
+    const t2 = setTimeout(scrollToTop, 60);
+    const t3 = setTimeout(scrollToTop, 180);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
   }, []);
 
   const lastUpdated = 'September 18, 2026';
 
   return (
-    <div className="w-full min-h-screen bg-neo-dots text-black font-sans selection:bg-neo-yellow selection:text-black flex flex-col pb-28 md:pb-16">
+    <div className="relative w-full min-h-screen bg-neo-dots text-black font-sans selection:bg-neo-yellow selection:text-black flex flex-col pb-28 md:pb-16">
+      {/* Absolute top anchor to force scrollIntoView to the beginning */}
+      <div ref={topAnchorRef} tabIndex={-1} aria-hidden="true" className="absolute top-0 left-0 w-0 h-0 pointer-events-none opacity-0" />
+
       {/* ── Top Navigation Bar ────────────────────────────────────────── */}
       <header className="sticky top-0 z-30 w-full bg-neo-yellow border-b-3 border-black shadow-neo-sm flex items-center justify-between px-4 py-2.5">
         <Link
@@ -100,7 +127,15 @@ export default function Terms() {
             <p className="text-zinc-800 text-sm sm:text-base leading-relaxed">
               By visiting, browsing, playing, or otherwise accessing Gesture Studio, you acknowledge that you have read,
               understood, and agree to be bound by these Terms of Use and our accompanying{' '}
-              <Link to="/privacy-policy" className="font-bold underline hover:text-blue-700 transition-colors">
+              <Link
+                to="/privacy-policy"
+                onClick={() => {
+                  window.scrollTo(0, 0);
+                  const r = document.getElementById('root');
+                  if (r) r.scrollTop = 0;
+                }}
+                className="font-bold underline hover:text-blue-700 transition-colors"
+              >
                 Privacy Policy
               </Link>
               . If you do not agree to these terms, please do not use the service.
@@ -362,6 +397,11 @@ export default function Terms() {
           </div>
           <Link
             to="/privacy-policy"
+            onClick={() => {
+              window.scrollTo(0, 0);
+              const r = document.getElementById('root');
+              if (r) r.scrollTop = 0;
+            }}
             className="neo-btn bg-neo-yellow hover:bg-yellow-300 text-black px-4 py-2 text-xs font-black shrink-0"
           >
             VIEW PRIVACY POLICY ➔
@@ -371,16 +411,40 @@ export default function Terms() {
 
       {/* ── Footer ──────────────────────────────────────────────────── */}
       <footer className="mt-12 text-center text-xs font-mono font-bold text-zinc-600 flex flex-wrap items-center justify-center gap-4 px-4 select-none">
-        <Link to="/" className="flex items-center gap-2 hover:text-black transition-colors">
+        <Link
+          to="/"
+          onClick={() => {
+            window.scrollTo(0, 0);
+            const r = document.getElementById('root');
+            if (r) r.scrollTop = 0;
+          }}
+          className="flex items-center gap-2 hover:text-black transition-colors"
+        >
           <img src="/gesturestudio.png" alt="Gesture Studio" className="w-5 h-5 object-contain" />
           <span>GESTURE STUDIO</span>
         </Link>
         <span>•</span>
-        <Link to="/privacy-policy" className="hover:text-black hover:underline transition-colors">
+        <Link
+          to="/privacy-policy"
+          onClick={() => {
+            window.scrollTo(0, 0);
+            const r = document.getElementById('root');
+            if (r) r.scrollTop = 0;
+          }}
+          className="hover:text-black hover:underline transition-colors"
+        >
           PRIVACY POLICY
         </Link>
         <span>•</span>
-        <Link to="/terms" className="text-black underline font-extrabold">
+        <Link
+          to="/terms"
+          onClick={() => {
+            window.scrollTo(0, 0);
+            const r = document.getElementById('root');
+            if (r) r.scrollTop = 0;
+          }}
+          className="text-black underline font-extrabold"
+        >
           TERMS OF USE
         </Link>
         <span>•</span>

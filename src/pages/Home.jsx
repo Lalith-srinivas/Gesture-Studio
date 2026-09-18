@@ -385,11 +385,27 @@ export default function Home() {
             <span>GESTURE STUDIO</span>
           </div>
           <span>•</span>
-          <Link to="/privacy-policy" className="hover:text-black hover:underline transition-colors">
+          <Link
+            to="/privacy-policy"
+            onClick={() => {
+              window.scrollTo(0, 0);
+              const r = document.getElementById('root');
+              if (r) r.scrollTop = 0;
+            }}
+            className="hover:text-black hover:underline transition-colors"
+          >
             PRIVACY POLICY
           </Link>
           <span>•</span>
-          <Link to="/terms" className="hover:text-black hover:underline transition-colors">
+          <Link
+            to="/terms"
+            onClick={() => {
+              window.scrollTo(0, 0);
+              const r = document.getElementById('root');
+              if (r) r.scrollTop = 0;
+            }}
+            className="hover:text-black hover:underline transition-colors"
+          >
             TERMS OF USE
           </Link>
           <span>•</span>
