@@ -82,7 +82,7 @@ export default function ProfilePage() {
       await updateDoc(doc(db, 'users', currentUser.uid), { avatar: emoji });
       await updateLeaderboardIdentity(currentUser.uid, { avatar: emoji });
     } catch { /* silent */ }
-  }, [currentUser?.uid]);
+  }, [currentUser]);
 
   const handleResetTutorial = () => {
     resetAll();
@@ -149,82 +149,111 @@ export default function ProfilePage() {
         {tab === 'profile' && (
           <div className="space-y-5">
             {/* Avatar + Name Card */}
-            <div className="bg-white border-3 border-black shadow-neo-lg p-5 flex flex-col sm:flex-row items-center sm:items-start gap-5">
-              {/* Avatar */}
-              <div className="relative shrink-0">
-                <button
-                  onClick={() => setShowAvatarPicker((v) => !v)}
-                  className="w-20 h-20 text-5xl bg-neo-yellow border-3 border-black shadow-neo flex items-center justify-center hover:scale-105 transition-transform"
-                >
-                  {avatar}
-                </button>
-                <span className="absolute -bottom-1 -right-1 text-[9px] font-mono bg-black text-white px-1 border border-black">EDIT</span>
-                {showAvatarPicker && (
-                  <div className="absolute top-full left-0 mt-1 bg-white border-3 border-black shadow-neo-lg p-2 grid grid-cols-4 gap-1 z-20">
+            <div className="bg-white border-3 border-black shadow-neo-lg p-5">
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
+                {/* Avatar */}
+                <div className="relative shrink-0">
+                  <button
+                    onClick={() => setShowAvatarPicker((v) => !v)}
+                    title="Click to customize avatar"
+                    className="w-20 h-20 text-5xl bg-neo-yellow border-3 border-black shadow-neo flex items-center justify-center hover:scale-105 active:scale-95 transition-transform cursor-pointer"
+                  >
+                    {avatar}
+                  </button>
+                  <button
+                    onClick={() => setShowAvatarPicker((v) => !v)}
+                    className="absolute -bottom-1 -right-1 text-[9px] font-mono font-bold bg-black text-white px-1.5 py-0.5 border border-black shadow-neo-sm hover:bg-zinc-800 active:scale-95 transition-all cursor-pointer"
+                  >
+                    {showAvatarPicker ? '✕' : 'EDIT'}
+                  </button>
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0 w-full text-center sm:text-left">
+                  {/* Username */}
+                  <div className="flex items-center gap-2 justify-center sm:justify-start mb-1">
+                    {editingUsername ? (
+                      <>
+                        <input
+                          autoFocus
+                          value={usernameVal}
+                          onChange={(e) => setUsernameVal(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && saveUsername()}
+                          maxLength={24}
+                          className="border-2 border-black px-2 py-1 font-display font-black text-xl uppercase focus:outline-none focus:bg-neo-yellow/30 w-40"
+                        />
+                        <button onClick={saveUsername} disabled={savingUsername} className="bg-neo-lime border-2 border-black px-2 py-1 font-mono font-black text-xs uppercase shadow-neo-sm hover:bg-lime-300">
+                          {savingUsername ? '...' : 'SAVE'}
+                        </button>
+                        <button onClick={() => setEditingUsername(false)} className="border-2 border-black px-2 py-1 font-mono font-black text-xs uppercase hover:bg-zinc-100">✕</button>
+                      </>
+                    ) : (
+                      <>
+                        <h2 className="font-display font-black text-2xl uppercase truncate">{username}</h2>
+                        {!isGuest && (
+                          <button onClick={() => { setUsernameVal(username); setEditingUsername(true); }} className="text-xs text-zinc-400 hover:text-black border border-zinc-300 hover:border-black px-1.5 py-0.5 font-mono transition-colors">
+                            ✏️
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  <p className="text-xs font-mono text-zinc-500 mb-2 truncate">
+                    {isGuest ? '👤 Guest Account — progress may not be saved across devices' : currentUser?.email || ''}
+                  </p>
+
+                  {/* Level + XP */}
+                  <XPBar xpInfo={xpInfo} />
+
+                  {/* Guest upgrade prompt */}
+                  {isGuest && (
+                    <button
+                      onClick={() => setShowAuth(true)}
+                      className="mt-3 px-4 py-1.5 bg-neo-lime border-2 border-black font-mono font-black text-xs uppercase shadow-neo-sm hover:bg-lime-300 active:translate-y-0.5 transition-all"
+                    >
+                      🔗 SAVE PROGRESS — Link Account
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* ── Aligned Inline Avatar Picker ── */}
+              {showAvatarPicker && (
+                <div className="mt-4 pt-4 border-t-2 border-dashed border-black/20">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono font-black uppercase text-zinc-800">CHOOSE YOUR AVATAR</span>
+                      <span className="text-[10px] font-mono text-zinc-500 hidden sm:inline">• Click any icon to update</span>
+                    </div>
+                    <button
+                      onClick={() => setShowAvatarPicker(false)}
+                      className="text-[11px] font-mono font-black uppercase text-zinc-600 hover:text-black border-2 border-black px-2 py-0.5 bg-zinc-100 hover:bg-neo-yellow transition-colors shadow-neo-sm"
+                    >
+                      ✕ CLOSE
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
                     {AVATAR_PRESETS.map((em) => (
                       <button
                         key={em}
                         onClick={() => saveAvatar(em)}
-                        className="w-10 h-10 text-2xl hover:bg-neo-yellow border-2 border-transparent hover:border-black transition-all flex items-center justify-center"
+                        title={`Select ${em}`}
+                        className={`h-12 text-2xl border-2 border-black transition-all flex items-center justify-center cursor-pointer ${
+                          avatar === em
+                            ? 'bg-neo-yellow shadow-neo -translate-y-0.5 font-black ring-2 ring-black'
+                            : 'bg-white hover:bg-yellow-100 shadow-neo-sm hover:-translate-y-0.5'
+                        }`}
                       >
                         {em}
                       </button>
                     ))}
                   </div>
-                )}
-              </div>
-
-              {/* Info */}
-              <div className="flex-1 text-center sm:text-left">
-                {/* Username */}
-                <div className="flex items-center gap-2 justify-center sm:justify-start mb-1">
-                  {editingUsername ? (
-                    <>
-                      <input
-                        autoFocus
-                        value={usernameVal}
-                        onChange={(e) => setUsernameVal(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && saveUsername()}
-                        maxLength={24}
-                        className="border-2 border-black px-2 py-1 font-display font-black text-xl uppercase focus:outline-none focus:bg-neo-yellow/30 w-40"
-                      />
-                      <button onClick={saveUsername} disabled={savingUsername} className="bg-neo-lime border-2 border-black px-2 py-1 font-mono font-black text-xs uppercase shadow-neo-sm">
-                        {savingUsername ? '...' : 'SAVE'}
-                      </button>
-                      <button onClick={() => setEditingUsername(false)} className="border-2 border-black px-2 py-1 font-mono font-black text-xs uppercase">✕</button>
-                    </>
-                  ) : (
-                    <>
-                      <h2 className="font-display font-black text-2xl uppercase">{username}</h2>
-                      {!isGuest && (
-                        <button onClick={() => { setUsernameVal(username); setEditingUsername(true); }} className="text-xs text-zinc-400 hover:text-black border border-zinc-300 px-1.5 py-0.5 font-mono">
-                          ✏️
-                        </button>
-                      )}
-                    </>
-                  )}
                 </div>
-                <p className="text-xs font-mono text-zinc-500 mb-2">
-                  {isGuest ? '👤 Guest Account — progress may not be saved across devices' : currentUser?.email || ''}
-                </p>
-
-                {/* Level + XP */}
-                <XPBar xpInfo={xpInfo} />
-
-                {/* Guest upgrade prompt */}
-                {isGuest && (
-                  <button
-                    onClick={() => setShowAuth(true)}
-                    className="mt-3 px-4 py-1.5 bg-neo-lime border-2 border-black font-mono font-black text-xs uppercase shadow-neo-sm hover:bg-lime-300 active:translate-y-0.5 transition-all"
-                  >
-                    🔗 SAVE PROGRESS — Link Account
-                  </button>
-                )}
-              </div>
+              )}
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <StatCard icon="🔥" label="Game Streak" value={`${playerData?.currentGameStreak || 0}D`} bg="bg-amber-50" />
               <StatCard icon="🏆" label="Longest Streak" value={`${playerData?.longestGameStreak || 0}D`} bg="bg-amber-50" />
               <StatCard icon="🎮" label="Games Played" value={playerData?.totalGamesPlayed || 0} bg="bg-neo-cyanLight" />
