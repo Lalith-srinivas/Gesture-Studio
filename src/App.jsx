@@ -10,6 +10,8 @@ import SpaceShooter from './pages/SpaceShooter';
 import ProfilePage from './pages/ProfilePage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import AchievementsPage from './pages/AchievementsPage';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import Terms from './pages/Terms';
 import GestureCursor from './components/GestureCursor';
 import TutorialGate from './components/TutorialGate';
 import BottomNav from './components/BottomNav';
@@ -116,6 +118,8 @@ export default function App() {
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/leaderboard" element={<LeaderboardPage />} />
               <Route path="/achievements" element={<AchievementsPage />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<Terms />} />
               <Route
                 path="/gesture-academy"
                 element={

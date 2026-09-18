@@ -379,11 +379,19 @@ export default function Home() {
         </div>
 
         {/* ── Footer ──────────────────────────────────────────────────────── */}
-        <footer className="mt-12 text-center text-xs font-mono font-bold text-zinc-600 flex flex-wrap items-center justify-center gap-4">
+        <footer className="mt-12 text-center text-xs font-mono font-bold text-zinc-600 flex flex-wrap items-center justify-center gap-4 select-none">
           <div className="flex items-center gap-2">
             <img src="/gesturestudio.png" alt="Gesture Studio" className="w-5 h-5 object-contain" />
             <span>GESTURE STUDIO</span>
           </div>
+          <span>•</span>
+          <Link to="/privacy-policy" className="hover:text-black hover:underline transition-colors">
+            PRIVACY POLICY
+          </Link>
+          <span>•</span>
+          <Link to="/terms" className="hover:text-black hover:underline transition-colors">
+            TERMS OF USE
+          </Link>
           <span>•</span>
           <span>BUILT WITH REACT 19 & TAILWIND</span>
           <span>•</span>
