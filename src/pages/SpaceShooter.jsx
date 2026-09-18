@@ -68,39 +68,44 @@ const getCombatBounds = (w) => {
 // ------------------------------------------------------------------
 // Enemy type definitions - all red spaceship armada with distinct specs
 // ------------------------------------------------------------------
+// Enemy type definitions - all red spaceship armada with increased power
+// ------------------------------------------------------------------
 const ENEMY_TYPES = {
   drone: {
     key: "drone",
     r: 16,
-    baseHp: 1,
-    baseSpeed: 60,
+    baseHp: 2,
+    baseSpeed: 70,
     score: 10,
     color: "#FF3B30",
     patterns: ["straight", "zigzag"],
+    fires: true,
   },
   scout: {
     key: "scout",
     r: 13,
-    baseHp: 1,
-    baseSpeed: 140,
+    baseHp: 2,
+    baseSpeed: 155,
     score: 20,
     color: "#FF4D4D",
     patterns: ["chase", "dive"],
+    fires: true,
   },
   tank: {
     key: "tank",
     r: 30,
-    baseHp: 8,
-    baseSpeed: 32,
+    baseHp: 14,
+    baseSpeed: 40,
     score: 50,
     color: "#991B1B",
     patterns: ["straight"],
+    fires: true,
   },
   shooter: {
     key: "shooter",
     r: 19,
-    baseHp: 3,
-    baseSpeed: 45,
+    baseHp: 6,
+    baseSpeed: 52,
     score: 35,
     color: "#E11D48",
     patterns: ["shooter"],
@@ -109,8 +114,8 @@ const ENEMY_TYPES = {
   swarm: {
     key: "swarm",
     r: 10,
-    baseHp: 1,
-    baseSpeed: 100,
+    baseHp: 2,
+    baseSpeed: 115,
     score: 8,
     color: "#FF2A2A",
     patterns: ["swarm"],
@@ -118,8 +123,8 @@ const ENEMY_TYPES = {
   elite: {
     key: "elite",
     r: 24,
-    baseHp: 6,
-    baseSpeed: 90,
+    baseHp: 12,
+    baseSpeed: 95,
     score: 100,
     color: "#DC2626",
     patterns: ["orbit", "chase"],
@@ -129,15 +134,15 @@ const ENEMY_TYPES = {
 
 // ------------------------------------------------------------------
 // Power-up type definitions
-// Every power-up lasts up to 30s only
+// Every power-up lasts up to 20s only
 // ------------------------------------------------------------------
 const POWERUP_TYPES = {
-  rapid: { key: "rapid", label: "RAPID FIRE", icon: "⚡", color: COLORS.yellow, duration: 30000 },
-  multi: { key: "multi", label: "MULTI SHOT", icon: "💥", color: COLORS.pink, duration: 30000 },
-  shield: { key: "shield", label: "SHIELD", icon: "🛡️", color: COLORS.blue, duration: 30000 },
+  rapid: { key: "rapid", label: "RAPID FIRE", icon: "⚡", color: COLORS.yellow, duration: 20000 },
+  multi: { key: "multi", label: "MULTI SHOT", icon: "💥", color: COLORS.pink, duration: 20000 },
+  shield: { key: "shield", label: "SHIELD", icon: "🛡️", color: COLORS.blue, duration: 20000 },
   life: { key: "life", label: "EXTRA LIFE", icon: "❤️", color: COLORS.green, duration: 0 },
   bomb: { key: "bomb", label: "SPACE BOMB", icon: "💣", color: COLORS.orange, duration: 0 },
-  plasma: { key: "plasma", label: "PLASMA", icon: "🔵", color: COLORS.lavender, duration: 30000 },
+  plasma: { key: "plasma", label: "PLASMA", icon: "🔵", color: COLORS.lavender, duration: 20000 },
 };
 
 export default function SpaceShooter({ gesturePosition = null, onGameComplete = null, className = "" }) {
@@ -697,16 +702,58 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
     const dx = p.x - enemy.x;
     const dy = p.y - enemy.y;
     const len = Math.hypot(dx, dy) || 1;
-    const speed = 220;
-    enemyProjectilesRef.current.push({
-      id: nextId(),
-      x: enemy.x,
-      y: enemy.y,
-      vx: (dx / len) * speed,
-      vy: (dy / len) * speed,
-      r: 4.5,
-      color: "#FF3B30",
-    });
+    const speed = 255;
+
+    if (enemy.type === "shooter") {
+      // Dual plasma bolts from both wing cannons
+      for (const off of [-enemy.r * 0.8, enemy.r * 0.8]) {
+        enemyProjectilesRef.current.push({
+          id: nextId(),
+          x: enemy.x + off,
+          y: enemy.y + 10,
+          vx: (dx / len) * speed,
+          vy: (dy / len) * speed,
+          r: 5,
+          color: "#FF2E63",
+        });
+      }
+    } else if (enemy.type === "elite") {
+      // 3-way spread shot from command cruiser
+      const baseAngle = Math.atan2(dy, dx);
+      for (const spread of [-0.25, 0, 0.25]) {
+        enemyProjectilesRef.current.push({
+          id: nextId(),
+          x: enemy.x,
+          y: enemy.y + 8,
+          vx: Math.cos(baseAngle + spread) * speed,
+          vy: Math.sin(baseAngle + spread) * speed,
+          r: 5,
+          color: "#FF3B30",
+        });
+      }
+    } else if (enemy.type === "tank") {
+      // Heavy high-caliber plasma blast
+      enemyProjectilesRef.current.push({
+        id: nextId(),
+        x: enemy.x,
+        y: enemy.y + 12,
+        vx: (dx / len) * (speed * 0.85),
+        vy: (dy / len) * (speed * 0.85),
+        r: 7,
+        color: "#DC2626",
+      });
+    } else {
+      // Direct red laser shot
+      enemyProjectilesRef.current.push({
+        id: nextId(),
+        x: enemy.x,
+        y: enemy.y,
+        vx: (dx / len) * speed,
+        vy: (dy / len) * speed,
+        r: 4.5,
+        color: "#FF3B30",
+      });
+    }
   }
 
   // ==================================================================
@@ -715,7 +762,7 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
   function spawnBoss() {
     const { w } = dims.current;
     const { minX, maxX } = getCombatBounds(w);
-    const hp = 50 + waveRef.current * 10;
+    const hp = 90 + waveRef.current * 20;
     bossRef.current = {
       x: (minX + maxX) / 2,
       y: -80,
@@ -853,10 +900,10 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
   function updateDifficulty() {
     const wave = waveRef.current;
     const d = difficultyRef.current;
-    d.spawnInterval = clamp(1150 - wave * 35, 320, 1150);
-    d.speedMult = clamp(1 + wave * 0.045, 1, 2.4);
-    d.hpMult = clamp(1 + wave * 0.09, 1, 4.5);
-    d.eliteChance = clamp(0.05 + wave * 0.008, 0.05, 0.35);
+    d.spawnInterval = clamp(1100 - wave * 40, 260, 1100);
+    d.speedMult = clamp(1 + wave * 0.05, 1, 2.6);
+    d.hpMult = clamp(1.15 + wave * 0.12, 1.15, 5.2);
+    d.eliteChance = clamp(0.08 + wave * 0.012, 0.08, 0.40);
   }
 
   function advanceWave() {
@@ -979,7 +1026,8 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
     for (let i = enemies.length - 1; i >= 0; i--) {
       const e = enemies[i];
       moveEnemy(e, p, dt, now);
-      if (e.fires && now - e.lastFire > 1700) {
+      const fireInterval = e.type === "shooter" ? 1200 : e.type === "elite" ? 1300 : e.type === "tank" ? 2200 : 1900;
+      if (e.fires && now - e.lastFire > fireInterval) {
         e.lastFire = now;
         fireEnemyShot(e);
       }
@@ -1136,17 +1184,17 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
     const now = performance.now();
     sfx.powerUp();
     if (key === "rapid") {
-      effectsRef.current.rapidUntil = now + 30000;
+      effectsRef.current.rapidUntil = now + 20000;
       weaponRef.current.level = Math.min(4, Math.max(weaponRef.current.level, 2) + 1);
     } else if (key === "multi") {
-      effectsRef.current.multiUntil = now + 30000;
+      effectsRef.current.multiUntil = now + 20000;
       weaponRef.current.level = Math.min(4, Math.max(weaponRef.current.level, 2) + 1);
     } else if (key === "plasma") {
-      effectsRef.current.plasmaUntil = now + 30000;
+      effectsRef.current.plasmaUntil = now + 20000;
       weaponRef.current.level = Math.min(4, Math.max(weaponRef.current.level, 2) + 1);
     } else if (key === "shield") {
-      // 30-second shield duration
-      effectsRef.current.shieldUntil = now + 30000;
+      // 20-second shield duration
+      effectsRef.current.shieldUntil = now + 20000;
       playerRef.current.shieldHits = Math.max(playerRef.current.shieldHits, 5);
     } else if (key === "life") {
       livesRef.current = Math.min(9, livesRef.current + 1);
