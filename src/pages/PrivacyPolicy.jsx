@@ -20,7 +20,11 @@ export default function PrivacyPolicy() {
         'Privacy Policy for Gesture Studio. Learn how your account data, local camera tracking, and game scores are protected.'
       );
     }
-    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+    const root = document.getElementById('root');
+    if (root) root.scrollTop = 0;
   }, []);
 
   const lastUpdated = 'September 18, 2026';

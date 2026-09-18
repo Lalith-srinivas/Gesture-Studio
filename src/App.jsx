@@ -105,12 +105,31 @@ function GlobalProgressionModals() {
   );
 }
 
+/**
+ * Ensures navigation to any page (such as /privacy-policy, /terms, etc.)
+ * immediately scrolls to the beginning, resetting window, document, and #root.
+ */
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+    const root = document.getElementById('root');
+    if (root) root.scrollTop = 0;
+  }, [pathname]);
+
+  return null;
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <PlayerProvider>
         <AdProvider>
           <Router>
+            <ScrollToTop />
             <ConditionalCursor />
             <GlobalProgressionModals />
             <Routes>
