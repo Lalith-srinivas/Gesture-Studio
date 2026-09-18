@@ -51,6 +51,18 @@ const fmtTime = (ms) => {
 const fmtScore = (n) => n.toLocaleString("en-US");
 
 // ------------------------------------------------------------------
+// Playable combat corridor - confines enemies, bosses & items to the active range
+// ------------------------------------------------------------------
+const getCombatBounds = (w) => {
+  if (w > 760) {
+    const margin = Math.max(140, Math.floor(w * 0.20));
+    return { minX: margin, maxX: w - margin };
+  }
+  const margin = Math.max(16, Math.floor(w * 0.06));
+  return { minX: margin, maxX: w - margin };
+};
+
+// ------------------------------------------------------------------
 // Enemy type definitions
 // ------------------------------------------------------------------
 const ENEMY_TYPES = {
@@ -114,14 +126,15 @@ const ENEMY_TYPES = {
 
 // ------------------------------------------------------------------
 // Power-up type definitions
+// Firing upgrades persist until the boss dies; shield lasts 60s
 // ------------------------------------------------------------------
 const POWERUP_TYPES = {
-  rapid: { key: "rapid", label: "RAPID FIRE", icon: "\u26A1", color: COLORS.yellow, duration: 8000 },
-  multi: { key: "multi", label: "MULTI SHOT", icon: "\uD83D\uDCA5", color: COLORS.pink, duration: 9000 },
-  shield: { key: "shield", label: "SHIELD", icon: "\uD83D\uDEE1\uFE0F", color: COLORS.blue, duration: 0 },
-  life: { key: "life", label: "EXTRA LIFE", icon: "\u2764\uFE0F", color: COLORS.green, duration: 0 },
-  bomb: { key: "bomb", label: "SPACE BOMB", icon: "\uD83D\uDCA3", color: COLORS.orange, duration: 0 },
-  plasma: { key: "plasma", label: "PLASMA", icon: "\uD83D\uDD35", color: COLORS.lavender, duration: 8000 },
+  rapid: { key: "rapid", label: "RAPID FIRE", icon: "⚡", color: COLORS.yellow, duration: 0 },
+  multi: { key: "multi", label: "MULTI SHOT", icon: "💥", color: COLORS.pink, duration: 0 },
+  shield: { key: "shield", label: "SHIELD (60s)", icon: "🛡️", color: COLORS.blue, duration: 60000 },
+  life: { key: "life", label: "EXTRA LIFE", icon: "❤️", color: COLORS.green, duration: 0 },
+  bomb: { key: "bomb", label: "SPACE BOMB", icon: "💣", color: COLORS.orange, duration: 0 },
+  plasma: { key: "plasma", label: "PLASMA", icon: "🔵", color: COLORS.lavender, duration: 0 },
 };
 
 export default function SpaceShooter({ gesturePosition = null, onGameComplete = null, className = "" }) {
@@ -180,7 +193,15 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
   const bossRef = useRef(null);
 
   const weaponRef = useRef({ level: 1, lastFire: 0 });
-  const effectsRef = useRef({ rapidUntil: 0, multiUntil: 0, plasmaUntil: 0 });
+  const effectsRef = useRef({
+    rapidUntil: 0,
+    multiUntil: 0,
+    plasmaUntil: 0,
+    rapidActive: false,
+    multiActive: false,
+    plasmaActive: false,
+    shieldUntil: 0,
+  });
   const comboRef = useRef({ count: 0, mult: 1, lastKillAt: 0 });
   const scoreRef = useRef(0);
   const highScoreRef = useRef(0);
@@ -418,7 +439,15 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
     asteroidsRef.current = [];
     bossRef.current = null;
     weaponRef.current = { level: 1, lastFire: 0 };
-    effectsRef.current = { rapidUntil: 0, multiUntil: 0, plasmaUntil: 0 };
+    effectsRef.current = {
+      rapidUntil: 0,
+      multiUntil: 0,
+      plasmaUntil: 0,
+      rapidActive: false,
+      multiActive: false,
+      plasmaActive: false,
+      shieldUntil: 0,
+    };
     comboRef.current = { count: 0, mult: 1, lastKillAt: 0 };
     scoreRef.current = 0;
     livesRef.current = 3;
@@ -436,6 +465,15 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
     setBossWarning(false);
     setWaveAnnounce({ text: "WAVE 01" });
     setTimeout(() => setWaveAnnounce(null), 1400);
+
+    // Initial friendly upgrade drop to ease early gameplay
+    setTimeout(() => {
+      if (gameStateRef.current === "playing") {
+        const { minX, maxX } = getCombatBounds(dims.current.w);
+        spawnPowerUp((minX + maxX) / 2, -20, "rapid");
+      }
+    }, 1500);
+
     syncHud();
   }
 
@@ -455,18 +493,24 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
   function activePowerUpList() {
     const now = performance.now();
     const list = [];
-    if (effectsRef.current.rapidUntil > now)
-      list.push({ key: "rapid", label: "RAPID FIRE", secs: (effectsRef.current.rapidUntil - now) / 1000 });
-    if (effectsRef.current.multiUntil > now)
-      list.push({ key: "multi", label: "MULTI SHOT", secs: (effectsRef.current.multiUntil - now) / 1000 });
-    if (effectsRef.current.plasmaUntil > now)
-      list.push({ key: "plasma", label: "PLASMA", secs: (effectsRef.current.plasmaUntil - now) / 1000 });
-    if (playerRef.current.shieldHits > 0) list.push({ key: "shield", label: "SHIELD", hits: playerRef.current.shieldHits });
+    if (effectsRef.current.rapidActive || effectsRef.current.rapidUntil > now)
+      list.push({ key: "rapid", label: "RAPID FIRE", status: "UNTIL BOSS" });
+    if (effectsRef.current.multiActive || effectsRef.current.multiUntil > now)
+      list.push({ key: "multi", label: "MULTI SHOT", status: "UNTIL BOSS" });
+    if (effectsRef.current.plasmaActive || effectsRef.current.plasmaUntil > now)
+      list.push({ key: "plasma", label: "PLASMA", status: "UNTIL BOSS" });
+    if (effectsRef.current.shieldUntil > now) {
+      const remainingSecs = Math.max(0, (effectsRef.current.shieldUntil - now) / 1000);
+      list.push({ key: "shield", label: "SHIELD", secs: remainingSecs });
+    } else if (playerRef.current.shieldHits > 0) {
+      list.push({ key: "shield", label: "SHIELD", hits: playerRef.current.shieldHits });
+    }
     return list;
   }
 
   // ==================================================================
   // Enemy / asteroid / powerup / particle spawners
+  // All spawns are strictly confined to the playable combat corridor
   // ==================================================================
   function spawnEnemy(forceType = null) {
     const { w } = dims.current;
@@ -478,18 +522,10 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
       else key = choice(["drone", "scout", "tank", "shooter", "swarm"]);
     }
     const def = ENEMY_TYPES[key];
-    const side = choice(["top", "left", "right"]);
-    let x, y;
-    if (side === "top") {
-      x = rand(def.r, w - def.r);
-      y = -def.r - 10;
-    } else if (side === "left") {
-      x = -def.r - 10;
-      y = rand(30, 160);
-    } else {
-      x = w + def.r + 10;
-      y = rand(30, 160);
-    }
+    const { minX, maxX } = getCombatBounds(w);
+    // Strictly spawn within the visible, reachable combat range
+    const x = rand(minX + def.r + 8, maxX - def.r - 8);
+    const y = -def.r - 10;
     const pattern = choice(def.patterns);
     enemiesRef.current.push({
       id: nextId(),
@@ -508,20 +544,21 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
       lastFire: performance.now() + rand(0, 800),
       fires: !!def.fires,
       orbitAngle: rand(0, Math.PI * 2),
-      orbitR: rand(70, 130),
+      orbitR: rand(50, 110),
     });
     waveProgressRef.current.spawned++;
   }
 
   function spawnSwarmGroup() {
     const { w } = dims.current;
-    const groupX = rand(60, w - 60);
+    const { minX, maxX } = getCombatBounds(w);
+    const groupX = rand(minX + 40, maxX - 40);
     for (let i = 0; i < 4; i++) {
       const def = ENEMY_TYPES.swarm;
       enemiesRef.current.push({
         id: nextId(),
         type: "swarm",
-        x: groupX + rand(-30, 30),
+        x: groupX + rand(-20, 20),
         y: -20 - i * 22,
         r: def.r,
         hp: Math.ceil(def.baseHp * difficultyRef.current.hpMult),
@@ -542,17 +579,18 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
 
   function spawnAsteroid() {
     const { w } = dims.current;
-    const r = rand(14, 30);
+    const { minX, maxX } = getCombatBounds(w);
+    const r = rand(14, 28);
     asteroidsRef.current.push({
       id: nextId(),
-      x: rand(r, w - r),
+      x: rand(minX + r, maxX - r),
       y: -r - 10,
       r,
       hp: Math.ceil(r / 8),
       rot: rand(0, Math.PI * 2),
       rotSpeed: rand(-1, 1),
       vy: rand(35, 70),
-      vx: rand(-15, 15),
+      vx: rand(-10, 10),
       points: makeAsteroidShape(r),
       score: 5,
     });
@@ -570,11 +608,14 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
   }
 
   function spawnPowerUp(x, y, forceKey = null) {
+    const { w } = dims.current;
+    const { minX, maxX } = getCombatBounds(w);
+    const clampedX = clamp(x, minX + 24, maxX - 24);
     const key = forceKey || choice(Object.keys(POWERUP_TYPES));
     powerUpsRef.current.push({
       id: nextId(),
       key,
-      x,
+      x: clampedX,
       y,
       r: 14,
       vy: 55,
@@ -608,36 +649,38 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
   function fireWeapon() {
     const p = playerRef.current;
     const now = performance.now();
-    const rapid = effectsRef.current.rapidUntil > now;
-    const multi = effectsRef.current.multiUntil > now;
-    const plasma = effectsRef.current.plasmaUntil > now;
-    const level = weaponRef.current.level;
+    // Firing upgrades persist until the boss dies!
+    const rapid = effectsRef.current.rapidActive || effectsRef.current.rapidUntil > now;
+    const multi = effectsRef.current.multiActive || effectsRef.current.multiUntil > now;
+    const plasma = effectsRef.current.plasmaActive || effectsRef.current.plasmaUntil > now;
+    const baseLevel = 1 + Math.min(4, Math.floor(scoreRef.current / 800));
+    const level = Math.max(weaponRef.current.level, baseLevel);
 
-    const interval = rapid ? 130 : level >= 4 ? 220 : level >= 2 ? 260 : 300;
+    const interval = rapid ? 110 : level >= 4 ? 200 : level >= 2 ? 240 : 280;
     if (now - weaponRef.current.lastFire < interval) return;
     weaponRef.current.lastFire = now;
 
     const dmg = plasma ? 3 : 1;
     const color = plasma ? COLORS.lavender : COLORS.blue;
-    const speed = 520;
+    const speed = 560;
 
     const lanes = [];
     if (level === 1) lanes.push(0);
-    else if (level === 2) lanes.push(-7, 7);
-    else if (level === 3) lanes.push(-10, 0, 10);
-    else if (level >= 4) lanes.push(-16, -6, 6, 16);
+    else if (level === 2) lanes.push(-8, 8);
+    else if (level === 3) lanes.push(-12, 0, 12);
+    else if (level >= 4) lanes.push(-18, -6, 6, 18);
 
-    if (multi) lanes.push(-24, 24);
+    if (multi) lanes.push(-26, 26);
 
     for (const off of lanes) {
-      const spread = level >= 4 ? off * 0.02 : 0;
+      const spread = (level >= 4 || multi) ? off * 0.02 : 0;
       projectilesRef.current.push({
         id: nextId(),
         x: p.x + off,
         y: p.y - 20,
         vx: speed * spread,
         vy: -speed,
-        r: plasma ? 5 : 3.5,
+        r: plasma ? 5.5 : 3.5,
         dmg,
         color,
         trail: [],
@@ -668,9 +711,10 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
   // ==================================================================
   function spawnBoss() {
     const { w } = dims.current;
-    const hp = 60 + waveRef.current * 12;
+    const { minX, maxX } = getCombatBounds(w);
+    const hp = 50 + waveRef.current * 10;
     bossRef.current = {
-      x: w / 2,
+      x: (minX + maxX) / 2,
       y: -80,
       r: 46,
       hp,
@@ -687,6 +731,7 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
     const boss = bossRef.current;
     if (!boss) return;
     const { w } = dims.current;
+    const { minX, maxX } = getCombatBounds(w);
 
     if (boss.entering) {
       boss.y = lerp(boss.y, 110, 1 - Math.pow(0.001, dt));
@@ -698,9 +743,15 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
     const pct = boss.hp / boss.maxHp;
     boss.phase = pct > 0.66 ? 1 : pct > 0.33 ? 2 : 3;
 
-    const speed = boss.phase === 1 ? 55 : boss.phase === 2 ? 85 : 115;
+    const speed = boss.phase === 1 ? 55 : boss.phase === 2 ? 80 : 110;
     boss.x += boss.dir * speed * dt;
-    if (boss.x < boss.r + 20 || boss.x > w - boss.r - 20) boss.dir *= -1;
+    if (boss.x < minX + boss.r + 10) {
+      boss.dir = 1;
+      boss.x = minX + boss.r + 10;
+    } else if (boss.x > maxX - boss.r - 10) {
+      boss.dir = -1;
+      boss.x = maxX - boss.r - 10;
+    }
 
     const fireInterval = boss.phase === 1 ? 900 : boss.phase === 2 ? 550 : 350;
     if (now - boss.lastFire > fireInterval) {
@@ -758,16 +809,25 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
     comboRef.current.mult = 1 + Math.min(4, Math.floor(comboRef.current.count / 5)) * 0.5;
     maxComboRef.current = Math.max(maxComboRef.current, comboRef.current.count);
     addScore(scoreVal);
-    if (Math.random() < 0.14) spawnPowerUp(x, y);
+    if (Math.random() < 0.22) spawnPowerUp(x, y);
   }
 
   function damagePlayer(amount = 1) {
     const p = playerRef.current;
     const now = performance.now();
     if (now < p.invulnUntil) return;
+
+    // 60-second shield protects player completely while active
+    if (effectsRef.current.shieldUntil > now) {
+      p.invulnUntil = now + 700;
+      spawnParticles(p.x, p.y, COLORS.blue, 14, 150);
+      sfx.hit();
+      return;
+    }
+
     if (p.shieldHits > 0) {
       p.shieldHits--;
-      p.invulnUntil = now + 500;
+      p.invulnUntil = now + 600;
       spawnParticles(p.x, p.y, COLORS.blue, 10, 120);
       return;
     }
@@ -1040,6 +1100,16 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
           enemiesDestroyedRef.current++;
           spawnPowerUp(bx, by, "life");
           bossRef.current = null;
+
+          // Weapon firing upgrades reset only when the boss dies!
+          effectsRef.current.rapidActive = false;
+          effectsRef.current.multiActive = false;
+          effectsRef.current.plasmaActive = false;
+          effectsRef.current.rapidUntil = 0;
+          effectsRef.current.multiUntil = 0;
+          effectsRef.current.plasmaUntil = 0;
+          weaponRef.current.level = 1;
+          // Note: Shield (60s) is NOT reset here; it persists until its 60s timer expires.
         }
       }
 
@@ -1052,9 +1122,9 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
       comboRef.current.mult = 1;
     }
 
-    // ---- Weapon level scales with score ----
-    const targetLevel = 1 + Math.min(4, Math.floor(scoreRef.current / 800));
-    weaponRef.current.level = targetLevel;
+    // ---- Weapon level scales with score, preserving upgrades until boss defeat ----
+    const baseTargetLevel = 1 + Math.min(4, Math.floor(scoreRef.current / 800));
+    weaponRef.current.level = Math.max(weaponRef.current.level, baseTargetLevel);
 
     // ---- Screen shake decay ----
     if (screenShakeRef.current > 0) screenShakeRef.current = Math.max(0, screenShakeRef.current - dt * 40);
@@ -1071,12 +1141,25 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
   function applyPowerUp(key) {
     const now = performance.now();
     sfx.powerUp();
-    if (key === "rapid") effectsRef.current.rapidUntil = now + POWERUP_TYPES.rapid.duration;
-    else if (key === "multi") effectsRef.current.multiUntil = now + POWERUP_TYPES.multi.duration;
-    else if (key === "plasma") effectsRef.current.plasmaUntil = now + POWERUP_TYPES.plasma.duration;
-    else if (key === "shield") playerRef.current.shieldHits = Math.min(3, playerRef.current.shieldHits + 1);
-    else if (key === "life") livesRef.current = Math.min(9, livesRef.current + 1);
-    else if (key === "bomb") {
+    if (key === "rapid") {
+      effectsRef.current.rapidActive = true;
+      effectsRef.current.rapidUntil = now + 9999999;
+      weaponRef.current.level = Math.min(4, Math.max(weaponRef.current.level, 2) + 1);
+    } else if (key === "multi") {
+      effectsRef.current.multiActive = true;
+      effectsRef.current.multiUntil = now + 9999999;
+      weaponRef.current.level = Math.min(4, Math.max(weaponRef.current.level, 2) + 1);
+    } else if (key === "plasma") {
+      effectsRef.current.plasmaActive = true;
+      effectsRef.current.plasmaUntil = now + 9999999;
+      weaponRef.current.level = Math.min(4, Math.max(weaponRef.current.level, 2) + 1);
+    } else if (key === "shield") {
+      // 60-second shield duration
+      effectsRef.current.shieldUntil = Math.max(effectsRef.current.shieldUntil, now) + 60000;
+      playerRef.current.shieldHits = Math.max(playerRef.current.shieldHits, 5);
+    } else if (key === "life") {
+      livesRef.current = Math.min(9, livesRef.current + 1);
+    } else if (key === "bomb") {
       const p = playerRef.current;
       for (const e of enemiesRef.current) {
         if (dist2(e.x, e.y, p.x, p.y) < 240 * 240) {
@@ -1136,6 +1219,11 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
       default:
         e.y += e.speed * dt;
     }
+
+    // Keep enemies strictly within the playable combat corridor
+    const { w } = dims.current;
+    const { minX, maxX } = getCombatBounds(w);
+    e.x = clamp(e.x, minX + e.r, maxX - e.r);
   }
 
   // ==================================================================
@@ -1164,6 +1252,23 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
       ctx.fill();
     }
     ctx.globalAlpha = 1;
+
+    // Subtle boundary guidelines for the active playable combat corridor
+    if (w > 760) {
+      const { minX, maxX } = getCombatBounds(w);
+      ctx.save();
+      ctx.strokeStyle = "rgba(90, 200, 250, 0.18)";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([8, 10]);
+      ctx.beginPath();
+      ctx.moveTo(minX, 0);
+      ctx.lineTo(minX, h);
+      ctx.moveTo(maxX, 0);
+      ctx.lineTo(maxX, h);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
 
     // Asteroids
     for (const a of asteroidsRef.current) {
@@ -1275,14 +1380,27 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
     ctx.save();
     ctx.translate(p.x, p.y);
 
-    if (p.shieldHits > 0) {
+    const hasTimedShield = effectsRef.current.shieldUntil > now;
+    if (hasTimedShield || p.shieldHits > 0) {
+      ctx.save();
       ctx.strokeStyle = COLORS.blue;
-      ctx.globalAlpha = 0.6;
-      ctx.lineWidth = 2;
+      ctx.globalAlpha = hasTimedShield ? 0.75 + Math.sin(now / 140) * 0.2 : 0.6;
+      ctx.lineWidth = hasTimedShield ? 3 : 2;
+      ctx.shadowColor = COLORS.blue;
+      ctx.shadowBlur = 14;
       ctx.beginPath();
       ctx.arc(0, 0, p.r + 10, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.globalAlpha = 1;
+
+      if (hasTimedShield) {
+        const rot = (now / 350) % (Math.PI * 2);
+        ctx.strokeStyle = COLORS.lavender;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, p.r + 15, rot, rot + Math.PI * 1.3);
+        ctx.stroke();
+      }
+      ctx.restore();
     }
 
     ctx.shadowColor = COLORS.blue;
@@ -1712,7 +1830,7 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
                   key={pu.key}
                   className="font-mono text-[10px] font-bold px-2 py-0.5 border-2 border-black bg-[#F5F0E6]"
                 >
-                  {pu.label} {pu.secs ? `${pu.secs.toFixed(1)}s` : pu.hits ? `x${pu.hits}` : ""}
+                  {pu.label} {pu.status ? `[${pu.status}]` : pu.secs ? `${Math.ceil(pu.secs)}s` : pu.hits ? `x${pu.hits}` : ""}
                 </div>
               ))}
             </div>
