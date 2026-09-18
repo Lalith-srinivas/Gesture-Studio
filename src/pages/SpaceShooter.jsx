@@ -30,6 +30,9 @@ const COLORS = {
   green: "#7CFF6B",
   blue: "#5AC8FA",
   orange: "#FF9F43",
+  red: "#FF3B30",
+  crimson: "#DC2626",
+  darkRed: "#991B1B",
 };
 
 // ------------------------------------------------------------------
@@ -63,7 +66,7 @@ const getCombatBounds = (w) => {
 };
 
 // ------------------------------------------------------------------
-// Enemy type definitions
+// Enemy type definitions - all red spaceship armada with distinct specs
 // ------------------------------------------------------------------
 const ENEMY_TYPES = {
   drone: {
@@ -72,16 +75,16 @@ const ENEMY_TYPES = {
     baseHp: 1,
     baseSpeed: 60,
     score: 10,
-    color: COLORS.blue,
+    color: "#FF3B30",
     patterns: ["straight", "zigzag"],
   },
   scout: {
     key: "scout",
-    r: 12,
+    r: 13,
     baseHp: 1,
     baseSpeed: 140,
     score: 20,
-    color: COLORS.pink,
+    color: "#FF4D4D",
     patterns: ["chase", "dive"],
   },
   tank: {
@@ -90,35 +93,35 @@ const ENEMY_TYPES = {
     baseHp: 8,
     baseSpeed: 32,
     score: 50,
-    color: COLORS.orange,
+    color: "#991B1B",
     patterns: ["straight"],
   },
   shooter: {
     key: "shooter",
-    r: 18,
+    r: 19,
     baseHp: 3,
     baseSpeed: 45,
     score: 35,
-    color: COLORS.lavender,
+    color: "#E11D48",
     patterns: ["shooter"],
     fires: true,
   },
   swarm: {
     key: "swarm",
-    r: 9,
+    r: 10,
     baseHp: 1,
     baseSpeed: 100,
     score: 8,
-    color: COLORS.green,
+    color: "#FF2A2A",
     patterns: ["swarm"],
   },
   elite: {
     key: "elite",
-    r: 22,
+    r: 24,
     baseHp: 6,
     baseSpeed: 90,
     score: 100,
-    color: COLORS.yellow,
+    color: "#DC2626",
     patterns: ["orbit", "chase"],
     fires: true,
   },
@@ -126,15 +129,15 @@ const ENEMY_TYPES = {
 
 // ------------------------------------------------------------------
 // Power-up type definitions
-// Firing upgrades persist until the boss dies; shield lasts 60s
+// Every power-up lasts up to 30s only
 // ------------------------------------------------------------------
 const POWERUP_TYPES = {
-  rapid: { key: "rapid", label: "RAPID FIRE", icon: "⚡", color: COLORS.yellow, duration: 0 },
-  multi: { key: "multi", label: "MULTI SHOT", icon: "💥", color: COLORS.pink, duration: 0 },
-  shield: { key: "shield", label: "SHIELD (60s)", icon: "🛡️", color: COLORS.blue, duration: 60000 },
+  rapid: { key: "rapid", label: "RAPID FIRE", icon: "⚡", color: COLORS.yellow, duration: 30000 },
+  multi: { key: "multi", label: "MULTI SHOT", icon: "💥", color: COLORS.pink, duration: 30000 },
+  shield: { key: "shield", label: "SHIELD", icon: "🛡️", color: COLORS.blue, duration: 30000 },
   life: { key: "life", label: "EXTRA LIFE", icon: "❤️", color: COLORS.green, duration: 0 },
   bomb: { key: "bomb", label: "SPACE BOMB", icon: "💣", color: COLORS.orange, duration: 0 },
-  plasma: { key: "plasma", label: "PLASMA", icon: "🔵", color: COLORS.lavender, duration: 0 },
+  plasma: { key: "plasma", label: "PLASMA", icon: "🔵", color: COLORS.lavender, duration: 30000 },
 };
 
 export default function SpaceShooter({ gesturePosition = null, onGameComplete = null, className = "" }) {
@@ -197,9 +200,6 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
     rapidUntil: 0,
     multiUntil: 0,
     plasmaUntil: 0,
-    rapidActive: false,
-    multiActive: false,
-    plasmaActive: false,
     shieldUntil: 0,
   });
   const comboRef = useRef({ count: 0, mult: 1, lastKillAt: 0 });
@@ -443,9 +443,6 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
       rapidUntil: 0,
       multiUntil: 0,
       plasmaUntil: 0,
-      rapidActive: false,
-      multiActive: false,
-      plasmaActive: false,
       shieldUntil: 0,
     };
     comboRef.current = { count: 0, mult: 1, lastKillAt: 0 };
@@ -493,12 +490,18 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
   function activePowerUpList() {
     const now = performance.now();
     const list = [];
-    if (effectsRef.current.rapidActive || effectsRef.current.rapidUntil > now)
-      list.push({ key: "rapid", label: "RAPID FIRE", status: "UNTIL BOSS" });
-    if (effectsRef.current.multiActive || effectsRef.current.multiUntil > now)
-      list.push({ key: "multi", label: "MULTI SHOT", status: "UNTIL BOSS" });
-    if (effectsRef.current.plasmaActive || effectsRef.current.plasmaUntil > now)
-      list.push({ key: "plasma", label: "PLASMA", status: "UNTIL BOSS" });
+    if (effectsRef.current.rapidUntil > now) {
+      const remainingSecs = Math.max(0, (effectsRef.current.rapidUntil - now) / 1000);
+      list.push({ key: "rapid", label: "RAPID FIRE", secs: remainingSecs });
+    }
+    if (effectsRef.current.multiUntil > now) {
+      const remainingSecs = Math.max(0, (effectsRef.current.multiUntil - now) / 1000);
+      list.push({ key: "multi", label: "MULTI SHOT", secs: remainingSecs });
+    }
+    if (effectsRef.current.plasmaUntil > now) {
+      const remainingSecs = Math.max(0, (effectsRef.current.plasmaUntil - now) / 1000);
+      list.push({ key: "plasma", label: "PLASMA", secs: remainingSecs });
+    }
     if (effectsRef.current.shieldUntil > now) {
       const remainingSecs = Math.max(0, (effectsRef.current.shieldUntil - now) / 1000);
       list.push({ key: "shield", label: "SHIELD", secs: remainingSecs });
@@ -649,12 +652,12 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
   function fireWeapon() {
     const p = playerRef.current;
     const now = performance.now();
-    // Firing upgrades persist until the boss dies!
-    const rapid = effectsRef.current.rapidActive || effectsRef.current.rapidUntil > now;
-    const multi = effectsRef.current.multiActive || effectsRef.current.multiUntil > now;
-    const plasma = effectsRef.current.plasmaActive || effectsRef.current.plasmaUntil > now;
+    // Each power-up lasts up to 30s
+    const rapid = effectsRef.current.rapidUntil > now;
+    const multi = effectsRef.current.multiUntil > now;
+    const plasma = effectsRef.current.plasmaUntil > now;
     const baseLevel = 1 + Math.min(4, Math.floor(scoreRef.current / 800));
-    const level = Math.max(weaponRef.current.level, baseLevel);
+    const level = (rapid || multi || plasma) ? Math.max(weaponRef.current.level, 3) : Math.max(weaponRef.current.level, baseLevel);
 
     const interval = rapid ? 110 : level >= 4 ? 200 : level >= 2 ? 240 : 280;
     if (now - weaponRef.current.lastFire < interval) return;
@@ -702,7 +705,7 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
       vx: (dx / len) * speed,
       vy: (dy / len) * speed,
       r: 4.5,
-      color: COLORS.pink,
+      color: "#FF3B30",
     });
   }
 
@@ -1100,16 +1103,6 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
           enemiesDestroyedRef.current++;
           spawnPowerUp(bx, by, "life");
           bossRef.current = null;
-
-          // Weapon firing upgrades reset only when the boss dies!
-          effectsRef.current.rapidActive = false;
-          effectsRef.current.multiActive = false;
-          effectsRef.current.plasmaActive = false;
-          effectsRef.current.rapidUntil = 0;
-          effectsRef.current.multiUntil = 0;
-          effectsRef.current.plasmaUntil = 0;
-          weaponRef.current.level = 1;
-          // Note: Shield (60s) is NOT reset here; it persists until its 60s timer expires.
         }
       }
 
@@ -1122,9 +1115,10 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
       comboRef.current.mult = 1;
     }
 
-    // ---- Weapon level scales with score, preserving upgrades until boss defeat ----
+    // ---- Weapon level scales with score, enhanced while powerups active (up to 30s) ----
+    const anyFiringPower = effectsRef.current.rapidUntil > now || effectsRef.current.multiUntil > now || effectsRef.current.plasmaUntil > now;
     const baseTargetLevel = 1 + Math.min(4, Math.floor(scoreRef.current / 800));
-    weaponRef.current.level = Math.max(weaponRef.current.level, baseTargetLevel);
+    weaponRef.current.level = anyFiringPower ? Math.max(weaponRef.current.level, 3) : baseTargetLevel;
 
     // ---- Screen shake decay ----
     if (screenShakeRef.current > 0) screenShakeRef.current = Math.max(0, screenShakeRef.current - dt * 40);
@@ -1142,20 +1136,17 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
     const now = performance.now();
     sfx.powerUp();
     if (key === "rapid") {
-      effectsRef.current.rapidActive = true;
-      effectsRef.current.rapidUntil = now + 9999999;
+      effectsRef.current.rapidUntil = now + 30000;
       weaponRef.current.level = Math.min(4, Math.max(weaponRef.current.level, 2) + 1);
     } else if (key === "multi") {
-      effectsRef.current.multiActive = true;
-      effectsRef.current.multiUntil = now + 9999999;
+      effectsRef.current.multiUntil = now + 30000;
       weaponRef.current.level = Math.min(4, Math.max(weaponRef.current.level, 2) + 1);
     } else if (key === "plasma") {
-      effectsRef.current.plasmaActive = true;
-      effectsRef.current.plasmaUntil = now + 9999999;
+      effectsRef.current.plasmaUntil = now + 30000;
       weaponRef.current.level = Math.min(4, Math.max(weaponRef.current.level, 2) + 1);
     } else if (key === "shield") {
-      // 60-second shield duration
-      effectsRef.current.shieldUntil = Math.max(effectsRef.current.shieldUntil, now) + 60000;
+      // 30-second shield duration
+      effectsRef.current.shieldUntil = now + 30000;
       playerRef.current.shieldHits = Math.max(playerRef.current.shieldHits, 5);
     } else if (key === "life") {
       livesRef.current = Math.min(9, livesRef.current + 1);
@@ -1439,100 +1430,381 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
   }
 
   function drawEnemy(ctx, e) {
+    const now = performance.now();
     ctx.save();
     ctx.translate(e.x, e.y);
-    ctx.shadowColor = e.color;
-    ctx.shadowBlur = 10;
-    ctx.fillStyle = e.color;
+
+    const flameLen = (e.r * 0.45) + Math.sin((now + e.id * 80) / 45) * (e.r * 0.2);
+
+    ctx.shadowColor = "#FF3B30";
+    ctx.shadowBlur = 12;
     ctx.strokeStyle = COLORS.ink;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.2;
 
     if (e.type === "drone") {
+      // Drone: Inverted red twin of player delta fighter
+      const noseY = e.r * 1.25;
+      const wingX = e.r * 0.95;
+      const rearY = -e.r * 0.9;
+      const notchY = -e.r * 0.55;
+      const midY = -e.r * 0.95;
+
+      // Rear engine flame (pointing up)
+      ctx.fillStyle = COLORS.orange;
       ctx.beginPath();
-      ctx.arc(0, 0, e.r, 0, Math.PI * 2);
+      ctx.moveTo(-e.r * 0.35, midY);
+      ctx.lineTo(0, midY - flameLen);
+      ctx.lineTo(e.r * 0.35, midY);
+      ctx.closePath();
+      ctx.fill();
+
+      // Delta Fighter Hull
+      ctx.fillStyle = "#FF3B30";
+      ctx.beginPath();
+      ctx.moveTo(0, noseY);
+      ctx.lineTo(wingX, rearY);
+      ctx.lineTo(wingX * 0.45, notchY);
+      ctx.lineTo(0, midY);
+      ctx.lineTo(-wingX * 0.45, notchY);
+      ctx.lineTo(-wingX, rearY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Cockpit Canopy
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#FFEAEA";
+      ctx.beginPath();
+      ctx.arc(0, e.r * 0.1, e.r * 0.28, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
     } else if (e.type === "scout") {
+      // Scout: Razor needle fighter with twin thrusters
+      const noseY = e.r * 1.4;
+      const wingSpan = e.r * 1.2;
+      const waistY = -e.r * 0.3;
+      const finY = -e.r * 1.05;
+
+      // Twin thrusters
+      ctx.fillStyle = COLORS.yellow;
       ctx.beginPath();
-      ctx.moveTo(0, e.r);
-      ctx.lineTo(e.r, -e.r);
-      ctx.lineTo(-e.r, -e.r);
+      ctx.moveTo(-e.r * 0.55, finY);
+      ctx.lineTo(-e.r * 0.38, finY - flameLen * 0.9);
+      ctx.lineTo(-e.r * 0.2, finY);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(e.r * 0.2, finY);
+      ctx.lineTo(e.r * 0.38, finY - flameLen * 0.9);
+      ctx.lineTo(e.r * 0.55, finY);
+      ctx.closePath();
+      ctx.fill();
+
+      // Needle Fighter Hull
+      ctx.fillStyle = "#FF4D4D";
+      ctx.beginPath();
+      ctx.moveTo(0, noseY);
+      ctx.lineTo(e.r * 0.25, e.r * 0.4);
+      ctx.lineTo(wingSpan, waistY);
+      ctx.lineTo(e.r * 0.6, finY);
+      ctx.lineTo(0, -e.r * 0.7);
+      ctx.lineTo(-e.r * 0.6, finY);
+      ctx.lineTo(-wingSpan, waistY);
+      ctx.lineTo(-e.r * 0.25, e.r * 0.4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Slender diamond cockpit
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#FFFFFF";
+      ctx.beginPath();
+      ctx.moveTo(0, e.r * 0.55);
+      ctx.lineTo(e.r * 0.2, e.r * 0.15);
+      ctx.lineTo(0, -e.r * 0.1);
+      ctx.lineTo(-e.r * 0.2, e.r * 0.15);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
     } else if (e.type === "tank") {
+      // Tank: Heavy dreadnought with armor plates & dual engine nacelles
+      const noseY = e.r * 0.95;
+      const noseW = e.r * 0.45;
+      const shoulderX = e.r * 1.25;
+      const shoulderY = -e.r * 0.15;
+      const engineX = e.r * 0.85;
+      const engineY = -e.r * 1.0;
+
+      // Dual heavy exhaust flames
+      ctx.fillStyle = COLORS.orange;
       ctx.beginPath();
-      ctx.rect(-e.r, -e.r * 0.8, e.r * 2, e.r * 1.6);
+      ctx.moveTo(-engineX - e.r * 0.2, engineY);
+      ctx.lineTo(-engineX, engineY - flameLen * 1.15);
+      ctx.lineTo(-engineX + e.r * 0.2, engineY);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(engineX - e.r * 0.2, engineY);
+      ctx.lineTo(engineX, engineY - flameLen * 1.15);
+      ctx.lineTo(engineX + e.r * 0.2, engineY);
+      ctx.closePath();
+      ctx.fill();
+
+      // Heavy Armored Hull
+      ctx.fillStyle = "#991B1B";
+      ctx.beginPath();
+      ctx.moveTo(-noseW, noseY);
+      ctx.lineTo(noseW, noseY);
+      ctx.lineTo(shoulderX, shoulderY);
+      ctx.lineTo(engineX + e.r * 0.25, engineY);
+      ctx.lineTo(engineX - e.r * 0.25, engineY);
+      ctx.lineTo(e.r * 0.2, -e.r * 0.6);
+      ctx.lineTo(-e.r * 0.2, -e.r * 0.6);
+      ctx.lineTo(-engineX + e.r * 0.25, engineY);
+      ctx.lineTo(-engineX - e.r * 0.25, engineY);
+      ctx.lineTo(-shoulderX, shoulderY);
+      ctx.closePath();
       ctx.fill();
       ctx.stroke();
-    } else if (e.type === "shooter") {
+
+      // Armor plating overlay
+      ctx.fillStyle = "#DC2626";
       ctx.beginPath();
-      for (let i = 0; i < 6; i++) {
-        const a = (i / 6) * Math.PI * 2;
-        const px = Math.cos(a) * e.r;
-        const py = Math.sin(a) * e.r;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      }
+      ctx.moveTo(-noseW * 0.75, noseY - e.r * 0.15);
+      ctx.lineTo(noseW * 0.75, noseY - e.r * 0.15);
+      ctx.lineTo(shoulderX * 0.65, 0);
+      ctx.lineTo(-shoulderX * 0.65, 0);
       ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Armored Command Visor
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#FFEAEA";
+      ctx.fillRect(-e.r * 0.35, -e.r * 0.25, e.r * 0.7, e.r * 0.22);
+      ctx.strokeRect(-e.r * 0.35, -e.r * 0.25, e.r * 0.7, e.r * 0.22);
+    } else if (e.type === "shooter") {
+      // Shooter: Heavy wing plasma cannons & central targeting optic
+      const noseY = e.r * 0.8;
+      const cannonY = e.r * 1.3;
+      const cannonX = e.r * 0.95;
+      const wingBackX = e.r * 1.1;
+      const wingBackY = -e.r * 0.75;
+      const engineY = -e.r * 0.9;
+
+      // Center engine flame
+      ctx.fillStyle = COLORS.orange;
+      ctx.beginPath();
+      ctx.moveTo(-e.r * 0.3, engineY);
+      ctx.lineTo(0, engineY - flameLen);
+      ctx.lineTo(e.r * 0.3, engineY);
+      ctx.closePath();
+      ctx.fill();
+
+      // Artillery Hull
+      ctx.fillStyle = "#C53030";
+      ctx.beginPath();
+      ctx.moveTo(0, noseY);
+      ctx.lineTo(e.r * 0.38, e.r * 0.3);
+      ctx.lineTo(cannonX - e.r * 0.12, e.r * 0.35);
+      ctx.lineTo(cannonX - e.r * 0.12, cannonY);
+      ctx.lineTo(cannonX + e.r * 0.15, cannonY);
+      ctx.lineTo(cannonX + e.r * 0.15, 0);
+      ctx.lineTo(wingBackX, wingBackY);
+      ctx.lineTo(0, -e.r * 0.6);
+      ctx.lineTo(-wingBackX, wingBackY);
+      ctx.lineTo(-cannonX - e.r * 0.15, 0);
+      ctx.lineTo(-cannonX - e.r * 0.15, cannonY);
+      ctx.lineTo(-cannonX + e.r * 0.12, cannonY);
+      ctx.lineTo(-cannonX + e.r * 0.12, e.r * 0.35);
+      ctx.lineTo(-e.r * 0.38, e.r * 0.3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Glowing wing cannon tips
+      ctx.fillStyle = "#FF6FB5";
+      ctx.fillRect(cannonX - e.r * 0.12, cannonY - 4, e.r * 0.27, 5);
+      ctx.fillRect(-cannonX - e.r * 0.15, cannonY - 4, e.r * 0.27, 5);
+
+      // Central glowing targeting optic
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#FFE142";
+      ctx.beginPath();
+      ctx.arc(0, -e.r * 0.05, e.r * 0.25, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
     } else if (e.type === "swarm") {
+      // Swarm: Compact aggressive mini delta arrow
+      const noseY = e.r * 1.25;
+      const wingX = e.r * 1.0;
+      const rearY = -e.r * 0.85;
+
+      // Small thruster flame
+      ctx.fillStyle = COLORS.yellow;
       ctx.beginPath();
-      ctx.arc(0, 0, e.r, 0, Math.PI * 2);
+      ctx.moveTo(-e.r * 0.3, rearY);
+      ctx.lineTo(0, rearY - flameLen * 0.85);
+      ctx.lineTo(e.r * 0.3, rearY);
+      ctx.closePath();
       ctx.fill();
-      ctx.stroke();
-    } else if (e.type === "elite") {
+
+      // Micro Fighter Hull
+      ctx.fillStyle = "#FF2A2A";
       ctx.beginPath();
-      for (let i = 0; i < 5; i++) {
-        const a = -Math.PI / 2 + (i / 5) * Math.PI * 2;
-        const px = Math.cos(a) * e.r;
-        const py = Math.sin(a) * e.r;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      }
+      ctx.moveTo(0, noseY);
+      ctx.lineTo(wingX, rearY);
+      ctx.lineTo(0, -e.r * 0.4);
+      ctx.lineTo(-wingX, rearY);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
+
+      // Glowing core dot
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#FFFFFF";
+      ctx.beginPath();
+      ctx.arc(0, 0, e.r * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (e.type === "elite") {
+      // Elite: Imperial Command Flagship with double-tiered wings & triple engines
+      const noseY = e.r * 1.4;
+      const canardX = e.r * 0.8;
+      const canardY = e.r * 0.4;
+      const mainWingX = e.r * 1.35;
+      const mainWingY = -e.r * 0.7;
+      const wingTipY = -e.r * 1.05;
+      const engineY = -e.r * 0.95;
+
+      // Triple exhaust flames
+      ctx.fillStyle = COLORS.orange;
+      for (const ox of [-e.r * 0.5, 0, e.r * 0.5]) {
+        ctx.beginPath();
+        ctx.moveTo(ox - e.r * 0.15, engineY);
+        ctx.lineTo(ox, engineY - flameLen);
+        ctx.lineTo(ox + e.r * 0.15, engineY);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // Command Flagship Hull
+      ctx.fillStyle = "#DC2626";
+      ctx.beginPath();
+      ctx.moveTo(0, noseY);
+      ctx.lineTo(e.r * 0.35, e.r * 0.8);
+      ctx.lineTo(canardX, canardY);
+      ctx.lineTo(e.r * 0.4, 0);
+      ctx.lineTo(mainWingX, mainWingY);
+      ctx.lineTo(mainWingX, wingTipY);
+      ctx.lineTo(e.r * 0.7, -e.r * 0.6);
+      ctx.lineTo(0, -e.r * 0.75);
+      ctx.lineTo(-e.r * 0.7, -e.r * 0.6);
+      ctx.lineTo(-mainWingX, wingTipY);
+      ctx.lineTo(-mainWingX, mainWingY);
+      ctx.lineTo(-e.r * 0.4, 0);
+      ctx.lineTo(-canardX, canardY);
+      ctx.lineTo(-e.r * 0.35, e.r * 0.8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Gold Command Bridge canopy
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#FFE142";
+      ctx.beginPath();
+      ctx.arc(0, e.r * 0.15, e.r * 0.32, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Wing energy emitters
+      ctx.fillStyle = "#FF6B6B";
+      ctx.beginPath();
+      ctx.arc(mainWingX * 0.8, mainWingY * 0.6, e.r * 0.14, 0, Math.PI * 2);
+      ctx.arc(-mainWingX * 0.8, mainWingY * 0.6, e.r * 0.14, 0, Math.PI * 2);
+      ctx.fill();
     }
+
     ctx.shadowBlur = 0;
     ctx.restore();
 
     // Mini health bar for tougher enemies
     if (e.maxHp > 1) {
       const pct = clamp(e.hp / e.maxHp, 0, 1);
-      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
       ctx.fillRect(e.x - e.r, e.y - e.r - 8, e.r * 2, 4);
-      ctx.fillStyle = COLORS.green;
+      ctx.fillStyle = "#FF3B30";
       ctx.fillRect(e.x - e.r, e.y - e.r - 8, e.r * 2 * pct, 4);
     }
   }
 
   function drawBoss(ctx, b) {
+    const now = performance.now();
     ctx.save();
     ctx.translate(b.x, b.y);
-    ctx.shadowColor = COLORS.yellow;
-    ctx.shadowBlur = 22;
-    ctx.fillStyle = "#241b3a";
-    ctx.strokeStyle = COLORS.yellow;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    for (let i = 0; i < 8; i++) {
-      const a = (i / 8) * Math.PI * 2;
-      const rr = i % 2 === 0 ? b.r : b.r * 0.7;
-      const px = Math.cos(a) * rr;
-      const py = Math.sin(a) * rr;
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
+
+    const flameLen = 14 + Math.sin(now / 50) * 8;
+
+    // Quad heavy thruster flames
+    ctx.fillStyle = COLORS.orange;
+    for (const ox of [-b.r * 0.6, -b.r * 0.2, b.r * 0.2, b.r * 0.6]) {
+      ctx.beginPath();
+      ctx.moveTo(ox - 5, -b.r * 0.7);
+      ctx.lineTo(ox, -b.r * 0.7 - flameLen);
+      ctx.lineTo(ox + 5, -b.r * 0.7);
+      ctx.closePath();
+      ctx.fill();
     }
+
+    // Shadow & Outline
+    ctx.shadowColor = "#FF3B30";
+    ctx.shadowBlur = 24;
+    ctx.strokeStyle = COLORS.ink;
+    ctx.lineWidth = 3;
+
+    // Main Capital Ship Red Hull
+    ctx.fillStyle = "#7F1D1D";
+    ctx.beginPath();
+    ctx.moveTo(0, b.r * 1.15); // front ram
+    ctx.lineTo(b.r * 0.45, b.r * 0.6);
+    ctx.lineTo(b.r * 1.25, 0); // wing tip
+    ctx.lineTo(b.r * 1.15, -b.r * 0.6);
+    ctx.lineTo(b.r * 0.7, -b.r * 0.4);
+    ctx.lineTo(0, -b.r * 0.55); // rear indent
+    ctx.lineTo(-b.r * 0.7, -b.r * 0.4);
+    ctx.lineTo(-b.r * 1.15, -b.r * 0.6);
+    ctx.lineTo(-b.r * 1.25, 0);
+    ctx.lineTo(-b.r * 0.45, b.r * 0.6);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = COLORS.pink;
+
+    // Secondary armored plating
+    ctx.fillStyle = "#DC2626";
     ctx.beginPath();
-    ctx.arc(0, 0, b.r * 0.3, 0, Math.PI * 2);
+    ctx.moveTo(0, b.r * 0.85);
+    ctx.lineTo(b.r * 0.35, b.r * 0.3);
+    ctx.lineTo(b.r * 0.8, -b.r * 0.2);
+    ctx.lineTo(-b.r * 0.8, -b.r * 0.2);
+    ctx.lineTo(-b.r * 0.35, b.r * 0.3);
+    ctx.closePath();
     ctx.fill();
+    ctx.stroke();
+
+    // Central Command Bridge with pulsating core
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = b.phase === 3 ? COLORS.yellow : b.phase === 2 ? COLORS.orange : COLORS.pink;
+    ctx.beginPath();
+    ctx.arc(0, 0, b.r * 0.28, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Turret pods on wingtips
+    ctx.fillStyle = COLORS.ink;
+    ctx.fillRect(-b.r * 1.15, -4, 10, 8);
+    ctx.fillRect(b.r * 1.15 - 10, -4, 10, 8);
+
     ctx.restore();
   }
 
