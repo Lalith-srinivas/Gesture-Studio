@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
 import { usePlayer } from '../hooks/usePlayer';
 import { useGestureAcademy } from '../hooks/useGestureAcademy';
 import AuthModal from '../components/AuthModal';
@@ -97,18 +96,12 @@ const GESTURE_GUIDES = [
 ];
 
 export default function Home() {
-  const { currentUser, userProfile, isGuest } = useAuth();
   const { playerData } = usePlayer();
-  const { isGlobalDone, isGameDone: _isGameDone, GAME_NAMES } = useGestureAcademy();
+  const { isGlobalDone } = useGestureAcademy();
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Academy is globally complete if either the hook says so OR playerData confirms it
   const academyCompleted = isGlobalDone || playerData?.tutorialCompleted === true;
-
-  // Per-game tutorial completion helper
-  const isGameTutorialDone = (gameId) => {
-    return localStorage.getItem(`gesture_tutorial_${gameId}`) === 'true';
-  };
 
   return (
     <div className="w-full min-h-screen bg-neo-dots text-black flex flex-col font-sans selection:bg-neo-yellow selection:text-black">
@@ -283,54 +276,58 @@ export default function Home() {
         </div>
 
         {/* ── Games Grid ──────────────────────────────────────────────────── */}
-        <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 mb-14">
-          {GAMES.map((game) => (
-            <Link
-              key={game.to}
-              to={game.to}
-              className={`
-                group relative flex flex-col justify-between p-6 md:p-7
-                border-3 md:border-4 border-black ${game.bg} shadow-neo-lg
-                transition-all duration-200
-                hover:-translate-x-1 hover:-translate-y-1 hover:shadow-neo-xl
-                active:translate-x-1 active:translate-y-1 active:shadow-neo-sm
-                overflow-hidden
-              `}
-            >
-              {/* Top Row: Tag & Emoji Icon */}
-              <div>
-                <div className="flex items-center justify-between mb-5">
-                  <span className={`neo-tag ${game.badgeBg} ${game.badgeText}`}>
-                    {game.tag}
-                  </span>
-                  <div className="w-12 h-12 rounded-xl bg-white border-2 border-black shadow-neo-sm flex items-center justify-center text-2xl group-hover:scale-110 group-hover:rotate-6 transition-transform">
-                    {game.emoji}
+        <nav aria-label="Popular Games Directory" id="games" className="w-full mb-14">
+          <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+            {GAMES.map((game) => (
+              <Link
+                key={game.to}
+                to={game.to}
+                title={`Play ${game.title} Online - Gesture Studio`}
+                aria-label={`Play ${game.title} - ${game.desc}`}
+                className={`
+                  group relative flex flex-col justify-between p-6 md:p-7
+                  border-3 md:border-4 border-black ${game.bg} shadow-neo-lg
+                  transition-all duration-200
+                  hover:-translate-x-1 hover:-translate-y-1 hover:shadow-neo-xl
+                  active:translate-x-1 active:translate-y-1 active:shadow-neo-sm
+                  overflow-hidden
+                `}
+              >
+                {/* Top Row: Tag & Emoji Icon */}
+                <div>
+                  <div className="flex items-center justify-between mb-5">
+                    <span className={`neo-tag ${game.badgeBg} ${game.badgeText}`}>
+                      {game.tag}
+                    </span>
+                    <div className="w-12 h-12 rounded-xl bg-white border-2 border-black shadow-neo-sm flex items-center justify-center text-2xl group-hover:scale-110 group-hover:rotate-6 transition-transform">
+                      {game.emoji}
+                    </div>
+                  </div>
+
+                  {/* Title & Description */}
+                  <h2 className="font-display font-black text-2xl md:text-3xl text-black uppercase tracking-tight mb-2">
+                    {game.title}
+                  </h2>
+                  <p className="text-zinc-800 text-sm font-medium leading-normal mb-6">
+                    {game.desc}
+                  </p>
+                </div>
+
+                {/* Action Button */}
+                <div className="pt-2">
+                  <div className={`
+                    w-full py-3 px-4 rounded-none font-display font-black text-sm uppercase tracking-wider
+                    border-2 border-black shadow-neo-sm flex items-center justify-between
+                    ${game.buttonBg} transition-all group-hover:shadow-neo
+                  `}>
+                    <span>LAUNCH APP</span>
+                    <span className="text-lg group-hover:translate-x-1 transition-transform">➔</span>
                   </div>
                 </div>
-
-                {/* Title & Description */}
-                <h2 className="font-display font-black text-2xl md:text-3xl text-black uppercase tracking-tight mb-2">
-                  {game.title}
-                </h2>
-                <p className="text-zinc-800 text-sm font-medium leading-normal mb-6">
-                  {game.desc}
-                </p>
-              </div>
-
-              {/* Action Button */}
-              <div className="pt-2">
-                <div className={`
-                  w-full py-3 px-4 rounded-none font-display font-black text-sm uppercase tracking-wider
-                  border-2 border-black shadow-neo-sm flex items-center justify-between
-                  ${game.buttonBg} transition-all group-hover:shadow-neo
-                `}>
-                  <span>LAUNCH APP</span>
-                  <span className="text-lg group-hover:translate-x-1 transition-transform">➔</span>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+              </Link>
+            ))}
+          </div>
+        </nav>
 
         {/* ── Gesture Cheat-Sheet ─────────────────────────────────────────── */}
         <div className="w-full max-w-5xl bg-white border-3 md:border-4 border-black shadow-neo-lg p-6 sm:p-8 relative">

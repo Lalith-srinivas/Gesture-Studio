@@ -3,15 +3,175 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gesture Studio</title>
-    <meta name="description" content="Draw in the air using your webcam and hand gestures. Powered by MediaPipe Hands and React." />
+    
+    <!-- Primary SEO Meta Tags -->
+    <title>Gesture Studio - Play Free Hand Gesture Games Online | Webcam Arcade</title>
+    <meta name="title" content="Gesture Studio - Play Free Hand Gesture Games Online | Webcam Arcade" />
+    <meta name="description" content="Play free online games using your webcam and hand gestures at Gesture Studio. Slice fruits in Fruit Ninja, pilot spaceships, dodge highway traffic, flap through pipes, and shoot arrows with zero downloads or controllers!" />
+    <meta name="keywords" content="gesture games, webcam games, hand tracking games, mediapipe games, free online games, browser games, motion gaming, fruit ninja online, space shooter, flappy bird online, gesture studio, gesturestudio.in" />
+    <meta name="author" content="Lalith Srinivas" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <link rel="canonical" href="https://gesturestudio.in/" />
+    <meta name="theme-color" content="#FFE600" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:site_name" content="Gesture Studio" />
+    <meta property="og:url" content="https://gesturestudio.in/" />
+    <meta property="og:title" content="Gesture Studio - Play Free Hand Gesture Games Online | Webcam Arcade" />
+    <meta property="og:description" content="Play free online games using your webcam and hand gestures at Gesture Studio. Control games in mid-air with zero downloads or hardware controllers!" />
+    <meta property="og:image" content="https://gesturestudio.in/gesturestudio.png" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:alt" content="Gesture Studio Logo" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://gesturestudio.in/" />
+    <meta name="twitter:title" content="Gesture Studio - Play Free Hand Gesture Games Online" />
+    <meta name="twitter:description" content="Play free online games using your webcam and hand gestures at Gesture Studio. Zero controllers or downloads required." />
+    <meta name="twitter:image" content="https://gesturestudio.in/gesturestudio.png" />
+    <meta name="twitter:image:alt" content="Gesture Studio Logo" />
+
+    <!-- Favicon & Icons -->
     <link rel="icon" type="image/png" href="/gesturestudio.png" />
     <link rel="apple-touch-icon" href="/gesturestudio.png" />
+
+    <!-- Google Fonts Preconnect -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- MediaPipe Vision AI Runtime -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
+
+    <!-- Schema.org Structured Data for Google Sitelinks & Rich Search Snippets -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://gesturestudio.in/#website",
+          "url": "https://gesturestudio.in/",
+          "name": "Gesture Studio",
+          "alternateName": ["GestureStudio", "Gesture Studio Games", "GestureStudio.in"],
+          "description": "Play free online games using your webcam and hand gestures with MediaPipe AI hand tracking.",
+          "inLanguage": "en-US",
+          "publisher": {
+            "@id": "https://gesturestudio.in/#organization"
+          }
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://gesturestudio.in/#organization",
+          "name": "Gesture Studio",
+          "url": "https://gesturestudio.in/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://gesturestudio.in/gesturestudio.png",
+            "caption": "Gesture Studio Logo",
+            "width": 512,
+            "height": 512
+          },
+          "founder": {
+            "@type": "Person",
+            "name": "Lalith Srinivas"
+          }
+        },
+        {
+          "@type": "ItemList",
+          "@id": "https://gesturestudio.in/#sitelinks",
+          "name": "Popular Hand Gesture Games",
+          "description": "Play free instant in-browser games using webcam motion gestures on Gesture Studio",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Fruit Ninja",
+              "description": "Slice juicy airborne fruits in real-time with finger swipes. Avoid bombs and trigger slow-motion combos!",
+              "url": "https://gesturestudio.in/fruit-ninja"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Crazy Road",
+              "description": "Navigate lanes and dodge highway traffic using gestures. Build up charge to unleash nitro boost!",
+              "url": "https://gesturestudio.in/hill-climb"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": "Space Shooter",
+              "description": "Survive endless waves of galactic invaders! Steer with your index finger, trigger EMP blasts with pinch!",
+              "url": "https://gesturestudio.in/space-shooter"
+            },
+            {
+              "@type": "ListItem",
+              "position": 4,
+              "name": "Flappy Bird",
+              "description": "Flap through pipes with pinch gestures or air taps. Aim for the highest high score record!",
+              "url": "https://gesturestudio.in/flappy-bird"
+            },
+            {
+              "@type": "ListItem",
+              "position": 5,
+              "name": "Archery Challenge",
+              "description": "Draw back your bowstring with pinch gestures, aim, and strike moving targets and dynamic powerup bubbles!",
+              "url": "https://gesturestudio.in/archery"
+            },
+            {
+              "@type": "ListItem",
+              "position": 6,
+              "name": "Bird Hunter",
+              "description": "Pull back slingshot with pinch gestures, aim at unpredictable birds, and unleash combo trick shots!",
+              "url": "https://gesturestudio.in/bird-hunter"
+            },
+            {
+              "@type": "ListItem",
+              "position": 7,
+              "name": "Gesture Academy",
+              "description": "Interactive gesture tracking tutorials to master pinch, point, fist, and palm gestures.",
+              "url": "https://gesturestudio.in/gesture-academy"
+            },
+            {
+              "@type": "ListItem",
+              "position": 8,
+              "name": "Live Leaderboard",
+              "description": "Global player rankings, high scores, and competitive leaderboards across all gesture games.",
+              "url": "https://gesturestudio.in/leaderboard"
+            }
+          ]
+        },
+        {
+          "@type": "SiteNavigationElement",
+          "name": [
+            "Fruit Ninja",
+            "Crazy Road",
+            "Space Shooter",
+            "Flappy Bird",
+            "Archery Challenge",
+            "Bird Hunter",
+            "Gesture Academy",
+            "Leaderboard"
+          ],
+          "url": [
+            "https://gesturestudio.in/fruit-ninja",
+            "https://gesturestudio.in/hill-climb",
+            "https://gesturestudio.in/space-shooter",
+            "https://gesturestudio.in/flappy-bird",
+            "https://gesturestudio.in/archery",
+            "https://gesturestudio.in/bird-hunter",
+            "https://gesturestudio.in/gesture-academy",
+            "https://gesturestudio.in/leaderboard"
+          ]
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>
