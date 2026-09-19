@@ -34,29 +34,56 @@ export default function AuthModal({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  const handleGoogle = async () => {
+  const handleGoogle = async (forceRedirect = false) => {
     setLoadingAction(true);
     setLocalMsg(null);
     try {
       if (isGuest) {
         // Try linking guest first to preserve any new scores
-        const res = await linkGoogleAccount();
-        if (!res.error) {
+        const res = await linkGoogleAccount(forceRedirect);
+        if (res?.redirecting) {
+          setLocalMsg('Redirecting to Google Sign-In...');
+          return;
+        }
+        if (!res?.error) {
           setLocalMsg('Account successfully linked with Google! All progress preserved.');
           setTimeout(onClose, 1200);
           return;
         }
-        // If the Google account is already registered on another device, log into it directly!
-        const loginRes = await loginWithGoogle();
-        if (!loginRes.error) {
+        // If Google account is already registered or popup was blocked, fallback cleanly
+        if (
+          res?.rawError?.code === 'auth/credential-already-in-use' ||
+          res?.rawError?.code === 'auth/email-already-in-use' ||
+          res?.error?.includes('already associated') ||
+          res?.error?.includes('already linked')
+        ) {
+          const loginRes = await loginWithGoogle(forceRedirect);
+          if (loginRes?.redirecting) {
+            setLocalMsg('Redirecting to Google Sign-In...');
+            return;
+          }
+          if (!loginRes?.error) {
+            onClose();
+          } else {
+            setLocalMsg(loginRes.error);
+          }
+          return;
+        }
+        setLocalMsg(res.error);
+      } else {
+        const res = await loginWithGoogle(forceRedirect);
+        if (res?.redirecting) {
+          setLocalMsg('Redirecting to Google Sign-In...');
+          return;
+        }
+        if (!res?.error) {
           onClose();
         } else {
-          setLocalMsg(loginRes.error);
+          setLocalMsg(res.error);
         }
-      } else {
-        const res = await loginWithGoogle();
-        if (!res.error) onClose();
       }
+    } catch (err) {
+      setLocalMsg(err?.message || 'Failed to sign in with Google.');
     } finally {
       setLoadingAction(false);
     }
@@ -264,8 +291,18 @@ export default function AuthModal({ isOpen, onClose }) {
 
         {/* Feedback / Error notifications */}
         {(authError || localMsg) && (
-          <div className="mt-4 p-2.5 bg-rose-100 border-2 border-black text-xs font-mono font-bold text-rose-800 rounded">
-            {authError || localMsg}
+          <div className="mt-4 p-3 bg-rose-50 border-2 border-black text-xs font-mono font-bold text-rose-800 shadow-neo-sm">
+            <p>{authError || localMsg}</p>
+            {((authError && (authError.toLowerCase().includes('popup') || authError.toLowerCase().includes('blocked'))) ||
+              (localMsg && (localMsg.toLowerCase().includes('popup') || localMsg.toLowerCase().includes('blocked')))) && (
+              <button
+                type="button"
+                onClick={() => handleGoogle(true)}
+                className="mt-2.5 w-full py-2 bg-neo-yellow hover:bg-yellow-300 text-black border-2 border-black font-mono font-black text-xs uppercase flex items-center justify-center gap-2 shadow-neo-sm cursor-pointer active:translate-x-0.5 active:translate-y-0.5"
+              >
+                <span>🚀 CONTINUE WITH GOOGLE (REDIRECT)</span>
+              </button>
+            )}
           </div>
         )}
       </div>

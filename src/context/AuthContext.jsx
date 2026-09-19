@@ -12,6 +12,7 @@ import {
   registerWithEmail,
   linkGuestToGoogle,
   linkGuestToEmail,
+  checkRedirectResult,
   logOut
 } from '../firebase/auth';
 import { getOrCreateUserProfile, updateUserProfile } from '../firebase/firestore';
@@ -54,6 +55,34 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    // Check if returning from a Google redirect sign-in
+    checkRedirectResult().then(async (res) => {
+      if (res?.error) {
+        setAuthError(res.error);
+      } else if (res?.user) {
+        setCurrentUser(res.user);
+        try {
+          localStorage.setItem('gesture_studio_last_uid', res.user.uid);
+          localStorage.removeItem('gesture_explicit_logout');
+        } catch { /* silent */ }
+        if (res.user.email || res.user.displayName) {
+          try {
+            await updateUserProfile(res.user.uid, {
+              isAnonymous: res.user.isAnonymous ?? false,
+              email: res.user.email || '',
+              username: res.user.displayName || 'Player',
+              avatar: res.user.photoURL || undefined
+            });
+          } catch (e) {
+            console.warn('[AuthProvider] Failed to sync redirect profile info:', e);
+          }
+        }
+        await syncProfile(res.user);
+      }
+    }).catch((err) => {
+      setAuthError(err?.message || 'Redirect sign-in error');
+    });
+
     const unsubscribe = subscribeToAuthState(async (user) => {
       if (user) {
         setCurrentUser(user);
@@ -113,10 +142,10 @@ export function AuthProvider({ children }) {
   };
 
   // Google login
-  const loginWithGoogle = async () => {
+  const loginWithGoogle = async (forceRedirect = false) => {
     setAuthError(null);
     try { localStorage.removeItem('gesture_explicit_logout'); } catch {}
-    const result = await signInWithGoogle();
+    const result = await signInWithGoogle(forceRedirect);
     if (result.error) {
       setAuthError(result.error);
     }
@@ -154,9 +183,9 @@ export function AuthProvider({ children }) {
   };
 
   // Upgrade guest to Google without losing high scores or progress
-  const linkGoogleAccount = async () => {
+  const linkGoogleAccount = async (forceRedirect = false) => {
     setAuthError(null);
-    const result = await linkGuestToGoogle();
+    const result = await linkGuestToGoogle(forceRedirect);
     if (result.error) {
       setAuthError(result.error);
     } else if (result.user) {

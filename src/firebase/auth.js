@@ -8,11 +8,14 @@
  */
 import {
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInAnonymously,
   linkWithPopup,
+  linkWithRedirect,
   linkWithCredential,
   EmailAuthProvider,
   signOut as fbSignOut,
@@ -45,10 +48,14 @@ export const formatAuthError = (error) => {
       return 'Password should be at least 6 characters.';
     case 'auth/popup-closed-by-user':
       return 'Sign in popup was closed before completing.';
+    case 'auth/popup-blocked':
+      return 'Sign-in popup was blocked by your browser. Redirecting to Google Sign-In...';
+    case 'auth/unauthorized-domain':
+      return 'Domain not authorized in Firebase Console. Please add gesturestudio.in to Authorized Domains in Firebase Authentication Settings.';
     case 'auth/network-request-failed':
       return 'Network error. Please check your internet connection.';
     case 'auth/credential-already-in-use':
-      return 'This account is already linked to another user.';
+      return 'This Google account is already linked to another user.';
     default:
       return error.message || 'Authentication error. Please try again.';
   }
@@ -62,19 +69,36 @@ export const signInAsGuest = async () => {
     const result = await signInAnonymously(auth);
     return { user: result.user, isNewUser: true, error: null };
   } catch (error) {
-    return { user: null, error: formatAuthError(error) };
+    return { user: null, error: formatAuthError(error), rawError: error };
   }
 };
 
 /**
- * Sign in with Google
+ * Sign in with Google (Popup with auto-fallback to Redirect)
  */
-export const signInWithGoogle = async () => {
+export const signInWithGoogle = async (forceRedirect = false) => {
+  if (forceRedirect) {
+    try {
+      await signInWithRedirect(auth, googleProvider);
+      return { redirecting: true, error: null };
+    } catch (error) {
+      return { user: null, error: formatAuthError(error), rawError: error };
+    }
+  }
+
   try {
     const result = await signInWithPopup(auth, googleProvider);
     return { user: result.user, error: null };
   } catch (error) {
-    return { user: null, error: formatAuthError(error) };
+    if (error?.code === 'auth/popup-blocked') {
+      try {
+        await signInWithRedirect(auth, googleProvider);
+        return { redirecting: true, error: null };
+      } catch (redirectErr) {
+        return { user: null, error: formatAuthError(redirectErr), rawError: redirectErr };
+      }
+    }
+    return { user: null, error: formatAuthError(error), rawError: error };
   }
 };
 
@@ -86,7 +110,7 @@ export const signInWithEmail = async (email, password) => {
     const result = await signInWithEmailAndPassword(auth, email.trim(), password);
     return { user: result.user, error: null };
   } catch (error) {
-    return { user: null, error: formatAuthError(error) };
+    return { user: null, error: formatAuthError(error), rawError: error };
   }
 };
 
@@ -101,20 +125,53 @@ export const registerWithEmail = async (email, password, displayName = '') => {
     }
     return { user: result.user, error: null };
   } catch (error) {
-    return { user: null, error: formatAuthError(error) };
+    return { user: null, error: formatAuthError(error), rawError: error };
   }
 };
 
 /**
  * Convert an Anonymous Guest account into a Google account without losing progress
  */
-export const linkGuestToGoogle = async () => {
+export const linkGuestToGoogle = async (forceRedirect = false) => {
   if (!auth.currentUser) throw new Error('No user is currently signed in.');
+
+  if (forceRedirect) {
+    try {
+      await linkWithRedirect(auth.currentUser, googleProvider);
+      return { redirecting: true, error: null };
+    } catch (error) {
+      return { user: null, error: formatAuthError(error), rawError: error };
+    }
+  }
+
   try {
     const result = await linkWithPopup(auth.currentUser, googleProvider);
     return { user: result.user, error: null };
   } catch (error) {
-    return { user: null, error: formatAuthError(error) };
+    if (error?.code === 'auth/popup-blocked') {
+      try {
+        await linkWithRedirect(auth.currentUser, googleProvider);
+        return { redirecting: true, error: null };
+      } catch (redirectErr) {
+        return { user: null, error: formatAuthError(redirectErr), rawError: redirectErr };
+      }
+    }
+    return { user: null, error: formatAuthError(error), rawError: error };
+  }
+};
+
+/**
+ * Check if the user is returning from a Google redirect operation
+ */
+export const checkRedirectResult = async () => {
+  try {
+    const result = await getRedirectResult(auth);
+    if (result && result.user) {
+      return { user: result.user, error: null };
+    }
+    return { user: null, error: null };
+  } catch (error) {
+    return { user: null, error: formatAuthError(error), rawError: error };
   }
 };
 
