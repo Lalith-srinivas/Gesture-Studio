@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
  * Official Privacy Policy for Gesture Studio.
  * Owner: Lalith Srinivas
  * Contact: webryza@gmail.com
- * Domains: gesturestudio.in / gesturestudio.vercel.app
+ * Domain: gesturestudio.in
  */
 
 export default function PrivacyPolicy() {
@@ -91,8 +91,7 @@ export default function PrivacyPolicy() {
           </h1>
 
           <p className="text-zinc-700 text-sm sm:text-base font-medium leading-relaxed mb-4">
-            Welcome to Gesture Studio (<strong className="text-black font-bold">gesturestudio.in</strong> /{' '}
-            <strong className="text-black font-bold">gesturestudio.vercel.app</strong>). We believe in complete
+            Welcome to Gesture Studio (<strong className="text-black font-bold">gesturestudio.in</strong>). We believe in complete
             transparency, minimal data collection, and putting player control first. This Privacy Policy outlines
             exactly what information we collect, how it is processed, and how your privacy is safeguarded.
           </p>
@@ -457,7 +456,7 @@ export default function PrivacyPolicy() {
                   webryza@gmail.com
                 </a>
               </p>
-              <p className="text-zinc-700">Websites: gesturestudio.in · gesturestudio.vercel.app</p>
+              <p className="text-zinc-700">Website: gesturestudio.in</p>
             </div>
           </article>
         </div>

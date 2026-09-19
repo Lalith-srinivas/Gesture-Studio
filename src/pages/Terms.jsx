@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
  * Official Terms of Use for Gesture Studio.
  * Owner: Lalith Srinivas
  * Contact: webryza@gmail.com
- * Domains: gesturestudio.in / gesturestudio.vercel.app
+ * Domain: gesturestudio.in
  */
 
 export default function Terms() {
@@ -92,8 +92,7 @@ export default function Terms() {
 
           <p className="text-zinc-700 text-sm sm:text-base font-medium leading-relaxed mb-4">
             These Terms of Use govern your access to and use of Gesture Studio (available at{' '}
-            <strong className="text-black font-bold">gesturestudio.in</strong> and{' '}
-            <strong className="text-black font-bold">gesturestudio.vercel.app</strong>). By playing our games or
+            <strong className="text-black font-bold">gesturestudio.in</strong>). By playing our games or
             creating an account, you agree to comply with these terms.
           </p>
 
@@ -382,7 +381,7 @@ export default function Terms() {
                   webryza@gmail.com
                 </a>
               </p>
-              <p className="text-zinc-700">Websites: gesturestudio.in · gesturestudio.vercel.app</p>
+              <p className="text-zinc-700">Website: gesturestudio.in</p>
             </div>
           </article>
         </div>

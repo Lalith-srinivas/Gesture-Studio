@@ -8,7 +8,7 @@
 
 A futuristic browser gaming arcade and interactive gesture platform powered by **MediaPipe Computer Vision**, **React 19**, **HTML5 Canvas**, and **Firebase**. Control games naturally through thin air with real-time hand tracking — zero gamepads, consoles, or touchscreens required.
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-gesturestudio.vercel.app-FACC15?style=for-the-badge&logo=vercel&logoColor=black)](https://gesturestudio.vercel.app/)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-gesturestudio.in-FACC15?style=for-the-badge&logo=googlechrome&logoColor=black)](https://gesturestudio.in/)
 [![GitHub Repo](https://img.shields.io/badge/GitHub-Lalith--srinivas%2FGesture--Studio-black?style=for-the-badge&logo=github)](https://github.com/Lalith-srinivas/Gesture-Studio)
 
 <br />
