@@ -12,6 +12,7 @@ import { usePlayer } from '../hooks/usePlayer';
 import XPBar from '../components/XPBar';
 import DailyRewardModal from '../components/DailyRewardModal';
 import AuthModal from '../components/AuthModal';
+import AdSlot from '../components/ads/AdSlot';
 import { useGestureAcademy } from '../hooks/useGestureAcademy';
 import { ACHIEVEMENTS, getAchievementProgress } from '../services/achievementService';
 import { getWeeklyStreakVisualization } from '../services/streakService';
@@ -388,6 +389,11 @@ export default function ProfilePage() {
                 </div>
               </div>
             )}
+
+            {/* ── Sponsored Space ── */}
+            <div className="pt-2">
+              <AdSlot placement="profile" format="responsive" className="max-w-3xl mx-auto" />
+            </div>
           </div>
         )}
 

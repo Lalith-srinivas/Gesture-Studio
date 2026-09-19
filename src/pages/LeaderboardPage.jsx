@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import { usePlayer } from '../hooks/usePlayer';
 import { useLeaderboard } from '../hooks/useLeaderboard';
 import AuthModal from '../components/AuthModal';
+import AdSlot from '../components/ads/AdSlot';
 import { GAME_LABELS } from '../services/gameStatsService';
 import { findPlayerRank } from '../services/leaderboardService';
 
@@ -241,6 +242,11 @@ export default function LeaderboardPage() {
             </p>
           </div>
         )}
+
+        {/* ── Sponsored Leaderboard Ad Space ───────────────────────────── */}
+        <div className="mt-8 pt-4 border-t-2 border-dashed border-black/20">
+          <AdSlot placement="leaderboard" format="responsive" className="max-w-2xl mx-auto" />
+        </div>
 
       </div>
 

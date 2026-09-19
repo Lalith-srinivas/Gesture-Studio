@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { usePlayer } from '../hooks/usePlayer';
 import { ACHIEVEMENTS, getAchievementProgress } from '../services/achievementService';
 import { GAME_LABELS } from '../services/gameStatsService';
+import AdSlot from '../components/ads/AdSlot';
 
 const FILTER_OPTIONS = [
   { id: 'all',      label: 'ALL' },
@@ -81,6 +82,11 @@ export default function AchievementsPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* ── Sponsored Space ───────────────────────────────────────────── */}
+        <div className="mb-6">
+          <AdSlot placement="achievements" format="responsive" className="max-w-4xl mx-auto" />
         </div>
 
         {/* ── Filter Pills ─────────────────────────────────────────────── */}
