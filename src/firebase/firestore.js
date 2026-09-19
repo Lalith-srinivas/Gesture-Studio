@@ -10,6 +10,7 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
   collection,
   query,
   where,
@@ -24,6 +25,7 @@ import { db } from './firebase';
 
 export const COLLECTIONS = {
   USERS: 'users',
+  USERNAMES: 'usernames',
   LEADERBOARDS: 'leaderboards',
   GAME_SCORES: 'gameScores',
   ACHIEVEMENTS: 'achievements',
@@ -97,6 +99,102 @@ export const calculateStreak = (lastLoginIso, currentStreak = 0, longestStreak =
   }
 };
 
+// --- USERNAME UNIQUENESS & RESERVATION ---
+
+/**
+ * Check if a username is globally available
+ * Returns { available: boolean, error: string | null }
+ */
+export const isUsernameAvailable = async (rawUsername, currentUid = null) => {
+  const username = (rawUsername || '').trim();
+  if (!username) return { available: false, error: 'Nickname cannot be empty.' };
+  if (username.length < 3) return { available: false, error: 'Nickname must be at least 3 characters.' };
+  if (username.length > 20) return { available: false, error: 'Nickname cannot exceed 20 characters.' };
+
+  const normalized = username.toLowerCase();
+
+  try {
+    // 1. Direct O(1) lookup on dedicated 'usernames' collection
+    try {
+      const unameRef = doc(db, COLLECTIONS.USERNAMES, normalized);
+      const unameSnap = await getDoc(unameRef);
+      if (unameSnap.exists()) {
+        const data = unameSnap.data();
+        if (!currentUid || data.uid !== currentUid) {
+          return { available: false, error: 'Name not available' };
+        }
+      }
+    } catch (e) {
+      console.warn('[Firestore] usernames collection check warning:', e?.message);
+    }
+
+    // 2. Query 'users' collection for matching username or username_lowercase
+    const usersRef = collection(db, COLLECTIONS.USERS);
+
+    // Exact match query
+    const qExact = query(usersRef, where('username', '==', username), limit(2));
+    const snapExact = await getDocs(qExact);
+    const takenExact = snapExact.docs.some((d) => !currentUid || d.id !== currentUid);
+    if (takenExact) {
+      return { available: false, error: 'Name not available' };
+    }
+
+    // Lowercase match query if indexed
+    const qLower = query(usersRef, where('username_lowercase', '==', normalized), limit(2));
+    const snapLower = await getDocs(qLower);
+    const takenLower = snapLower.docs.some((d) => !currentUid || d.id !== currentUid);
+    if (takenLower) {
+      return { available: false, error: 'Name not available' };
+    }
+
+    // 3. Fallback: check Global Leaderboard entries
+    try {
+      const lbSnap = await getDocs(query(collection(db, COLLECTIONS.LEADERBOARDS, 'global', 'entries'), limit(100)));
+      const takenInLb = lbSnap.docs.some((d) => {
+        const u = (d.data()?.username || '').trim().toLowerCase();
+        return u === normalized && (!currentUid || d.id !== currentUid);
+      });
+      if (takenInLb) {
+        return { available: false, error: 'Name not available' };
+      }
+    } catch { /* silent fallback */ }
+
+    return { available: true, error: null };
+  } catch (error) {
+    console.warn('[Firestore] Error verifying username availability:', error);
+    // On network or offline failure, allow proceeding
+    return { available: true, error: null, offline: true };
+  }
+};
+
+/**
+ * Claim or update a username in the usernames registry
+ */
+export const claimUsername = async (rawUsername, uid, oldUsername = null) => {
+  if (!rawUsername || !uid) return;
+  const username = rawUsername.trim();
+  const normalized = username.toLowerCase();
+
+  try {
+    const unameRef = doc(db, COLLECTIONS.USERNAMES, normalized);
+    await setDoc(unameRef, {
+      username,
+      normalized,
+      uid,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+
+    if (oldUsername) {
+      const oldNormalized = oldUsername.trim().toLowerCase();
+      if (oldNormalized && oldNormalized !== normalized) {
+        await deleteDoc(doc(db, COLLECTIONS.USERNAMES, oldNormalized)).catch(() => {});
+      }
+    }
+  } catch (err) {
+    console.warn('[Firestore] Could not claim username:', err?.message);
+  }
+};
+
 // --- USER PROFILE OPERATIONS ---
 
 export const getOrCreateUserProfile = async (user, additionalData = {}) => {
@@ -148,10 +246,12 @@ export const getOrCreateUserProfile = async (user, additionalData = {}) => {
       // Create new user profile document
       const randomSuffix = Math.floor(1000 + Math.random() * 9000);
       const guestHandle = `Guest_${randomSuffix}`;
+      const finalUsername = user.displayName || additionalData.username || (user.isAnonymous ? guestHandle : 'Player');
 
       const newProfile = {
         uid: user.uid,
-        username: user.displayName || additionalData.username || (user.isAnonymous ? guestHandle : 'Player'),
+        username: finalUsername,
+        username_lowercase: finalUsername.toLowerCase(),
         email: user.email || '',
         isAnonymous: Boolean(user.isAnonymous),
         avatar: user.photoURL || '🎮',
@@ -187,6 +287,7 @@ export const getOrCreateUserProfile = async (user, additionalData = {}) => {
       };
 
       await setDoc(userRef, newProfile);
+      claimUsername(finalUsername, user.uid).catch(() => {});
       cacheLocally(`user_${user.uid}`, newProfile);
       return newProfile;
     }
@@ -230,14 +331,19 @@ export const getOrCreateUserProfile = async (user, additionalData = {}) => {
 export const updateUserProfile = async (uid, updates) => {
   if (!uid) return;
   const userRef = doc(db, COLLECTIONS.USERS, uid);
+  const enrichedUpdates = { ...updates };
+  if (updates.username) {
+    enrichedUpdates.username_lowercase = updates.username.trim().toLowerCase();
+    claimUsername(updates.username, uid).catch(() => {});
+  }
   try {
-    await updateDoc(userRef, updates);
+    await updateDoc(userRef, enrichedUpdates);
     const cached = getLocalCache(`user_${uid}`, {});
-    cacheLocally(`user_${uid}`, { ...cached, ...updates });
+    cacheLocally(`user_${uid}`, { ...cached, ...enrichedUpdates });
   } catch (err) {
     console.warn('[Firestore] Could not update profile online:', err?.message);
     const cached = getLocalCache(`user_${uid}`, {});
-    cacheLocally(`user_${uid}`, { ...cached, ...updates });
+    cacheLocally(`user_${uid}`, { ...cached, ...enrichedUpdates });
   }
 };
 

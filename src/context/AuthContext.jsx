@@ -93,25 +93,9 @@ export function AuthProvider({ children }) {
         await syncProfile(user);
         setLoading(false);
       } else {
-        // If not explicitly logged out, seamlessly authenticate as guest so scores and progression are NEVER lost
-        const wasExplicitLogout = localStorage.getItem('gesture_explicit_logout') === 'true';
-        if (!wasExplicitLogout) {
-          try {
-            const guestRes = await signInAsGuest();
-            if (guestRes.user) {
-              setCurrentUser(guestRes.user);
-              try {
-                localStorage.setItem('gesture_studio_last_uid', guestRes.user.uid);
-              } catch { /* silent */ }
-              await syncProfile(guestRes.user);
-            }
-          } catch (e) {
-            console.warn('[AuthProvider] Auto-guest sign in error:', e);
-          }
-        } else {
-          setCurrentUser(null);
-          setUserProfile(null);
-        }
+        // No active user session: do NOT auto-create anonymous accounts
+        setCurrentUser(null);
+        setUserProfile(null);
         setLoading(false);
       }
     });
@@ -127,11 +111,15 @@ export function AuthProvider({ children }) {
     if (result.error) {
       setAuthError(result.error);
     } else if (result.user) {
-      if (customUsername && customUsername.trim()) {
-        await updateUserProfile(result.user.uid, {
-          username: customUsername.trim(),
-        });
+      let finalName = (customUsername || '').trim();
+      if (!finalName) {
+        const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+        finalName = `Guest_${randomSuffix}`;
       }
+      await updateUserProfile(result.user.uid, {
+        username: finalName,
+        isAnonymous: true,
+      });
       setCurrentUser(result.user);
       try {
         localStorage.setItem('gesture_studio_last_uid', result.user.uid);

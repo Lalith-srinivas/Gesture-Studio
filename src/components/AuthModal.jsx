@@ -9,6 +9,7 @@
  */
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { isUsernameAvailable } from '../firebase/firestore';
 
 export default function AuthModal({ isOpen, onClose }) {
   const {
@@ -114,6 +115,13 @@ export default function AuthModal({ isOpen, onClose }) {
     setLocalMsg(null);
     try {
       if (mode === 'signup') {
+        if (displayName && displayName.trim()) {
+          const check = await isUsernameAvailable(displayName.trim());
+          if (!check.available) {
+            setLocalMsg('Name not available. Please choose a different handle.');
+            return;
+          }
+        }
         const res = await registerUser(email, password, displayName);
         if (!res.error) onClose();
       } else {

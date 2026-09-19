@@ -11,6 +11,7 @@ import { usePlayer } from '../hooks/usePlayer';
 import { doc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase/firebase';
 import { updateLeaderboardIdentity } from '../services/leaderboardService';
+import { isUsernameAvailable, claimUsername } from '../firebase/firestore';
 import AuthModal from './AuthModal';
 
 const RANDOM_NAMES = [
@@ -26,6 +27,12 @@ const RANDOM_NAMES = [
   'Zenith',
 ];
 
+const generateRandomName = () => {
+  const pick = RANDOM_NAMES[Math.floor(Math.random() * RANDOM_NAMES.length)];
+  const num = Math.floor(100 + Math.random() * 900);
+  return `${pick}_${num}`;
+};
+
 export default function WelcomeModal() {
   const { currentUser, isGuest, loading: authLoading, loginWithGoogle, linkGoogleAccount, loginAsGuest } = useAuth();
   const { playerData } = usePlayer();
@@ -33,6 +40,8 @@ export default function WelcomeModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [guestUsername, setGuestUsername] = useState('');
+  const [availabilityStatus, setAvailabilityStatus] = useState(null); // null | 'checking' | 'available' | 'taken' | 'invalid'
+  const [availabilityMsg, setAvailabilityMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
 
@@ -46,13 +55,58 @@ export default function WelcomeModal() {
     // Show popup if not dismissed and user is not an established permanent account
     if (!dismissed && !isPermanent) {
       setIsOpen(true);
-      // Prepopulate with an exciting random gamer tag
-      const pick = RANDOM_NAMES[Math.floor(Math.random() * RANDOM_NAMES.length)];
+      // Prepopulate with an exciting random gamer tag with random digits to avoid collisions
+      const pick = generateRandomName();
       setGuestUsername(pick);
     } else {
       setIsOpen(false);
     }
   }, [authLoading, currentUser]);
+
+  // Debounced real-time username availability check
+  useEffect(() => {
+    const trimmed = guestUsername.trim();
+    if (!trimmed) {
+      setAvailabilityStatus(null);
+      setAvailabilityMsg('');
+      return;
+    }
+    if (trimmed.length < 3) {
+      setAvailabilityStatus('invalid');
+      setAvailabilityMsg('Nickname must be at least 3 characters');
+      return;
+    }
+    if (trimmed.length > 20) {
+      setAvailabilityStatus('invalid');
+      setAvailabilityMsg('Nickname cannot exceed 20 characters');
+      return;
+    }
+
+    setAvailabilityStatus('checking');
+    setAvailabilityMsg('Checking availability...');
+
+    let isMounted = true;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await isUsernameAvailable(trimmed);
+        if (!isMounted) return;
+        if (res.available) {
+          setAvailabilityStatus('available');
+          setAvailabilityMsg('Name available');
+        } else {
+          setAvailabilityStatus('taken');
+          setAvailabilityMsg('Name not available');
+        }
+      } catch {
+        if (isMounted) setAvailabilityStatus(null);
+      }
+    }, 350);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [guestUsername]);
 
   const handleDismiss = () => {
     try {
@@ -93,36 +147,53 @@ export default function WelcomeModal() {
 
   const handlePlayAsGuest = async (e) => {
     e.preventDefault();
-    const chosenName = guestUsername.trim() || `Guest_${Math.floor(1000 + Math.random() * 9000)}`;
+    const chosenName = guestUsername.trim();
+    if (!chosenName || chosenName.length < 3) {
+      setErrorMsg('Please enter a nickname with at least 3 characters.');
+      return;
+    }
+
     setIsSubmitting(true);
     setErrorMsg(null);
 
     try {
-      // If not yet authenticated as guest, authenticate first
-      let currentUid = currentUser?.uid;
-      if (!currentUid) {
-        const res = await loginAsGuest(chosenName);
-        currentUid = res?.user?.uid;
+      // 1. Verify availability in Firestore before creating any account
+      const check = await isUsernameAvailable(chosenName);
+      if (!check.available) {
+        setAvailabilityStatus('taken');
+        setAvailabilityMsg('Name not available');
+        setErrorMsg('Name not available — this nickname is already taken by another player.');
+        setIsSubmitting(false);
+        return;
       }
 
+      // 2. Authenticate as guest ONLY NOW
+      const res = await loginAsGuest(chosenName);
+      const currentUid = res?.user?.uid;
+
       if (currentUid) {
-        // Persist the chosen nickname
+        // Persist chosen nickname and lowercase index
         const userRef = doc(db, 'users', currentUid);
-        await setDoc(userRef, { username: chosenName, isAnonymous: true }, { merge: true });
+        await setDoc(userRef, {
+          username: chosenName,
+          username_lowercase: chosenName.toLowerCase(),
+          isAnonymous: true
+        }, { merge: true });
+        await claimUsername(chosenName, currentUid);
         await updateLeaderboardIdentity(currentUid, { username: chosenName });
       }
 
       handleDismiss();
     } catch (err) {
       console.warn('[WelcomeModal] Guest username error:', err);
-      handleDismiss();
+      setErrorMsg('Failed to start as guest. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const randomizeName = () => {
-    const pick = RANDOM_NAMES[Math.floor(Math.random() * RANDOM_NAMES.length)];
+    const pick = generateRandomName();
     setGuestUsername(pick);
   };
 
@@ -232,19 +303,57 @@ export default function WelcomeModal() {
                   maxLength={20}
                   value={guestUsername}
                   onChange={(e) => setGuestUsername(e.target.value)}
-                  placeholder="Enter username (e.g. CyberNinja)"
-                  className="w-full px-3 py-2.5 border-3 border-black font-mono text-sm font-bold focus:outline-none focus:bg-yellow-50 shadow-neo-sm"
+                  placeholder="Enter nickname (e.g. CyberNinja_101)"
+                  className={`w-full px-3 py-2.5 border-3 font-mono text-sm font-bold focus:outline-none focus:bg-yellow-50 shadow-neo-sm transition-colors ${
+                    availabilityStatus === 'taken'
+                      ? 'border-red-600 bg-rose-50 text-rose-900'
+                      : availabilityStatus === 'available'
+                      ? 'border-emerald-600 bg-emerald-50 text-emerald-950'
+                      : 'border-black bg-white text-black'
+                  }`}
                 />
               </div>
+
+              {/* Real-time username availability indicator */}
+              {availabilityStatus === 'checking' && (
+                <div className="mt-1.5 text-[11px] font-mono font-bold text-zinc-500 flex items-center gap-1.5">
+                  <span className="inline-block w-3 h-3 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                  <span>Checking availability...</span>
+                </div>
+              )}
+              {availabilityStatus === 'available' && (
+                <div className="mt-1.5 px-2 py-1 bg-emerald-100 border-2 border-black text-[11px] font-mono font-black text-emerald-900 flex items-center gap-1.5 shadow-neo-sm">
+                  <span>✅</span>
+                  <span>Name available</span>
+                </div>
+              )}
+              {availabilityStatus === 'taken' && (
+                <div className="mt-1.5 px-2.5 py-1.5 bg-rose-100 border-2 border-black text-[11px] font-mono font-black text-rose-900 flex items-center gap-1.5 shadow-neo-sm animate-fadeIn">
+                  <span>⚠️</span>
+                  <span>Name not available — already taken</span>
+                </div>
+              )}
+              {availabilityStatus === 'invalid' && (
+                <div className="mt-1.5 text-[11px] font-mono font-bold text-amber-700 flex items-center gap-1">
+                  <span>⚠️</span>
+                  <span>{availabilityMsg}</span>
+                </div>
+              )}
             </div>
 
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="w-full py-3 bg-neo-lime hover:bg-lime-400 border-3 border-black font-mono font-black text-xs sm:text-sm uppercase flex items-center justify-center gap-2 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-all disabled:opacity-60"
+              disabled={isSubmitting || availabilityStatus === 'taken' || availabilityStatus === 'checking' || availabilityStatus === 'invalid'}
+              className="w-full py-3 bg-neo-lime hover:bg-lime-400 border-3 border-black font-mono font-black text-xs sm:text-sm uppercase flex items-center justify-center gap-2 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-zinc-200"
             >
               <span>🎮</span>
-              <span>START PLAYING AS GUEST →</span>
+              <span>
+                {isSubmitting
+                  ? 'STARTING GAME...'
+                  : availabilityStatus === 'taken'
+                  ? 'NAME NOT AVAILABLE'
+                  : 'START PLAYING AS GUEST →'}
+              </span>
             </button>
           </form>
 

@@ -17,6 +17,7 @@ import { ACHIEVEMENTS, getAchievementProgress } from '../services/achievementSer
 import { getWeeklyStreakVisualization } from '../services/streakService';
 import { GAME_LABELS } from '../services/gameStatsService';
 import { updateLeaderboardIdentity } from '../services/leaderboardService';
+import { isUsernameAvailable, claimUsername } from '../firebase/firestore';
 
 const AVATAR_PRESETS = ['🎮', '🏆', '⚡', '🔥', '🎯', '🎨', '🦅', '🌟'];
 
@@ -48,6 +49,7 @@ export default function ProfilePage() {
   const [editingUsername, setEditingUsername] = useState(false);
   const [usernameVal, setUsernameVal] = useState('');
   const [savingUsername, setSavingUsername] = useState(false);
+  const [usernameError, setUsernameError] = useState(null);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [achFilter, setAchFilter] = useState('all');
 
@@ -59,21 +61,55 @@ export default function ProfilePage() {
 
   const saveUsername = useCallback(async () => {
     const trimmed = usernameVal.trim().slice(0, 24);
-    if (!trimmed || !currentUser?.uid) { setEditingUsername(false); return; }
+    if (!trimmed || !currentUser?.uid) {
+      setEditingUsername(false);
+      setUsernameError(null);
+      return;
+    }
+
+    // If unchanged, simply exit edit mode
+    if (trimmed.toLowerCase() === (playerData?.username || '').trim().toLowerCase()) {
+      setEditingUsername(false);
+      setUsernameError(null);
+      return;
+    }
+
+    if (trimmed.length < 3) {
+      setUsernameError('Nickname must be at least 3 characters');
+      return;
+    }
+
     setSavingUsername(true);
+    setUsernameError(null);
+
     try {
+      const check = await isUsernameAvailable(trimmed, currentUser.uid);
+      if (!check.available) {
+        setUsernameError('Name not available');
+        setSavingUsername(false);
+        return;
+      }
+
       // 1. Update Firestore user document
-      await updateDoc(doc(db, 'users', currentUser.uid), { username: trimmed });
+      await updateDoc(doc(db, 'users', currentUser.uid), {
+        username: trimmed,
+        username_lowercase: trimmed.toLowerCase()
+      });
+      await claimUsername(trimmed, currentUser.uid, playerData?.username);
+
       // 2. Update Firebase Auth displayName
       if (currentUser) {
         await updateProfile(currentUser, { displayName: trimmed }).catch(() => {});
       }
       // 3. Update all Leaderboards immediately
       await updateLeaderboardIdentity(currentUser.uid, { username: trimmed });
-    } catch { /* silent */ }
-    setSavingUsername(false);
-    setEditingUsername(false);
-  }, [usernameVal, currentUser]);
+      setEditingUsername(false);
+    } catch {
+      setUsernameError('Failed to save username.');
+    } finally {
+      setSavingUsername(false);
+    }
+  }, [usernameVal, currentUser, playerData?.username]);
 
   const saveAvatar = useCallback(async (emoji) => {
     if (!currentUser?.uid) return;
@@ -173,20 +209,32 @@ export default function ProfilePage() {
                   {/* Username */}
                   <div className="flex items-center gap-2 justify-center sm:justify-start mb-1">
                     {editingUsername ? (
-                      <>
-                        <input
-                          autoFocus
-                          value={usernameVal}
-                          onChange={(e) => setUsernameVal(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && saveUsername()}
-                          maxLength={24}
-                          className="border-2 border-black px-2 py-1 font-display font-black text-xl uppercase focus:outline-none focus:bg-neo-yellow/30 w-40"
-                        />
-                        <button onClick={saveUsername} disabled={savingUsername} className="bg-neo-lime border-2 border-black px-2 py-1 font-mono font-black text-xs uppercase shadow-neo-sm hover:bg-lime-300">
-                          {savingUsername ? '...' : 'SAVE'}
-                        </button>
-                        <button onClick={() => setEditingUsername(false)} className="border-2 border-black px-2 py-1 font-mono font-black text-xs uppercase hover:bg-zinc-100">✕</button>
-                      </>
+                      <div className="flex flex-col items-center sm:items-start gap-1">
+                        <div className="flex items-center gap-2">
+                          <input
+                            autoFocus
+                            value={usernameVal}
+                            onChange={(e) => {
+                              setUsernameVal(e.target.value);
+                              if (usernameError) setUsernameError(null);
+                            }}
+                            onKeyDown={(e) => e.key === 'Enter' && saveUsername()}
+                            maxLength={24}
+                            className={`border-2 px-2 py-1 font-display font-black text-xl uppercase focus:outline-none focus:bg-neo-yellow/30 w-44 ${
+                              usernameError ? 'border-red-600 bg-red-50' : 'border-black'
+                            }`}
+                          />
+                          <button onClick={saveUsername} disabled={savingUsername} className="bg-neo-lime border-2 border-black px-2 py-1 font-mono font-black text-xs uppercase shadow-neo-sm hover:bg-lime-300 cursor-pointer">
+                            {savingUsername ? '...' : 'SAVE'}
+                          </button>
+                          <button onClick={() => { setEditingUsername(false); setUsernameError(null); }} className="border-2 border-black px-2 py-1 font-mono font-black text-xs uppercase hover:bg-zinc-100 cursor-pointer">✕</button>
+                        </div>
+                        {usernameError && (
+                          <div className="px-2 py-1 bg-rose-100 border-2 border-black text-[11px] font-mono font-black text-rose-900 shadow-neo-sm">
+                            ⚠️ {usernameError}
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       <>
                         <h2 className="font-display font-black text-2xl uppercase truncate">{username}</h2>
