@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { usePlayer } from '../hooks/usePlayer';
 import { useLeaderboard } from '../hooks/useLeaderboard';
+import AuthModal from '../components/AuthModal';
 import { GAME_LABELS } from '../services/gameStatsService';
 import { findPlayerRank } from '../services/leaderboardService';
 
@@ -22,19 +23,23 @@ function RankBadge({ rank }) {
   if (rank === 1) return <span className="text-2xl">🥇</span>;
   if (rank === 2) return <span className="text-2xl">🥈</span>;
   if (rank === 3) return <span className="text-2xl">🥉</span>;
-  return <span className="font-display font-black text-sm text-zinc-500">#{rank}</span>;
+  if (!rank || rank === '—') return <span className="font-display font-black text-sm text-zinc-400">—</span>;
+  return <span className="font-display font-black text-sm text-zinc-500">{typeof rank === 'string' && rank.startsWith('#') ? rank : `#${rank}`}</span>;
 }
 
-function LeaderboardRow({ entry, isCurrentUser }) {
-  const isTop3 = entry.rank <= 3;
+function LeaderboardRow({ entry, isCurrentUser, isHighlighted }) {
+  const isTop3 = typeof entry.rank === 'number' && entry.rank <= 3;
   const bgColors = ['bg-amber-50 border-amber-300', 'bg-zinc-50 border-zinc-300', 'bg-orange-50 border-orange-200'];
 
   return (
     <div
+      id={isCurrentUser ? 'my-leaderboard-row' : undefined}
       className={`
-        flex items-center gap-3 px-4 py-3 border-2 transition-all
+        flex items-center gap-3 px-4 py-3 border-2 transition-all duration-300
         ${isCurrentUser
-          ? 'bg-neo-yellow/30 border-neo-yellow shadow-neo-sm ring-2 ring-neo-yellow'
+          ? isHighlighted
+            ? 'bg-neo-yellow border-black shadow-neo-lg ring-4 ring-black scale-[1.02] z-10 relative'
+            : 'bg-neo-yellow/30 border-neo-yellow shadow-neo-sm ring-2 ring-neo-yellow'
           : isTop3
           ? bgColors[entry.rank - 1]
           : 'bg-white border-black/20 hover:border-black/40'
@@ -89,15 +94,40 @@ function LoadingSkeleton() {
 
 export default function LeaderboardPage() {
   const [selectedGame, setSelectedGame] = useState('global');
-  const { currentUser } = useAuth();
-  const { playerData } = usePlayer();
+  const [isRowHighlighted, setIsRowHighlighted] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  const { currentUser, isGuest } = useAuth();
+  const { playerData, allGameStats } = usePlayer();
   const { data, loading, error } = useLeaderboard(selectedGame);
 
   const playerEntry = currentUser ? findPlayerRank(currentUser.uid, data) : null;
   const isPlayerInTop = data.some((e) => e.uid === currentUser?.uid);
 
+  // Derive player score and rank for the active tab
+  const playerTotalScore = playerData?.totalScore ?? 0;
+  const playerGameScore = allGameStats?.[selectedGame]?.bestScore ?? 0;
+  const currentScore = selectedGame === 'global'
+    ? (playerEntry?.totalScore ?? playerTotalScore)
+    : (playerEntry?.score ?? playerGameScore);
+
+  const playerRank = playerEntry?.rank ?? (currentScore > 0 ? (isPlayerInTop ? null : '50+') : null);
+  const playerAvatar = playerData?.avatar || playerEntry?.avatar || '🎮';
+  const playerName = playerData?.username || playerEntry?.username || currentUser?.displayName || (isGuest ? 'Guest Player' : 'Player');
+  const playerLevel = playerData?.level || playerEntry?.level || 1;
+
+  const scrollToMyRank = () => {
+    const el = document.getElementById('my-leaderboard-row') || document.getElementById('my-rank-fallback');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setIsRowHighlighted(true);
+      setTimeout(() => setIsRowHighlighted(false), 2000);
+    }
+  };
+
   return (
-    <div className="w-full min-h-screen bg-neo-dots text-black font-sans pb-24 md:pb-12">
+    <div className="w-full min-h-screen bg-neo-dots text-black font-sans pb-36 md:pb-24">
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
 
       {/* ── Top Bar ─────────────────────────────────────────────────────── */}
       <div className="sticky top-0 z-30 w-full bg-neo-yellow border-b-3 border-black shadow-neo-sm flex items-center justify-between px-4 py-2.5">
@@ -176,18 +206,31 @@ export default function LeaderboardPage() {
                 key={entry.uid}
                 entry={entry}
                 isCurrentUser={entry.uid === currentUser?.uid}
+                isHighlighted={entry.uid === currentUser?.uid && isRowHighlighted}
               />
             ))}
           </div>
         )}
 
         {/* ── Current Player's Rank (if outside top results) ─────────── */}
-        {!loading && !isPlayerInTop && currentUser && playerEntry && (
-          <div className="mt-6">
+        {!loading && !isPlayerInTop && currentUser && currentScore > 0 && (
+          <div id="my-rank-fallback" className="mt-6">
             <div className="border-t-2 border-b-2 border-black py-1 text-center text-[10px] font-mono font-black text-zinc-500 mb-1">
               YOUR RANK
             </div>
-            <LeaderboardRow entry={playerEntry} isCurrentUser />
+            <LeaderboardRow
+              entry={{
+                uid: currentUser.uid,
+                username: playerName,
+                avatar: playerAvatar,
+                level: playerLevel,
+                rank: playerRank || '50+',
+                score: currentScore,
+                totalScore: currentScore,
+              }}
+              isCurrentUser
+              isHighlighted={isRowHighlighted}
+            />
           </div>
         )}
 
@@ -200,6 +243,83 @@ export default function LeaderboardPage() {
         )}
 
       </div>
+
+      {/* ── Sticky Live Player Score & Rank Pop-Up Bar ─────────────────────── */}
+      {currentUser ? (
+        <div className="fixed bottom-16 md:bottom-4 left-0 right-0 z-35 px-4 pointer-events-none transition-all duration-200">
+          <div className="max-w-3xl mx-auto pointer-events-auto">
+            <div className="bg-neo-yellow border-3 md:border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-all p-2.5 sm:p-3 flex items-center justify-between gap-2 sm:gap-4">
+              
+              {/* Left: Rank badge & Player Info */}
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 bg-white border-2 border-black flex items-center justify-center shrink-0 shadow-neo-xs text-xl">
+                  {playerRank === 1 ? '🥇' : playerRank === 2 ? '🥈' : playerRank === 3 ? '🥉' : playerRank ? `#${playerRank}` : '—'}
+                </div>
+
+                <div className="w-8 h-8 sm:w-9 sm:h-9 bg-white border-2 border-black flex items-center justify-center text-base sm:text-lg shrink-0">
+                  {playerAvatar}
+                </div>
+
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono font-black text-xs sm:text-sm truncate text-black">
+                      {playerName}
+                    </span>
+                    <span className="text-[9px] font-mono font-bold bg-black text-white px-1 py-0.2 shrink-0">
+                      YOU
+                    </span>
+                  </div>
+                  <p className="text-[10px] font-mono text-zinc-700 truncate">
+                    {playerRank ? `Rank #${playerRank}` : 'Unranked'} · Level {playerLevel}
+                  </p>
+                </div>
+              </div>
+
+              {/* Right: Live Score & Scroll to Me Button */}
+              <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                <div className="text-right">
+                  <span className="text-[9px] font-mono font-black uppercase text-zinc-700 block leading-tight">
+                    {selectedGame === 'global' ? 'TOTAL SCORE' : 'YOUR SCORE'}
+                  </span>
+                  <span className="font-display font-black text-lg sm:text-2xl leading-none text-black">
+                    {currentScore.toLocaleString()}
+                  </span>
+                  <span className="text-[10px] font-mono text-zinc-600 ml-1">pts</span>
+                </div>
+
+                <button
+                  onClick={scrollToMyRank}
+                  title="Scroll to your position in the leaderboard"
+                  className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-black hover:bg-zinc-800 text-white font-mono font-black text-[10px] sm:text-xs uppercase flex items-center gap-1.5 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform cursor-pointer"
+                >
+                  <span>🎯</span>
+                  <span className="hidden sm:inline">FIND ME</span>
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="fixed bottom-16 md:bottom-4 left-0 right-0 z-35 px-4 pointer-events-none transition-all duration-200">
+          <div className="max-w-3xl mx-auto pointer-events-auto">
+            <div className="bg-white border-3 md:border-4 border-black shadow-neo-lg p-2.5 sm:p-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <span className="text-xl">🏆</span>
+                <p className="font-mono font-bold text-xs text-zinc-800">
+                  <strong className="font-black">Want to see your live score &amp; rank?</strong> Sign in to join the leaderboard.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowAuthModal(true)}
+                className="px-3 py-1.5 bg-neo-yellow hover:bg-yellow-400 text-black border-2 border-black font-mono font-black text-xs uppercase shadow-neo-sm shrink-0 cursor-pointer"
+              >
+                SIGN IN →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
