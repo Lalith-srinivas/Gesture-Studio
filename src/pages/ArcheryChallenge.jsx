@@ -924,8 +924,10 @@ export default function ArcheryChallenge() {
             <p className="font-mono text-xs sm:text-sm font-black text-zinc-800 uppercase leading-relaxed">
               Turn phone to <span className="text-orange-600 bg-orange-100 px-1 border border-black">Landscape Mode</span> for best archery precision & hand tracking!
             </p>
-            <div className="mt-1 text-3xl sm:text-4xl">
-              📱 ➔ 📲
+            <div className="mt-2 flex items-center justify-center gap-3 text-3xl sm:text-4xl select-none">
+              <span className="inline-block">📱</span>
+              <span className="text-xl sm:text-2xl font-black text-zinc-700">➔</span>
+              <span className="inline-block" style={{ transform: 'rotate(90deg)' }}>📱</span>
             </div>
             <button
               onClick={() => setOrientation('landscape')}

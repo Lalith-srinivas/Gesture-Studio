@@ -54,6 +54,16 @@ class AudioEngine {
 }
 const audio = new AudioEngine();
 
+const isMobileScreen = () => {
+  if (typeof window === 'undefined') return false;
+  return (
+    window.innerWidth <= 850 ||
+    window.innerHeight <= 550 ||
+    (navigator.maxTouchPoints > 0 && Math.min(window.innerWidth, window.innerHeight) <= 650) ||
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  );
+};
+
 // --- GAME ENGINE ---
 export default function BirdHunterChallenge() {
   const navigate = useNavigate();
@@ -332,8 +342,9 @@ export default function BirdHunterChallenge() {
     if (type === 'GHOST') baseSpeed *= 0.85;
 
     const currentScore = game.current.score || 0;
-    // Speed: 1.0x at score < 200, 1.2x when score >= 200
-    const speedMult = currentScore >= 200 ? 1.2 : 1.0;
+    // Speed: strictly 1.0x on mobile due to compact space; on desktop 1.0x initially, 1.2x at score >= 200
+    const isMobile = isMobileScreen();
+    const speedMult = isMobile ? 1.0 : (currentScore >= 200 ? 1.2 : 1.0);
     const finalSpeed = baseSpeed * speedMult;
 
     let startX, startY, dir, moveAxis, baseY, baseX;
@@ -653,8 +664,9 @@ export default function BirdHunterChallenge() {
         // Dynamic Difficulty Scaling
         g.difficulty = 1 + (curScore / 800);
 
-        // Speed multiplier: 1.0x initially, exactly 1.2x when score >= 200
-        const speedMult = curScore >= 200 ? 1.2 : 1.0;
+        // Speed multiplier: 1.0x on mobile devices (due to limited screen space); 1.2x on desktop when score >= 200
+        const isMobile = isMobileScreen();
+        const speedMult = isMobile ? 1.0 : (curScore >= 200 ? 1.2 : 1.0);
 
         // 1 bird at a time: clean pacing, no multiply birds
         const targetBirdCount = 1;
@@ -1142,8 +1154,10 @@ export default function BirdHunterChallenge() {
             <p className="font-mono text-sm font-black text-zinc-800 uppercase leading-relaxed">
               Please turn your phone to <span className="text-orange-600 bg-orange-100 px-1 border border-black">Landscape Mode</span> for full screen slingshot hunting & best vision tracking!
             </p>
-            <div className="mt-2 text-4xl">
-              📱 ➔ 📲
+            <div className="mt-2 flex items-center justify-center gap-3 text-3xl sm:text-4xl select-none">
+              <span className="inline-block">📱</span>
+              <span className="text-xl sm:text-2xl font-black text-zinc-700">➔</span>
+              <span className="inline-block" style={{ transform: 'rotate(90deg)' }}>📱</span>
             </div>
           </div>
         </div>
