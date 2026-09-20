@@ -89,33 +89,33 @@ const GAMES = [
 
 const COMING_SOON_GAMES = [
   {
-    id: 'shadow-boxing',
+    id: 'gesture-boxing',
     emoji: '🥊',
-    tag: 'MOTION COMBAT',
-    title: 'Shadow Boxing',
-    desc: 'Dodge, weave, and throw real-time jabs and hooks using hand gestures in high-intensity virtual boxing duels!',
+    tag: 'Action',
+    title: 'Gesture Boxing',
+    desc: 'Punch / dodge / block — duck, slip, and throw lightning jabs with real-time motion tracking in arcade boxing duels!',
     bg: 'bg-[#FFE4E6]',
     badgeBg: 'bg-[#FECDD3]',
     badgeText: 'text-black',
   },
   {
-    id: 'cyber-pong',
-    emoji: '🏓',
-    tag: 'CYBER ARCADE',
-    title: 'Cyber Pong',
-    desc: 'Deflect futuristic curved shots with palm gestures against high-speed, adaptive AI paddle opponents!',
-    bg: 'bg-[#CCFBF1]',
-    badgeBg: 'bg-[#99F6E4]',
+    id: 'stack-cut',
+    emoji: '🧱',
+    tag: 'Physics / skill',
+    title: 'Stack Cut',
+    desc: 'Cut rope — slice ropes with swift finger cuts to balance falling blocks and build towering physics stacks!',
+    bg: 'bg-[#FED7AA]',
+    badgeBg: 'bg-[#FDBA74]',
     badgeText: 'text-black',
   },
   {
-    id: 'spell-caster',
-    emoji: '🔮',
-    tag: 'GESTURE MAGIC',
-    title: 'Spell Caster',
-    desc: 'Draw mystic runes in mid-air with your fingertips to conjure fireballs, ice shields, and lightning strikes!',
-    bg: 'bg-[#F3E8FF]',
-    badgeBg: 'bg-[#E9D5FF]',
+    id: 'gesture-gravity',
+    emoji: '🌀',
+    tag: 'Puzzle / arcade',
+    title: 'Gesture Gravity',
+    desc: 'Control gravity — invert and bend gravitational fields with hand gestures to navigate mind-bending space puzzles!',
+    bg: 'bg-[#E0E7FF]',
+    badgeBg: 'bg-[#C7D2FE]',
     badgeText: 'text-black',
   },
 ];
@@ -166,9 +166,9 @@ export default function Home() {
             <span className="mx-4">🏹 ARCHERY CHALLENGE</span>
             <span className="mx-4">🦅 BIRD HUNTER</span>
             <span className="mx-4">🚀 SPACE SHOOTER</span>
-            <span className="mx-4">🥊 SHADOW BOXING (COMING SOON)</span>
-            <span className="mx-4">🏓 CYBER PONG (COMING SOON)</span>
-            <span className="mx-4">🔮 SPELL CASTER (COMING SOON)</span>
+            <span className="mx-4">🥊 GESTURE BOXING (COMING SOON)</span>
+            <span className="mx-4">🧱 STACK CUT (COMING SOON)</span>
+            <span className="mx-4">🌀 GESTURE GRAVITY (COMING SOON)</span>
           </div>
         </div>
 
