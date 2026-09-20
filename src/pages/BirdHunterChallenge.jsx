@@ -852,21 +852,6 @@ export default function BirdHunterChallenge() {
       ctx.fillStyle = skyGrad;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Stylized Clouds (Neo-Brutalist)
-      ctx.fillStyle = '#FFFFFF';
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 3;
-      const clouds = [
-        { x: 120, y: 70, w: 110, h: 40 },
-        { x: canvas.width * 0.45, y: 90, w: 140, h: 45 },
-        { x: canvas.width - 180, y: 60, w: 120, h: 42 }
-      ];
-      clouds.forEach((c) => {
-        ctx.beginPath();
-        ctx.roundRect(c.x, c.y, c.w, c.h, 20);
-        ctx.fill();
-        ctx.stroke();
-      });
 
       // Active Powerup Tint
       if (g.activePowerups.slowMoTime > 0) {
