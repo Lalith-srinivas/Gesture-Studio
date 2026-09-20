@@ -7,6 +7,7 @@ import { playSliceSound, playBombSound, resumeAudio } from "../utils/soundEffect
 import { usePlayer } from "../hooks/usePlayer";
 import PostGameProgression from "../components/PostGameProgression";
 import AdSlot from "../components/ads/AdSlot";
+import AnimeCam from "../components/AnimeCam";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -268,19 +269,39 @@ export default function FruitNinja() {
     ctx.save();
     ctx.translate(sx, sy);
 
-    // ── Background ───────────────────────────────────────────────────────────
+    // ── Background: Rich Opaque Japanese Dojo Wood Planks ───────────────────
     ctx.clearRect(-20, -20, W + 40, H + 40);
     const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, s.slowmoFrames > 0 ? "rgba(20, 40, 120, 0.3)" : "rgba(10, 10, 20, 0.1)");
-    bg.addColorStop(1, s.slowmoFrames > 0 ? "rgba(20, 40, 120, 0.6)" : "rgba(10, 10, 20, 0.4)");
+    if (s.slowmoFrames > 0) {
+      bg.addColorStop(0, "#0F172A");
+      bg.addColorStop(1, "#1E1B4B");
+    } else {
+      bg.addColorStop(0, "#1F1510"); // Rich warm mahogany dojo wood
+      bg.addColorStop(0.5, "#2A1D17");
+      bg.addColorStop(1, "#18100C");
+    }
     ctx.fillStyle = bg;
     ctx.fillRect(-20, -20, W + 40, H + 40);
 
-    // Grid
-    ctx.strokeStyle = "rgba(255,255,255,0.025)";
+    // Dojo Wood Plank Dividers (arcade cutting board feel)
+    ctx.strokeStyle = s.slowmoFrames > 0 ? "rgba(99, 102, 241, 0.15)" : "rgba(0, 0, 0, 0.4)";
+    ctx.lineWidth = 2.5;
+    const plankH = 75;
+    for (let y = 0; y < H + 40; y += plankH) {
+      ctx.beginPath();
+      ctx.moveTo(-20, y);
+      ctx.lineTo(W + 20, y);
+      ctx.stroke();
+    }
+    // Subtle wood grain lines
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.02)";
     ctx.lineWidth = 1;
-    for (let x = 0; x < W; x += 60) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-    for (let y = 0; y < H; y += 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    for (let x = 45; x < W; x += 45) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
+      ctx.stroke();
+    }
 
     // Slow-mo blue vignette
     if (s.slowmoFrames > 0) {
@@ -666,7 +687,7 @@ export default function FruitNinja() {
         playsInline
         muted
         className="absolute inset-0 w-full h-full object-cover"
-        style={{ transform: "scaleX(-1)", opacity: 0.35 }}
+        style={{ transform: "scaleX(-1)", opacity: 0.04, pointerEvents: "none" }}
       />
 
       {/* Back Button */}
@@ -678,6 +699,11 @@ export default function FruitNinja() {
       </button>
 
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
+
+      {/* Picture-in-Picture Anime Camera Feed */}
+      <div className="fixed bottom-4 right-4 w-28 h-20 sm:w-32 sm:h-24 border-[3px] border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] z-40 overflow-hidden pointer-events-none">
+        <AnimeCam videoRef={videoRef} />
+      </div>
 
       {/* ── HUD ──────────────────────────────────────────────────────────── */}
       {gameState === "running" && (

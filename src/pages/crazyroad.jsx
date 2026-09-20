@@ -13,6 +13,7 @@ import {
 import { usePlayer } from '../hooks/usePlayer';
 import PostGameProgression from '../components/PostGameProgression';
 import AdSlot from '../components/ads/AdSlot';
+import AnimeCam from '../components/AnimeCam';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS & GAME CONFIG
@@ -692,7 +693,7 @@ export default function TrafficRiderGame() {
         </div>
 
         {/* Camera Tracking Feeds */}
-        <video ref={videoRef} autoPlay playsInline muted style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', opacity: 0.08, pointerEvents: 'none' }} />
+        <video ref={videoRef} autoPlay playsInline muted style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', opacity: 0.04, pointerEvents: 'none' }} />
         <canvas ref={handOverlayRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', transform: 'scaleX(-1)', pointerEvents: 'none' }} />
         
         {/* Main Canvas */}
@@ -746,6 +747,11 @@ export default function TrafficRiderGame() {
           </div>
         </div>
 
+      </div>
+
+      {/* Picture-in-Picture Anime Camera Feed */}
+      <div className="fixed bottom-4 right-4 w-28 h-20 sm:w-32 sm:h-24 border-[3px] border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] z-40 overflow-hidden pointer-events-none">
+        <AnimeCam videoRef={videoRef} />
       </div>
     </div>
   );

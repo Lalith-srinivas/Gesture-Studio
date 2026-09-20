@@ -6,6 +6,7 @@ import { usePlayer } from "../hooks/usePlayer";
 import PostGameProgression from "../components/PostGameProgression";
 import InGameGestureGuide from "../components/InGameGestureGuide";
 import AdSlot from "../components/ads/AdSlot";
+import AnimeCam from "../components/AnimeCam";
 
 /**
  * SpaceShooter.jsx
@@ -2085,23 +2086,27 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
         <InGameGestureGuide gameName="space-shooter" />
       )}
 
-      {/* Picture-in-Picture Camera Feed */}
+      {/* Hidden webcam element for MediaPipe tracking */}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        style={{
+          position: "fixed",
+          opacity: 0,
+          pointerEvents: "none",
+          width: 1,
+          height: 1,
+          zIndex: -10,
+        }}
+      />
+
+      {/* Picture-in-Picture Anime Camera Feed */}
       <div
         className="fixed bottom-16 right-4 w-28 h-20 sm:w-32 sm:h-24 bg-black border-[3px] border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] z-40 overflow-hidden pointer-events-none"
       >
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          className="w-full h-full object-cover pointer-events-none"
-          style={{ transform: "scaleX(-1)", opacity: 0.9 }}
-        />
-        <canvas
-          ref={handOverlayRef}
-          className="absolute inset-0 w-full h-full pointer-events-none"
-          style={{ transform: "scaleX(-1)" }}
-        />
+        <AnimeCam videoRef={videoRef} overlayCanvasRef={handOverlayRef} />
       </div>
 
       {/* ---------------- HUD (playing / paused) ---------------- */}

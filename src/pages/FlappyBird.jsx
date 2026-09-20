@@ -21,6 +21,7 @@ import { playPinchSound, playFailSound, resumeAudio } from "../utils/soundEffect
 import { usePlayer } from "../hooks/usePlayer";
 import PostGameProgression from "../components/PostGameProgression";
 import AdSlot from "../components/ads/AdSlot";
+import AnimeCam from "../components/AnimeCam";
 
 /* ─── Constants ─────────────────────────────────────────── */
 const BASE_W = 480;
@@ -513,7 +514,23 @@ export default function FlappyBird({ onReady }) {
         ))}
       </div>
 
-      {/* Pip camera */}
+      {/* Hidden webcam element for MediaPipe tracking */}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        style={{
+          position: 'fixed',
+          opacity: 0,
+          pointerEvents: 'none',
+          width: 1,
+          height: 1,
+          zIndex: -10,
+        }}
+      />
+
+      {/* Pip Anime Camera */}
       <div
         style={{
           position: 'fixed',
@@ -526,33 +543,10 @@ export default function FlappyBird({ onReady }) {
           zIndex: 50,
           background: '#000',
           overflow: 'hidden',
+          pointerEvents: 'none',
         }}
       >
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            transform: 'scaleX(-1)',
-            opacity: 0.9,
-            pointerEvents: 'none',
-          }}
-        />
-        <canvas
-          ref={handOverlayRef}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            transform: 'scaleX(-1)',
-            pointerEvents: 'none',
-          }}
-        />
+        <AnimeCam videoRef={videoRef} overlayCanvasRef={handOverlayRef} />
       </div>
 
       <div className="relative w-full max-w-[480px] border-4 border-black shadow-neo-2xl bg-black">
