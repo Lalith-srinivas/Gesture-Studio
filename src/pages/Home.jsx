@@ -87,6 +87,39 @@ const GAMES = [
   },
 ];
 
+const COMING_SOON_GAMES = [
+  {
+    id: 'shadow-boxing',
+    emoji: '🥊',
+    tag: 'MOTION COMBAT',
+    title: 'Shadow Boxing',
+    desc: 'Dodge, weave, and throw real-time jabs and hooks using hand gestures in high-intensity virtual boxing duels!',
+    bg: 'bg-[#FFE4E6]',
+    badgeBg: 'bg-[#FECDD3]',
+    badgeText: 'text-black',
+  },
+  {
+    id: 'cyber-pong',
+    emoji: '🏓',
+    tag: 'CYBER ARCADE',
+    title: 'Cyber Pong',
+    desc: 'Deflect futuristic curved shots with palm gestures against high-speed, adaptive AI paddle opponents!',
+    bg: 'bg-[#CCFBF1]',
+    badgeBg: 'bg-[#99F6E4]',
+    badgeText: 'text-black',
+  },
+  {
+    id: 'spell-caster',
+    emoji: '🔮',
+    tag: 'GESTURE MAGIC',
+    title: 'Spell Caster',
+    desc: 'Draw mystic runes in mid-air with your fingertips to conjure fireballs, ice shields, and lightning strikes!',
+    bg: 'bg-[#F3E8FF]',
+    badgeBg: 'bg-[#E9D5FF]',
+    badgeText: 'text-black',
+  },
+];
+
 const GESTURE_GUIDES = [
   { emoji: '☝️', name: 'Index Point', use: 'Fruit Ninja · Move Ship · Traffic' },
   { emoji: '✌️', name: 'Peace Sign', use: 'Traffic Lane 2 · Left' },
@@ -132,6 +165,10 @@ export default function Home() {
             <span className="mx-4">🐦 FLAPPY BIRD</span>
             <span className="mx-4">🏹 ARCHERY CHALLENGE</span>
             <span className="mx-4">🦅 BIRD HUNTER</span>
+            <span className="mx-4">🚀 SPACE SHOOTER</span>
+            <span className="mx-4">🥊 SHADOW BOXING (COMING SOON)</span>
+            <span className="mx-4">🏓 CYBER PONG (COMING SOON)</span>
+            <span className="mx-4">🔮 SPELL CASTER (COMING SOON)</span>
           </div>
         </div>
 
@@ -325,6 +362,68 @@ export default function Home() {
                   </div>
                 </div>
               </Link>
+            ))}
+
+            {/* ── Coming Soon Games ─────────────────────────────────────── */}
+            {COMING_SOON_GAMES.map((game) => (
+              <div
+                key={game.id}
+                className={`
+                  group relative flex flex-col justify-between p-6 md:p-7
+                  border-3 md:border-4 border-black ${game.bg} shadow-neo-lg
+                  transition-all duration-200
+                  hover:-translate-x-1 hover:-translate-y-1 hover:shadow-neo-xl
+                  overflow-hidden select-none
+                `}
+              >
+                {/* Coming Soon Corner Ribbon */}
+                <div className="absolute top-3 right-[-32px] w-28 bg-black text-neo-yellow border-y border-black text-[9px] font-mono font-black uppercase tracking-widest text-center py-0.5 rotate-45 pointer-events-none shadow-sm">
+                  SOON
+                </div>
+
+                {/* Top Row: Tag & Emoji Icon */}
+                <div>
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`neo-tag ${game.badgeBg} ${game.badgeText}`}>
+                        {game.tag}
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-mono font-black uppercase border-2 border-black bg-neo-yellow text-black shadow-[1.5px_1.5px_0px_#000]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
+                        COMING SOON
+                      </span>
+                    </div>
+                    <div className="w-12 h-12 rounded-xl bg-white border-2 border-black shadow-neo-sm flex items-center justify-center text-2xl group-hover:scale-110 group-hover:rotate-6 transition-transform">
+                      {game.emoji}
+                    </div>
+                  </div>
+
+                  {/* Title & Description */}
+                  <h2 className="font-display font-black text-2xl md:text-3xl text-black uppercase tracking-tight mb-2">
+                    {game.title}
+                  </h2>
+                  <p className="text-zinc-800 text-sm font-medium leading-normal mb-6">
+                    {game.desc}
+                  </p>
+                </div>
+
+                {/* Action Button: Disabled / Coming Soon */}
+                <div className="pt-2">
+                  <div className="
+                    w-full py-3 px-4 rounded-none font-display font-black text-sm uppercase tracking-wider
+                    border-2 border-black shadow-neo-sm flex items-center justify-between
+                    bg-zinc-900 text-zinc-300 cursor-not-allowed
+                  ">
+                    <span className="flex items-center gap-2">
+                      <span>🔒</span>
+                      <span>COMING SOON</span>
+                    </span>
+                    <span className="text-[11px] font-mono font-bold text-neo-yellow uppercase tracking-widest">
+                      IN LABS
+                    </span>
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         </nav>
