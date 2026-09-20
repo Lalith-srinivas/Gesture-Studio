@@ -157,14 +157,15 @@ function initAnimeGL(canvas) {
  * Features a real-time Anime Cel-Shaded Live Camera Preview box.
  */
 export default function GestureCursor() {
-  const [isDesktop, setIsDesktop] = useState(() => {
+  const [isMobile, setIsMobile] = useState(() => {
     if (typeof window === 'undefined') return false;
-    return window.innerWidth >= 768;
+    return window.innerWidth < 768;
   });
+  const [isCamHidden, setIsCamHidden] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
-      setIsDesktop(window.innerWidth >= 768);
+      setIsMobile(window.innerWidth < 768);
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -269,7 +270,7 @@ export default function GestureCursor() {
   useHandTracking({
     videoRef,
     onGesture: handleGesture,
-    enabled: isDesktop,
+    enabled: true,
   });
 
   // ── Live Anime Cel-Shaded Video & Landmark Rendering Loop ──────────────────
@@ -359,14 +360,13 @@ export default function GestureCursor() {
       animId = requestAnimationFrame(renderLoop);
     };
 
-    if (!isDesktop) return;
     animId = requestAnimationFrame(renderLoop);
 
     return () => {
       cancelAnimationFrame(animId);
       glHelper?.destroy();
     };
-  }, [isDesktop]);
+  }, []);
 
   // Cursor appearance based on state (Neo-Brutalist styling)
   const getCursorStyle = () => {
@@ -394,8 +394,6 @@ export default function GestureCursor() {
     };
   };
 
-  if (!isDesktop) return null;
-
   const cursor = getCursorStyle();
 
   return (
@@ -416,83 +414,150 @@ export default function GestureCursor() {
         }}
       />
 
-      {/* Real-time Anime Cel-Shaded Live Camera Preview Box */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: 16,
-          right: 16,
-          width: 140,
-          height: 105,
-          border: '3px solid #000000',
-          boxShadow: '4px 4px 0px 0px #000000',
-          zIndex: 9999,
-          background: '#18181B',
-          opacity: ready ? 0.95 : 0.4,
-          pointerEvents: 'none',
-          transition: 'opacity 0.3s',
-          overflow: 'hidden',
-        }}
-      >
-        {/* Hardware-accelerated Anime WebGL Canvas */}
-        <canvas
-          ref={glCanvasRef}
-          width={200}
-          height={150}
+      {/* Unhide Pill for Mobile when user clicked Hide */}
+      {isMobile && isCamHidden && (
+        <button
+          type="button"
+          onClick={() => setIsCamHidden(false)}
           style={{
-            width: '100%',
-            height: '100%',
-            display: 'block',
-            objectFit: 'cover',
-          }}
-        />
-
-        {/* Live Cyber Anime Landmark Skeleton Overlay */}
-        <canvas
-          ref={overlayCanvasRef}
-          width={200}
-          height={150}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-          }}
-        />
-
-        {/* Top Neo-Brutalist Badge: ANIME CAM */}
-        <div
-          style={{
-            position: 'absolute',
-            top: 4,
-            left: 4,
-            background: '#FFE600',
+            position: 'fixed',
+            bottom: 'calc(70px + env(safe-area-inset-bottom, 0px))',
+            right: 12,
+            zIndex: 9999,
+            background: 'rgba(255, 230, 0, 0.75)',
+            backdropFilter: 'blur(4px)',
             color: '#000000',
-            border: '1.5px solid #000000',
-            boxShadow: '1.5px 1.5px 0px #000000',
-            padding: '1px 5px',
-            fontSize: '9px',
+            border: '2px solid rgba(0,0,0,0.8)',
+            boxShadow: '2px 2px 0px rgba(0,0,0,0.4)',
+            padding: '3px 8px',
+            fontSize: '10px',
             fontFamily: '"JetBrains Mono", monospace',
             fontWeight: 900,
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
+            cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             gap: '4px',
+            opacity: 0.85,
+            transition: 'all 0.2s',
+          }}
+          title="Show Anime Cam"
+        >
+          <span>📷</span>
+          <span>ANIME CAM</span>
+        </button>
+      )}
+
+      {/* Real-time Anime Cel-Shaded Live Camera Preview Box */}
+      {!isCamHidden && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: isMobile ? 'calc(70px + env(safe-area-inset-bottom, 0px))' : 16,
+            right: isMobile ? 12 : 16,
+            width: isMobile ? 104 : 140,
+            height: isMobile ? 78 : 105,
+            border: isMobile ? '2px solid rgba(0,0,0,0.6)' : '3px solid #000000',
+            boxShadow: isMobile ? '2px 2px 0px 0px rgba(0,0,0,0.3)' : '4px 4px 0px 0px #000000',
+            zIndex: 9999,
+            background: isMobile ? 'rgba(24, 24, 27, 0.35)' : '#18181B',
+            opacity: isMobile ? 0.5 : (ready ? 0.95 : 0.4),
+            backdropFilter: isMobile ? 'blur(3px)' : 'none',
+            pointerEvents: isMobile ? 'auto' : 'none',
+            transition: 'opacity 0.3s',
+            overflow: 'hidden',
           }}
         >
-          <span style={{
-            width: '5px',
-            height: '5px',
-            borderRadius: '50%',
-            background: ready ? '#22C55E' : '#9CA3AF',
-          }} />
-          <span>ANIME CAM</span>
-        </div>
-      </div>
+          {/* Hardware-accelerated Anime WebGL Canvas */}
+          <canvas
+            ref={glCanvasRef}
+            width={200}
+            height={150}
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'block',
+              objectFit: 'cover',
+            }}
+          />
 
-      {/* Gesture hints badge — Neo-Brutalist sticky notes */}
-      {ready && (
+          {/* Live Cyber Anime Landmark Skeleton Overlay */}
+          <canvas
+            ref={overlayCanvasRef}
+            width={200}
+            height={150}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+            }}
+          />
+
+          {/* Top Neo-Brutalist Badge: ANIME CAM */}
+          <div
+            style={{
+              position: 'absolute',
+              top: isMobile ? 3 : 4,
+              left: isMobile ? 3 : 4,
+              background: '#FFE600',
+              color: '#000000',
+              border: '1.5px solid #000000',
+              boxShadow: '1.5px 1.5px 0px #000000',
+              padding: isMobile ? '1px 3px' : '1px 5px',
+              fontSize: isMobile ? '8px' : '9px',
+              fontFamily: '"JetBrains Mono", monospace',
+              fontWeight: 900,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              display: 'flex',
+              alignItems: 'center',
+              gap: isMobile ? '2px' : '4px',
+              pointerEvents: 'none',
+            }}
+          >
+            <span style={{
+              width: isMobile ? '4px' : '5px',
+              height: isMobile ? '4px' : '5px',
+              borderRadius: '50%',
+              background: ready ? '#22C55E' : '#9CA3AF',
+            }} />
+            <span>ANIME CAM</span>
+          </div>
+
+          {/* Hide Button on Mobile / Desktop */}
+          {isMobile && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsCamHidden(true);
+              }}
+              style={{
+                position: 'absolute',
+                top: 3,
+                right: 3,
+                background: 'rgba(0, 0, 0, 0.65)',
+                color: '#FFFFFF',
+                border: '1px solid rgba(255, 255, 255, 0.4)',
+                padding: '1px 4px',
+                fontSize: '8px',
+                fontFamily: '"JetBrains Mono", monospace',
+                fontWeight: 900,
+                cursor: 'pointer',
+                lineHeight: 1,
+                pointerEvents: 'auto',
+                borderRadius: '2px',
+              }}
+              title="Hide Anime Cam"
+            >
+              ✕ HIDE
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Gesture hints badge — Neo-Brutalist sticky notes (desktop only) */}
+      {ready && !isMobile && (
         <div
           style={{
             position: 'fixed',
