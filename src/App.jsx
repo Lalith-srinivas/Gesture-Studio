@@ -57,6 +57,19 @@ try {
  */
 function ConditionalCursor() {
   const location = useLocation();
+  const [isDesktop, setIsDesktop] = React.useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth >= 768;
+  });
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const pagesWithOwnCamera = [
     '/fruit-ninja',
     '/hill-climb',
@@ -67,7 +80,7 @@ function ConditionalCursor() {
     '/gesture-academy',
   ];
   const hasOwnCamera = pagesWithOwnCamera.some((p) => location.pathname.startsWith(p));
-  if (hasOwnCamera) return null;
+  if (!isDesktop || hasOwnCamera) return null;
   return <GestureCursor />;
 }
 

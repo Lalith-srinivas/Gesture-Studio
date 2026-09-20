@@ -17,7 +17,7 @@ export default function BottomNav() {
   const { pathname } = useLocation();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden border-t-3 border-black bg-white shadow-[0_-4px_0px_0px_rgba(0,0,0,1)]">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden border-t-3 border-black bg-white shadow-[0_-4px_0px_0px_rgba(0,0,0,1)]">
       <div className="flex items-stretch h-16" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {NAV_ITEMS.map((item) => {
           const isActive =

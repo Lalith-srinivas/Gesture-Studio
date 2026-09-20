@@ -137,7 +137,7 @@ export default function Home() {
   const academyCompleted = isGlobalDone || playerData?.tutorialCompleted === true;
 
   return (
-    <div className="w-full min-h-screen bg-neo-dots text-black flex flex-col font-sans selection:bg-neo-yellow selection:text-black">
+    <div className="w-full min-h-screen bg-neo-dots text-black flex flex-col font-sans selection:bg-neo-yellow selection:text-black overflow-x-hidden">
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
       
       {/* ── Top Neo Marquee Ticker & Auth Action ───────────────────────────── */}
@@ -195,13 +195,13 @@ export default function Home() {
       </div>
 
       {/* ── Main Container ────────────────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 md:py-12 flex-1 flex flex-col items-center pb-24 md:pb-12">
+      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 md:py-12 flex-1 flex flex-col items-center pb-28 md:pb-12 overflow-x-hidden">
         
         {/* ── Hero Section ────────────────────────────────────────────────── */}
         <div className="w-full max-w-4xl text-center mb-10 md:mb-12 relative flex flex-col items-center">
           
           {/* Top Pill Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white border-2 border-black shadow-neo-sm font-mono text-xs md:text-sm font-bold uppercase tracking-wider mb-6 rotate-[-1deg] hover:rotate-0 transition-transform">
+          <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 bg-white border-2 border-black shadow-neo-sm font-mono text-[11px] sm:text-xs md:text-sm font-bold uppercase tracking-wider mb-6 rotate-[-1deg] hover:rotate-0 transition-transform max-w-full">
             <span className="w-2.5 h-2.5 rounded-full bg-neo-lime border border-black animate-pulse" />
             <span>VISION AI · WEBCAM POWERED</span>
             <span className="bg-neo-pink px-1.5 py-0.2 border border-black text-[10px]">v2.0</span>
@@ -238,7 +238,8 @@ export default function Home() {
             <span className="neo-tag bg-white">📸 Zero Install</span>
             <span className="neo-tag bg-neo-yellowLight">⚡ Ultra Low Latency</span>
             <span className="neo-tag bg-neo-cyanLight">🔒 100% Client-Side Privacy</span>
-            <span className="neo-tag bg-neo-pinkLight">🖱️ Air Cursor Enabled</span>
+            <span className="hidden md:inline-flex neo-tag bg-neo-pinkLight">🖱️ Air Cursor Enabled</span>
+            <span className="inline-flex md:hidden neo-tag bg-neo-pinkLight">📱 Touch &amp; Gesture Ready</span>
           </div>
         </div>
 

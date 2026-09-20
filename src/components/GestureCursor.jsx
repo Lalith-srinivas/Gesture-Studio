@@ -157,6 +157,19 @@ function initAnimeGL(canvas) {
  * Features a real-time Anime Cel-Shaded Live Camera Preview box.
  */
 export default function GestureCursor() {
+  const [isDesktop, setIsDesktop] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth >= 768;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const videoRef = useRef(null);
   const glCanvasRef = useRef(null);
   const overlayCanvasRef = useRef(null);
@@ -256,6 +269,7 @@ export default function GestureCursor() {
   useHandTracking({
     videoRef,
     onGesture: handleGesture,
+    enabled: isDesktop,
   });
 
   // ── Live Anime Cel-Shaded Video & Landmark Rendering Loop ──────────────────
@@ -345,13 +359,14 @@ export default function GestureCursor() {
       animId = requestAnimationFrame(renderLoop);
     };
 
+    if (!isDesktop) return;
     animId = requestAnimationFrame(renderLoop);
 
     return () => {
       cancelAnimationFrame(animId);
       glHelper?.destroy();
     };
-  }, []);
+  }, [isDesktop]);
 
   // Cursor appearance based on state (Neo-Brutalist styling)
   const getCursorStyle = () => {
@@ -378,6 +393,8 @@ export default function GestureCursor() {
       scale: 'scale(1)',
     };
   };
+
+  if (!isDesktop) return null;
 
   const cursor = getCursorStyle();
 

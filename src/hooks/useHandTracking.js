@@ -11,7 +11,7 @@ import { detectGesture, GESTURES } from '../utils/gestureDetector';
  * @param {React.RefObject} [params.overlayCanvasRef] - ref to landmark overlay <canvas> (optional)
  * @param {Function} params.onGesture              - called with (gesture, indexTip, videoDims, landmarks)
  */
-export function useHandTracking({ videoRef, overlayCanvasRef, onGesture }) {
+export function useHandTracking({ videoRef, overlayCanvasRef, onGesture, enabled = true }) {
   const handsRef  = useRef(null);
   const cameraRef = useRef(null);
   const activeRef = useRef(true);
@@ -74,6 +74,7 @@ export function useHandTracking({ videoRef, overlayCanvasRef, onGesture }) {
   }, []);
 
   useEffect(() => {
+    if (!enabled) return;
     if (!videoRef.current) return;
 
     // Guard: check that CDN scripts loaded
@@ -154,5 +155,5 @@ export function useHandTracking({ videoRef, overlayCanvasRef, onGesture }) {
       try { cameraRef.current?.stop(); } catch(e) {}
       try { handsRef.current?.close(); } catch(e) {}
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enabled]);
 }
