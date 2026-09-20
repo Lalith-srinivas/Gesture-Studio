@@ -233,6 +233,9 @@ export default function PrivacyPolicy() {
                 server or database.
               </li>
               <li>
+                <strong className="text-black">Real-Time Anime &amp; Stylization Filters:</strong> Live camera preview filters (such as our real-time anime cel-shaded camera effect) and motion skeleton overlays are processed entirely locally on your device's graphics hardware (via WebGL and HTML5 Canvas). No filtered video frames or facial/body imagery are ever uploaded or transmitted externally.
+              </li>
+              <li>
                 <strong className="text-black">Revoking Access:</strong> You can deny or revoke camera permission at any
                 time in your browser or device settings. All games provide alternative keyboard or touch controls.
               </li>

@@ -232,9 +232,7 @@ export default function Terms() {
               <span>Camera Permission &amp; Hardware</span>
             </h2>
             <p className="text-zinc-800 text-sm sm:text-base leading-relaxed">
-              Certain games offer optional webcam hand-tracking controls. Granting camera access is entirely voluntary and
-              requires explicit permission in your browser. All vision processing occurs strictly in real time within your
-              own browser without uploading or recording video feeds.
+              Certain games and navigation controls offer optional webcam hand-tracking and real-time anime-stylized visual camera previews. Granting camera access is entirely voluntary and requires explicit permission in your browser. All vision processing and real-time visual stylization filters occur strictly client-side within your own browser without uploading, broadcasting, or recording video feeds.
             </p>
             <p className="text-zinc-800 text-sm sm:text-base leading-relaxed">
               You are responsible for your own hardware, webcam compatibility, adequate lighting conditions, and physical
