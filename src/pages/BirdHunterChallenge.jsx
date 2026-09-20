@@ -1488,39 +1488,43 @@ export default function BirdHunterChallenge() {
 
       {/* Game Over Modal */}
       {gameState === 'GAMEOVER' && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-40 p-4">
-          <div className="bg-white border-8 border-black shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center flex flex-col items-center gap-4">
-            <h2 className="text-4xl font-black uppercase text-red-600 tracking-tight">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-40 p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white border-4 sm:border-8 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] sm:shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] rounded-2xl sm:rounded-3xl p-4 sm:p-8 max-w-sm w-full text-center flex flex-col items-center gap-2.5 sm:gap-4 max-h-[88vh] overflow-y-auto my-auto overscroll-contain">
+            <h2 className="text-3xl sm:text-4xl font-black uppercase text-red-600 tracking-tight shrink-0">
               GAME OVER
             </h2>
 
-            <div className="bg-red-400 border-4 border-black p-4 rounded-xl text-white w-full">
-              <span className="block font-black text-xs uppercase tracking-widest text-red-100 mb-1">
+            <div className="bg-red-400 border-2 sm:border-4 border-black p-3 sm:p-4 rounded-xl text-white w-full shrink-0">
+              <span className="block font-black text-xs uppercase tracking-widest text-red-100 mb-0.5 sm:mb-1">
                 {consecutiveMisses >= 3 ? '❌ 3 BIRDS ESCAPED IN A ROW!' : 'CHALLENGE COMPLETE'}
               </span>
               <span className="block font-black text-xs text-red-100 uppercase">FINAL SCORE</span>
-              <span className="text-4xl font-black">{score}</span>
+              <span className="text-3xl sm:text-4xl font-black">{score}</span>
             </div>
 
-            <PostGameProgression result={lastProgressionResult} />
+            <div className="w-full shrink-0">
+              <PostGameProgression result={lastProgressionResult} />
+            </div>
 
             {/* Dedicated Game Over Ad Slot */}
-            <div className="w-full my-3 flex justify-center">
-              <AdSlot placement="game-over" format="banner" className="max-w-[280px] sm:max-w-[340px]" />
+            <div className="w-full my-1.5 sm:my-3 flex justify-center shrink-0">
+              <AdSlot placement="game-over" format="banner" className="max-w-[280px] sm:max-w-[340px] max-h-[55px] sm:max-h-[90px]" />
             </div>
 
-            <button
-              onClick={startGame}
-              className="w-full bg-green-400 hover:bg-green-500 text-black border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none py-3.5 rounded-xl font-black text-xl uppercase"
-            >
-              ↺ PLAY AGAIN
-            </button>
-            <button
-              onClick={() => navigate('/')}
-              className="w-full bg-white hover:bg-gray-100 text-black border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none py-3 rounded-xl font-black text-sm uppercase"
-            >
-              ← BACK TO HOME
-            </button>
+            <div className="w-full flex flex-col gap-2 shrink-0 pb-1">
+              <button
+                onClick={startGame}
+                className="w-full bg-green-400 hover:bg-green-500 text-black border-2 sm:border-4 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none py-2.5 sm:py-3.5 rounded-xl font-black text-lg sm:text-xl uppercase"
+              >
+                ↺ PLAY AGAIN
+              </button>
+              <button
+                onClick={() => navigate('/')}
+                className="w-full bg-white hover:bg-gray-100 text-black border-2 sm:border-4 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none py-2 sm:py-3 rounded-xl font-black text-xs sm:text-sm uppercase"
+              >
+                ← BACK TO HOME
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -2292,25 +2292,25 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
 
       {/* ---------------- Game over screen ---------------- */}
       {gameState === "gameover" && finalStats && (
-        <div className="absolute inset-0 flex items-center justify-center p-4 overflow-y-auto" style={{ background: "#05040c" }}>
-          <div className="w-full max-w-sm bg-[#F5F0E6] border-[4px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-5 text-center font-mono my-4">
-            <h2 className="text-2xl font-extrabold mb-2" style={{ color: COLORS.pink }}>
+        <div className="absolute inset-0 flex items-center justify-center p-2 sm:p-4 overflow-y-auto z-40" style={{ background: "#05040c" }}>
+          <div className="w-full max-w-sm bg-[#F5F0E6] border-2 sm:border-[4px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] sm:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-4 sm:p-5 text-center font-mono my-auto max-h-[88vh] overflow-y-auto overscroll-contain">
+            <h2 className="text-xl sm:text-2xl font-extrabold mb-1.5 sm:mb-2 shrink-0" style={{ color: COLORS.pink }}>
               GAME OVER
             </h2>
 
             {isNewHighScore && (
               <div
-                className="text-xs font-extrabold mb-3 px-2 py-1 border-2 border-black inline-block"
+                className="text-xs font-extrabold mb-2 sm:mb-3 px-2 py-1 border-2 border-black inline-block shrink-0"
                 style={{ background: COLORS.yellow }}
               >
                 🔥 NEW HIGH SCORE!
               </div>
             )}
 
-            <div className="text-[10px] font-extrabold tracking-wide mt-2">FINAL SCORE</div>
-            <div className="text-3xl font-extrabold mb-2">{fmtScore(finalStats.score)}</div>
+            <div className="text-[10px] font-extrabold tracking-wide mt-1 shrink-0">FINAL SCORE</div>
+            <div className="text-2xl sm:text-3xl font-extrabold mb-1.5 shrink-0">{fmtScore(finalStats.score)}</div>
 
-            <div className="grid grid-cols-2 gap-2 text-left text-xs mt-3">
+            <div className="grid grid-cols-2 gap-1.5 sm:gap-2 text-left text-xs mt-2 shrink-0">
               <div className="border-2 border-black bg-white px-2 py-1">
                 <div className="text-[9px] font-bold opacity-70">HIGH SCORE</div>
                 <div className="font-extrabold">{fmtScore(finalStats.highScore)}</div>
@@ -2333,14 +2333,16 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
               </div>
             </div>
 
-            <PostGameProgression result={lastProgressionResult} />
-
-            {/* Dedicated Game Over Ad Slot */}
-            <div className="w-full my-3 flex justify-center">
-              <AdSlot placement="game-over" format="banner" className="max-w-[280px] sm:max-w-[340px]" />
+            <div className="w-full shrink-0">
+              <PostGameProgression result={lastProgressionResult} />
             </div>
 
-            <div className="flex flex-col gap-3 mt-4">
+            {/* Dedicated Game Over Ad Slot */}
+            <div className="w-full my-2 flex justify-center shrink-0">
+              <AdSlot placement="game-over" format="banner" className="max-w-[280px] sm:max-w-[340px] max-h-[55px] sm:max-h-[90px]" />
+            </div>
+
+            <div className="flex flex-col gap-2 sm:gap-3 mt-3 shrink-0 pb-1">
               <NeoButton onClick={restartGame} color={COLORS.green}>
                 PLAY AGAIN
               </NeoButton>

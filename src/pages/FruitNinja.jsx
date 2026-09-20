@@ -776,33 +776,33 @@ export default function FruitNinja() {
 
       {/* ── Start / Game-Over overlay ──────────────────────────────────── */}
       {(gameState === "idle" || gameState === "over") && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-30 bg-black/75 p-4">
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-30 bg-black/75 p-2 sm:p-4 overflow-y-auto">
           
-          <div className="neo-box-xl bg-[#FFFDF5] p-6 sm:p-10 max-w-md w-full text-center flex flex-col items-center">
+          <div className="neo-box-xl bg-[#FFFDF5] p-4 sm:p-8 max-w-md w-full text-center flex flex-col items-center max-h-[88vh] overflow-y-auto my-auto overscroll-contain">
             
             {/* Logo */}
-            <div className="w-16 h-16 bg-neo-pink border-3 border-black shadow-neo flex items-center justify-center text-4xl mb-3">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-neo-pink border-2 sm:border-3 border-black shadow-neo flex items-center justify-center text-3xl sm:text-4xl mb-2 sm:mb-3 shrink-0">
               🍉
             </div>
             
-            <h1 className="font-display font-black text-3xl sm:text-4xl text-black uppercase tracking-tight mb-1">
+            <h1 className="font-display font-black text-2xl sm:text-4xl text-black uppercase tracking-tight mb-1 shrink-0">
               Fruit Ninja
             </h1>
-            <p className="font-mono text-xs font-bold text-zinc-700 uppercase tracking-wider mb-5">
+            <p className="font-mono text-xs font-bold text-zinc-700 uppercase tracking-wider mb-3 sm:mb-5 shrink-0">
               SWIPE TO SLICE · AVOID BOMBS
             </p>
 
             {/* Game-over stats */}
             {gameState === "over" && (
-              <div className="w-full mb-4">
+              <div className="w-full mb-2 sm:mb-4 shrink-0">
                 {/* Reason badge */}
-                <div className="inline-block mb-3 px-3 py-1 bg-neo-red text-white border-2 border-black shadow-neo-sm font-mono text-xs font-bold uppercase">
+                <div className="inline-block mb-2 sm:mb-3 px-2.5 py-0.5 sm:px-3 sm:py-1 bg-neo-red text-white border-2 border-black shadow-neo-sm font-mono text-[11px] sm:text-xs font-bold uppercase">
                   {overReason === "bomb" ? "💣 3 BOMBS SLICED — GAME OVER" : "❤️ 10 FRUITS MISSED — GAME OVER"}
                 </div>
 
-                <div className="p-4 bg-neo-yellow border-2 border-black shadow-neo-sm my-2">
+                <div className="p-3 sm:p-4 bg-neo-yellow border-2 border-black shadow-neo-sm my-1.5 sm:my-2">
                   <div className="font-mono text-[10px] font-black uppercase text-black">FINAL SCORE</div>
-                  <div className="font-display font-black text-5xl text-black leading-none my-1">
+                  <div className="font-display font-black text-4xl sm:text-5xl text-black leading-none my-1">
                     {displayScore}
                   </div>
                   {displayScore > 0 && displayScore >= highScore && (
@@ -810,47 +810,51 @@ export default function FruitNinja() {
                       ★ NEW HIGH SCORE RECORD! ★
                     </div>
                   )}
-                  <div className="font-mono text-xs font-bold text-zinc-800 mt-1">
+                  <div className="font-mono text-xs font-bold text-zinc-800 mt-0.5">
                     BEST: {highScore}
                   </div>
                 </div>
 
                 {/* Summary */}
-                <div className="flex gap-4 justify-center mt-3">
-                  <div className="p-2 bg-white border-2 border-black text-xs font-mono font-bold">
+                <div className="flex gap-2 sm:gap-4 justify-center mt-2 sm:mt-3">
+                  <div className="p-1.5 sm:p-2 bg-white border-2 border-black text-[11px] sm:text-xs font-mono font-bold">
                     ❤️ {displayMisses} / {MAX_MISSES} missed
                   </div>
-                  <div className="p-2 bg-white border-2 border-black text-xs font-mono font-bold">
+                  <div className="p-1.5 sm:p-2 bg-white border-2 border-black text-[11px] sm:text-xs font-mono font-bold">
                     💣 {displayBombs} / {MAX_BOMBS} bombs
                   </div>
                 </div>
 
-                <PostGameProgression result={lastProgressionResult} />
+                <div className="w-full shrink-0">
+                  <PostGameProgression result={lastProgressionResult} />
+                </div>
 
                 {/* Safe Game Over Ad Placement */}
-                <div className="w-full my-3.5 flex justify-center">
-                  <AdSlot placement="game-over" format="banner" className="max-w-[320px] sm:max-w-[400px]" />
+                <div className="w-full my-2 sm:my-3 flex justify-center shrink-0">
+                  <AdSlot placement="game-over" format="banner" className="max-w-[280px] sm:max-w-[360px] max-h-[55px] sm:max-h-[90px]" />
                 </div>
               </div>
             )}
 
             {/* CTA buttons */}
-            <button
-              onClick={startGame}
-              className="neo-btn-primary w-full py-3.5 text-base uppercase tracking-wider mt-2"
-            >
-              {gameState === "idle" ? "▶ START SLICING" : "↺ PLAY AGAIN"}
-            </button>
-
-            {gameState === "over" && (
+            <div className="w-full flex flex-col gap-2 shrink-0 pb-1">
               <button
-                onClick={() => navigate('/')}
-                className="w-full py-3 mt-2.5 bg-white hover:bg-zinc-100 text-black border-3 border-black font-mono font-black text-xs uppercase shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-all flex items-center justify-center gap-1.5"
+                onClick={startGame}
+                className="neo-btn-primary w-full py-2.5 sm:py-3.5 text-sm sm:text-base uppercase tracking-wider"
               >
-                <span>←</span>
-                <span>BACK TO HOME</span>
+                {gameState === "idle" ? "▶ START SLICING" : "↺ PLAY AGAIN"}
               </button>
-            )}
+
+              {gameState === "over" && (
+                <button
+                  onClick={() => navigate('/')}
+                  className="w-full py-2 sm:py-2.5 bg-white hover:bg-zinc-100 text-black border-2 sm:border-3 border-black font-mono font-black text-xs uppercase shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-all flex items-center justify-center gap-1.5"
+                >
+                  <span>←</span>
+                  <span>BACK TO HOME</span>
+                </button>
+              )}
+            </div>
 
             {/* Rules */}
             {gameState === "idle" && (

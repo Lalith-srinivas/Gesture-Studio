@@ -1186,16 +1186,18 @@ export default function ArcheryChallenge() {
 
             {gameState === 'GAMEOVER' && (
               <>
-                <div className="bg-red-400 border-2 sm:border-4 border-black p-3 sm:p-4 rounded-xl text-white">
+                <div className="bg-red-400 border-2 sm:border-4 border-black p-2.5 sm:p-4 rounded-xl text-white shrink-0">
                   <span className="block font-black text-xs uppercase tracking-widest text-red-100 mb-0.5">
                     {consecutiveMisses >= 3 ? '❌ 3 CONSECUTIVE MISSES!' : 'GAME OVER'}
                   </span>
                   <span className="block font-black text-xs sm:text-sm uppercase tracking-wide">FINAL SCORE</span>
                   <span className="text-2xl sm:text-4xl font-black">{score}</span>
                 </div>
-                <PostGameProgression result={lastProgressionResult} />
-                <div className="w-full my-3 flex justify-center">
-                  <AdSlot placement="game-over" format="banner" className="max-w-[280px] sm:max-w-[340px]" />
+                <div className="w-full shrink-0">
+                  <PostGameProgression result={lastProgressionResult} />
+                </div>
+                <div className="w-full my-1.5 sm:my-3 flex justify-center shrink-0">
+                  <AdSlot placement="game-over" format="banner" className="max-w-[280px] sm:max-w-[340px] max-h-[55px] sm:max-h-[90px]" />
                 </div>
               </>
             )}

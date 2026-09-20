@@ -5,10 +5,10 @@ const GOOGLE_ADSENSE_CLIENT = 'ca-pub-8062123304198916';
 // Sizing maps to avoid Cumulative Layout Shift (CLS)
 const FORMAT_STYLES = {
   responsive: 'w-full min-h-[50px] max-h-[100px]',
-  banner: 'w-full max-w-[468px] h-[60px] sm:h-[90px]',
+  banner: 'w-full max-w-[468px] h-[50px] sm:h-[90px] max-h-[55px] sm:max-h-[90px]',
   leaderboard: 'w-full max-w-[728px] h-[90px]',
   rectangle: 'w-full max-w-[300px] h-[100px] sm:h-[120px]',
-  compact: 'w-full max-w-[320px] h-[50px]',
+  compact: 'w-full max-w-[320px] h-[45px] sm:h-[50px]',
 };
 
 export default function AdSlot({
@@ -55,11 +55,11 @@ export default function AdSlot({
       <ins
         ref={adRef}
         className="adsbygoogle"
-        style={{ display: 'block', width: '100%', height: '100%', minHeight: '50px' }}
+        style={{ display: 'block', width: '100%', height: '100%', minHeight: '45px', maxHeight: format === 'banner' ? '90px' : undefined }}
         data-ad-client={GOOGLE_ADSENSE_CLIENT}
         data-ad-slot={adUnitId || undefined}
         data-ad-format={format === 'responsive' ? 'auto' : 'horizontal'}
-        data-full-width-responsive="true"
+        data-full-width-responsive={format === 'responsive' ? 'true' : 'false'}
       />
 
       {/* Visual background placeholder for dev or when ad is loading */}

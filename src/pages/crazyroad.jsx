@@ -700,29 +700,31 @@ export default function TrafficRiderGame() {
         <canvas ref={canvasRef} style={{ display: 'block', width: '100%', height: '100%' }} />
 
         {/* Start / Game Over Overlay */}
-        <div ref={overlayRef} className="absolute inset-0 bg-black/75 flex flex-col items-center justify-center z-20 p-4">
-          <div className="neo-box-lg bg-[#FFFDF5] p-6 sm:p-8 text-center max-w-xs sm:max-w-sm w-full flex flex-col items-center">
-            <h1 ref={olTitleRef} className="font-display font-black text-2xl sm:text-3xl text-black uppercase tracking-tight mb-1">
+        <div ref={overlayRef} className="absolute inset-0 bg-black/75 flex flex-col items-center justify-center z-20 p-2 sm:p-4 overflow-y-auto">
+          <div className="neo-box-lg bg-[#FFFDF5] p-4 sm:p-7 text-center max-w-xs sm:max-w-sm w-full flex flex-col items-center max-h-[88vh] overflow-y-auto my-auto overscroll-contain">
+            <h1 ref={olTitleRef} className="font-display font-black text-2xl sm:text-3xl text-black uppercase tracking-tight mb-1 shrink-0">
               🏎️ CRAZY ROAD
             </h1>
-            <p ref={olSubRef} className="font-mono text-xs font-bold text-zinc-700 my-3">
+            <p ref={olSubRef} className="font-mono text-xs font-bold text-zinc-700 my-1.5 sm:my-3 shrink-0">
               DODGE TRAFFIC & BOOST TO WIN!
             </p>
-            <PostGameProgression result={lastProgressionResult} />
+            <div className="w-full shrink-0">
+              <PostGameProgression result={lastProgressionResult} />
+            </div>
 
             {lastProgressionResult && (
-              <div className="w-full my-3 flex justify-center">
-                <AdSlot placement="game-over" format="banner" className="max-w-[280px] sm:max-w-[340px]" />
+              <div className="w-full my-2 flex justify-center shrink-0">
+                <AdSlot placement="game-over" format="banner" className="max-w-[280px] sm:max-w-[340px] max-h-[55px] sm:max-h-[90px]" />
               </div>
             )}
 
-            <div className="flex flex-col gap-2 w-full mt-2">
-              <button onClick={startGame} className="neo-btn-primary w-full py-3 text-sm sm:text-base uppercase tracking-wider">
+            <div className="flex flex-col gap-2 w-full mt-2 shrink-0 pb-1">
+              <button onClick={startGame} className="neo-btn-primary w-full py-2.5 sm:py-3 text-sm sm:text-base uppercase tracking-wider">
                 RACE NOW ➔
               </button>
               <button
                 onClick={() => navigate('/')}
-                className="w-full py-2.5 bg-white hover:bg-zinc-100 text-black border-3 border-black font-mono font-black text-xs uppercase shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-all flex items-center justify-center gap-1.5"
+                className="w-full py-2 sm:py-2.5 bg-white hover:bg-zinc-100 text-black border-2 sm:border-3 border-black font-mono font-black text-xs uppercase shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-all flex items-center justify-center gap-1.5"
               >
                 <span>←</span>
                 <span>BACK TO HOME</span>

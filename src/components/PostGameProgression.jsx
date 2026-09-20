@@ -27,16 +27,16 @@ export default function PostGameProgression({ result, onClose }) {
   };
 
   return (
-    <div className="mt-3 bg-zinc-900 border-3 border-neo-yellow p-4 rounded-xl text-white">
-      <div className="text-[10px] font-mono font-black uppercase tracking-wider text-neo-yellow mb-3 flex items-center gap-1.5">
+    <div className="mt-2 sm:mt-3 bg-zinc-900 border-2 sm:border-3 border-neo-yellow p-3 sm:p-4 rounded-xl text-white w-full">
+      <div className="text-[10px] font-mono font-black uppercase tracking-wider text-neo-yellow mb-2 sm:mb-3 flex items-center gap-1.5">
         ⚡ PROGRESSION UPDATE
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-3">
+      <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-2 sm:mb-3">
         {/* XP Earned */}
         {xpEarned > 0 && (
-          <div className="flex items-center gap-1.5 bg-neo-yellow/20 border border-neo-yellow/60 px-2 py-1 rounded-lg">
-            <span className="text-neo-yellow font-black font-mono text-sm">+{xpEarned} XP</span>
+          <div className="flex items-center gap-1 bg-neo-yellow/20 border border-neo-yellow/60 px-2 py-0.5 sm:py-1 rounded-lg">
+            <span className="text-neo-yellow font-black font-mono text-xs sm:text-sm">+{xpEarned} XP</span>
           </div>
         )}
 
@@ -79,7 +79,7 @@ export default function PostGameProgression({ result, onClose }) {
       )}
 
       {/* ── Optional Rewarded Ad Placement (Safe buffer, opt-in) ── */}
-      <div className="mt-3 pt-2.5 border-t border-zinc-800 flex items-center justify-between gap-2">
+      <div className="mt-2 sm:mt-3 pt-2 sm:pt-2.5 border-t border-zinc-800 flex items-center justify-between gap-2">
         {bonusClaimed ? (
           <div className="w-full py-1.5 px-2 bg-neo-lime/20 border border-neo-lime text-neo-lime font-mono font-bold text-xs text-center rounded-lg">
             ✅ +25 BONUS XP CLAIMED!
@@ -87,7 +87,7 @@ export default function PostGameProgression({ result, onClose }) {
         ) : (
           <button
             onClick={handleClaimBonus}
-            className="w-full py-2 px-3 bg-neo-yellow/20 hover:bg-neo-yellow/30 border border-neo-yellow/60 hover:border-neo-yellow text-neo-yellow font-mono font-bold text-xs uppercase flex items-center justify-center gap-1.5 rounded-lg transition-all active:scale-[0.98]"
+            className="w-full py-1.5 sm:py-2 px-2.5 sm:px-3 bg-neo-yellow/20 hover:bg-neo-yellow/30 border border-neo-yellow/60 hover:border-neo-yellow text-neo-yellow font-mono font-bold text-[11px] sm:text-xs uppercase flex items-center justify-center gap-1.5 rounded-lg transition-all active:scale-[0.98]"
           >
             <span>🎁</span>
             <span>Watch Short Ad for +25 XP</span>

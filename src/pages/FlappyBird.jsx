@@ -588,42 +588,44 @@ export default function FlappyBird({ onReady }) {
         {/* Game Over overlay */}
         {uiState === "dead" && (
           <Overlay>
-            <div className="neo-box-lg p-6 sm:p-8 max-w-xs sm:max-w-sm w-full mx-4 text-center bg-[#FFFDF5] flex flex-col items-center">
-              <div className="w-14 h-14 bg-neo-red text-white border-2 border-black shadow-neo-sm flex items-center justify-center text-3xl mb-3">
+            <div className="neo-box-lg p-4 sm:p-7 max-w-xs sm:max-w-sm w-full mx-auto text-center bg-[#FFFDF5] flex flex-col items-center max-h-[88vh] overflow-y-auto my-auto overscroll-contain">
+              <div className="w-11 h-11 sm:w-14 sm:h-14 bg-neo-red text-white border-2 border-black shadow-neo-sm flex items-center justify-center text-2xl sm:text-3xl mb-1.5 sm:mb-3 shrink-0">
                 💥
               </div>
-              <h2 className="font-display font-black text-2xl uppercase tracking-tight text-neo-red mb-1">
+              <h2 className="font-display font-black text-xl sm:text-2xl uppercase tracking-tight text-neo-red mb-1 shrink-0">
                 GAME OVER
               </h2>
               
-              <div className="my-4 p-4 bg-neo-yellow border-2 border-black shadow-neo-sm w-full">
+              <div className="my-2 sm:my-3 p-2.5 sm:p-4 bg-neo-yellow border-2 border-black shadow-neo-sm w-full shrink-0">
                 <div className="font-mono text-[10px] font-black uppercase text-black">SCORE</div>
-                <div className="font-display font-black text-5xl text-black">
+                <div className="font-display font-black text-4xl sm:text-5xl text-black">
                   {stateRef.current?.score ?? 0}
                 </div>
-                <div className="font-mono text-xs font-bold text-zinc-800 mt-1">
+                <div className="font-mono text-[11px] sm:text-xs font-bold text-zinc-800 mt-0.5">
                   BEST: {getHighScore()}
                 </div>
               </div>
 
-              <PostGameProgression result={lastProgressionResult} />
-
-              {/* Game Over Ad Space with safe buffer before CTA buttons */}
-              <div className="w-full my-3 flex justify-center">
-                <AdSlot placement="game-over" format="banner" className="max-w-[280px] sm:max-w-[340px]" />
+              <div className="w-full shrink-0">
+                <PostGameProgression result={lastProgressionResult} />
               </div>
 
-              <div className="flex flex-col gap-2 w-full mt-2">
+              {/* Game Over Ad Space with safe buffer before CTA buttons */}
+              <div className="w-full my-2 flex justify-center shrink-0">
+                <AdSlot placement="game-over" format="banner" className="max-w-[280px] sm:max-w-[340px] max-h-[55px] sm:max-h-[90px]" />
+              </div>
+
+              <div className="flex flex-col gap-2 w-full mt-2 shrink-0 pb-1">
                 <button
                   id="flappy-action-btn"
                   onClick={restartGame}
-                  className="neo-btn-primary w-full py-3 text-base uppercase"
+                  className="neo-btn-primary w-full py-2.5 sm:py-3 text-sm sm:text-base uppercase"
                 >
                   ↺ PLAY AGAIN
                 </button>
                 <button
                   onClick={() => navigate('/')}
-                  className="w-full py-2.5 bg-white hover:bg-zinc-100 text-black border-3 border-black font-mono font-black text-xs uppercase shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-all flex items-center justify-center gap-1.5"
+                  className="w-full py-2 sm:py-2.5 bg-white hover:bg-zinc-100 text-black border-2 sm:border-3 border-black font-mono font-black text-xs uppercase shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-all flex items-center justify-center gap-1.5"
                 >
                   <span>←</span>
                   <span>BACK TO HOME</span>
@@ -643,7 +645,7 @@ export default function FlappyBird({ onReady }) {
 
 function Overlay({ children }) {
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-xs p-4">
+    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto z-40">
       {children}
     </div>
   );
