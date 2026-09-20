@@ -88,6 +88,16 @@ class SoundEffects {
 
 const soundManager = new SoundEffects();
 
+const isMobileScreen = () => {
+  if (typeof window === 'undefined') return false;
+  return (
+    window.innerWidth <= 850 ||
+    window.innerHeight <= 550 ||
+    (navigator.maxTouchPoints > 0 && Math.min(window.innerWidth, window.innerHeight) <= 650) ||
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  );
+};
+
 export default function ArcheryChallenge() {
   const navigate = useNavigate();
   const canvasRef = useRef(null);
@@ -115,15 +125,85 @@ export default function ArcheryChallenge() {
   const [lastProgressionResult, setLastProgressionResult] = useState(null);
   const sessionRecordedRef = useRef(false);
 
-  // Handle Orientation
+  // Fullscreen Management
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement || document.webkitFullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    document.addEventListener('webkitfullscreenchange', handleFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFsChange);
+      document.removeEventListener('webkitfullscreenchange', handleFsChange);
+    };
+  }, []);
+
+  const requestGameFullscreen = useCallback(() => {
+    const elem = document.documentElement;
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen().catch(() => {});
+      } else if (elem.webkitRequestFullscreen) {
+        elem.webkitRequestFullscreen();
+      } else if (elem.msRequestFullscreen) {
+        elem.msRequestFullscreen();
+      }
+    }
+  }, []);
+
+  const exitGameFullscreen = useCallback(() => {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      }
+    }
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      exitGameFullscreen();
+    } else {
+      requestGameFullscreen();
+    }
+  }, [requestGameFullscreen, exitGameFullscreen]);
+
+  // Handle Orientation & Auto-Fullscreen when rotating to Landscape
   useEffect(() => {
     const checkOrientation = () => {
-      setOrientation(window.innerHeight > window.innerWidth ? 'portrait' : 'landscape');
+      const isPortrait = window.innerHeight > window.innerWidth;
+      setOrientation(isPortrait ? 'portrait' : 'landscape');
+
+      // Auto-enter fullscreen when rotating to landscape on mobile
+      if (!isPortrait && isMobileScreen()) {
+        requestGameFullscreen();
+      }
     };
+
     window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
     checkOrientation();
-    return () => window.removeEventListener('resize', checkOrientation);
-  }, []);
+
+    // Auto-engage fullscreen on user touch when in landscape on mobile
+    const handleTouchEngagement = () => {
+      if (window.innerWidth > window.innerHeight && isMobileScreen()) {
+        requestGameFullscreen();
+      }
+    };
+
+    window.addEventListener('touchstart', handleTouchEngagement, { passive: true });
+    window.addEventListener('pointerdown', handleTouchEngagement, { passive: true });
+
+    return () => {
+      window.removeEventListener('resize', checkOrientation);
+      window.removeEventListener('orientationchange', checkOrientation);
+      window.removeEventListener('touchstart', handleTouchEngagement);
+      window.removeEventListener('pointerdown', handleTouchEngagement);
+    };
+  }, [requestGameFullscreen]);
 
   // Gesture tracking refs
   const lastGestureRef = useRef(GESTURES.NONE);
@@ -909,7 +989,7 @@ export default function ArcheryChallenge() {
   };
 
   return (
-    <div className="relative w-full h-screen bg-amber-50 font-sans select-none overflow-hidden flex flex-col">
+    <div className="relative w-full h-screen h-[100dvh] bg-amber-50 font-sans select-none overflow-hidden flex flex-col">
       
       {/* Portrait / Rotate Device Prompt with play anyway option */}
       {orientation === 'portrait' && (
@@ -930,8 +1010,21 @@ export default function ArcheryChallenge() {
               <span className="inline-block" style={{ transform: 'rotate(90deg)' }}>📱</span>
             </div>
             <button
+              onClick={() => {
+                requestGameFullscreen();
+                try {
+                  if (screen.orientation && screen.orientation.lock) {
+                    screen.orientation.lock('landscape').catch(() => {});
+                  }
+                } catch (e) {}
+              }}
+              className="mt-1 w-full bg-neo-lime hover:bg-lime-400 text-black border-2 sm:border-3 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 py-2 px-3 rounded-lg sm:rounded-xl font-mono font-black text-xs uppercase cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <span>⛶</span> Enter Fullscreen
+            </button>
+            <button
               onClick={() => setOrientation('landscape')}
-              className="mt-2 text-xs font-mono font-bold text-zinc-600 underline hover:text-black py-1 px-3 border border-dashed border-zinc-400 rounded-lg hover:border-black"
+              className="mt-1 text-xs font-mono font-bold text-zinc-600 underline hover:text-black py-1 px-3 border border-dashed border-zinc-400 rounded-lg hover:border-black"
             >
               Continue in Portrait
             </button>
@@ -1049,6 +1142,13 @@ export default function ArcheryChallenge() {
             className="bg-white hover:bg-gray-100 border-2 sm:border-4 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none p-2 sm:p-3 rounded-xl font-black text-base sm:text-xl"
           >
             {isMuted ? '🔇' : '🔊'}
+          </button>
+          <button
+            onClick={toggleFullscreen}
+            className="bg-sky-300 hover:bg-sky-400 border-2 sm:border-4 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none p-2 sm:p-3 rounded-xl font-black text-base sm:text-xl cursor-pointer"
+            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+          >
+            {isFullscreen ? '⤦' : '⛶'}
           </button>
         </div>
 

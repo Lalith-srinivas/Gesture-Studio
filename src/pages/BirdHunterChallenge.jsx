@@ -151,15 +151,85 @@ export default function BirdHunterChallenge() {
     }
   };
 
-  // Orientation Check
+  // Fullscreen Management
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement || document.webkitFullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    document.addEventListener('webkitfullscreenchange', handleFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFsChange);
+      document.removeEventListener('webkitfullscreenchange', handleFsChange);
+    };
+  }, []);
+
+  const requestGameFullscreen = useCallback(() => {
+    const elem = document.documentElement;
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen().catch(() => {});
+      } else if (elem.webkitRequestFullscreen) {
+        elem.webkitRequestFullscreen();
+      } else if (elem.msRequestFullscreen) {
+        elem.msRequestFullscreen();
+      }
+    }
+  }, []);
+
+  const exitGameFullscreen = useCallback(() => {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      }
+    }
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      exitGameFullscreen();
+    } else {
+      requestGameFullscreen();
+    }
+  }, [requestGameFullscreen, exitGameFullscreen]);
+
+  // Orientation Check & Auto-Fullscreen when rotating to Landscape
   useEffect(() => {
     const checkOrientation = () => {
-      setOrientation(window.innerHeight > window.innerWidth ? 'portrait' : 'landscape');
+      const isPortrait = window.innerHeight > window.innerWidth;
+      setOrientation(isPortrait ? 'portrait' : 'landscape');
+
+      // Auto-enter fullscreen when rotating to landscape on mobile
+      if (!isPortrait && isMobileScreen()) {
+        requestGameFullscreen();
+      }
     };
+
     window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
     checkOrientation();
-    return () => window.removeEventListener('resize', checkOrientation);
-  }, []);
+
+    // Auto-engage fullscreen on user touch when in landscape on mobile
+    const handleTouchEngagement = () => {
+      if (window.innerWidth > window.innerHeight && isMobileScreen()) {
+        requestGameFullscreen();
+      }
+    };
+
+    window.addEventListener('touchstart', handleTouchEngagement, { passive: true });
+    window.addEventListener('pointerdown', handleTouchEngagement, { passive: true });
+
+    return () => {
+      window.removeEventListener('resize', checkOrientation);
+      window.removeEventListener('orientationchange', checkOrientation);
+      window.removeEventListener('touchstart', handleTouchEngagement);
+      window.removeEventListener('pointerdown', handleTouchEngagement);
+    };
+  }, [requestGameFullscreen]);
 
   // --- CONTROLS IMPLEMENTATION ---
   const controls = useRef({
@@ -1139,7 +1209,7 @@ export default function BirdHunterChallenge() {
   };
 
   return (
-    <div ref={containerRef} className="relative w-full h-screen bg-sky-200 overflow-hidden font-sans select-none touch-none">
+    <div ref={containerRef} className="relative w-full h-screen h-[100dvh] bg-sky-200 overflow-hidden font-sans select-none touch-none">
       
       {/* Portrait / Rotate Device Prompt */}
       {orientation === 'portrait' && (
@@ -1159,6 +1229,19 @@ export default function BirdHunterChallenge() {
               <span className="text-xl sm:text-2xl font-black text-zinc-700">➔</span>
               <span className="inline-block" style={{ transform: 'rotate(90deg)' }}>📱</span>
             </div>
+            <button
+              onClick={() => {
+                requestGameFullscreen();
+                try {
+                  if (screen.orientation && screen.orientation.lock) {
+                    screen.orientation.lock('landscape').catch(() => {});
+                  }
+                } catch (e) {}
+              }}
+              className="mt-1 w-full bg-neo-lime hover:bg-lime-400 text-black border-3 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 py-2.5 px-4 rounded-xl font-mono font-black text-xs uppercase cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span>⛶</span> Enter Fullscreen
+            </button>
           </div>
         </div>
       )}
@@ -1276,6 +1359,13 @@ export default function BirdHunterChallenge() {
               className="bg-white hover:bg-yellow-300 border-2 sm:border-3 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-sm sm:text-base cursor-pointer"
             >
               {isMuted ? '🔇' : '🔊'}
+            </button>
+            <button
+              onClick={toggleFullscreen}
+              className="bg-sky-300 hover:bg-sky-400 border-2 sm:border-3 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-black cursor-pointer"
+              title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+            >
+              {isFullscreen ? '⤦' : '⛶'}
             </button>
           </div>
 
