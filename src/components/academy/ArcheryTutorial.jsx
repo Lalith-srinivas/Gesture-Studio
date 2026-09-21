@@ -5,6 +5,7 @@ import { useGestureAcademy } from '../../hooks/useGestureAcademy';
 import { usePlayer } from '../../hooks/usePlayer';
 import { useHandTracking } from '../../hooks/useHandTracking';
 import { mapHandToScreen } from '../../utils/resolution';
+import AnimeCam from '../AnimeCam';
 
 // ── Web Audio Synthesizer for Archery Tutorial ─────────────────────────────
 class ArcheryAudio {
@@ -275,7 +276,7 @@ export default function ArcheryTutorial({
     videoRef,
     overlayCanvasRef,
     onGesture: (gesture, indexTip, dims, landmarks) => {
-      setDetectedGesture(gesture);
+      setDetectedGesture((prev) => (prev !== gesture ? gesture : prev));
       const sim = simRef.current;
       const s = ARCHERY_STAGES[currentStageIdx];
 
@@ -352,6 +353,9 @@ export default function ArcheryTutorial({
       lastGestureRef.current = gesture;
     },
     enabled: propLiveGesture === undefined,
+    modelComplexity: 0,
+    cameraWidth: 640,
+    cameraHeight: 480,
   });
 
   const liveGesture = propLiveGesture !== undefined ? propLiveGesture : detectedGesture;
@@ -903,15 +907,15 @@ export default function ArcheryTutorial({
         </div>
       )}
 
-      {/* ── Corner Floating PiP Webcam Feed ───────────────────────────────── */}
+      {/* ── Corner Floating PiP AnimeCam Feed ───────────────────────────────── */}
       <div
-        className={`fixed bottom-4 right-4 z-40 bg-white border-3 border-black shadow-neo-lg transition-all duration-300 ${
+        className={`fixed bottom-4 right-4 z-40 bg-black border-3 border-black shadow-neo-lg transition-all duration-300 overflow-hidden ${
           isCamMinimized ? 'w-16 h-16' : 'w-48 sm:w-56'
         }`}
       >
-        <div className="bg-black text-white px-2 py-1 flex items-center justify-between text-[10px] font-mono font-bold">
+        <div className="bg-black text-white px-2 py-1 flex items-center justify-between text-[10px] font-mono font-bold z-10 relative">
           <span className="truncate">
-            {isCamMinimized ? 'CAM' : `HAND: ${liveGesture || 'NONE'}`}
+            {isCamMinimized ? 'ANIME CAM' : `ANIME CAM · ${liveGesture || 'READY'}`}
           </span>
           <button
             onClick={() => setIsCamMinimized(!isCamMinimized)}
@@ -922,16 +926,18 @@ export default function ArcheryTutorial({
         </div>
 
         {!isCamMinimized && (
-          <div className="relative aspect-[4/3] bg-zinc-900 overflow-hidden">
+          <div className="relative aspect-[4/3] bg-zinc-950 overflow-hidden">
+            <AnimeCam videoRef={videoRef} overlayCanvasRef={overlayCanvasRef} />
             <video
               ref={videoRef}
-              className="w-full h-full object-cover scale-x-[-1]"
+              className="hidden"
               playsInline
               muted
+              autoPlay
             />
             <canvas
               ref={overlayCanvasRef}
-              className="absolute inset-0 w-full h-full pointer-events-none scale-x-[-1]"
+              className="absolute inset-0 w-full h-full pointer-events-none"
             />
           </div>
         )}

@@ -11,7 +11,15 @@ import { detectGesture, GESTURES } from '../utils/gestureDetector';
  * @param {React.RefObject} [params.overlayCanvasRef] - ref to landmark overlay <canvas> (optional)
  * @param {Function} params.onGesture              - called with (gesture, indexTip, videoDims, landmarks)
  */
-export function useHandTracking({ videoRef, overlayCanvasRef, onGesture, enabled = true }) {
+export function useHandTracking({
+  videoRef,
+  overlayCanvasRef,
+  onGesture,
+  enabled = true,
+  modelComplexity = 0,
+  cameraWidth = 640,
+  cameraHeight = 480,
+}) {
   const handsRef  = useRef(null);
   const cameraRef = useRef(null);
   const activeRef = useRef(true);
@@ -92,9 +100,9 @@ export function useHandTracking({ videoRef, overlayCanvasRef, onGesture, enabled
 
     hands.setOptions({
       maxNumHands: 1,
-      modelComplexity: 1,
-      minDetectionConfidence: 0.7,
-      minTrackingConfidence: 0.6,
+      modelComplexity: modelComplexity,
+      minDetectionConfidence: 0.55,
+      minTrackingConfidence: 0.55,
     });
 
     hands.onResults((results) => {
@@ -116,7 +124,7 @@ export function useHandTracking({ videoRef, overlayCanvasRef, onGesture, enabled
           const ctx = canvas.getContext('2d');
           ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
-        onGestureRef.current?.(GESTURES.NONE, null);
+        onGestureRef.current?.(GESTURES.NONE, null, null, null);
         return;
       }
 
@@ -141,8 +149,8 @@ export function useHandTracking({ videoRef, overlayCanvasRef, onGesture, enabled
           // Silently handle frame send errors (tab switch, etc.)
         }
       },
-      width: 1280,
-      height: 720,
+      width: cameraWidth,
+      height: cameraHeight,
     });
 
     camera.start().catch((err) => {

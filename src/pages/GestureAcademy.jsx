@@ -9,6 +9,8 @@ import CrazyRoadTutorial from '../components/academy/CrazyRoadTutorial';
 import FlappyBirdTutorial from '../components/academy/FlappyBirdTutorial';
 import ArcheryTutorial from '../components/academy/ArcheryTutorial';
 import BirdHunterTutorial from '../components/academy/BirdHunterTutorial';
+import FruitNinjaTutorial from '../components/academy/FruitNinjaTutorial';
+import SpaceShooterTutorial from '../components/academy/SpaceShooterTutorial';
 
 // ── Web Audio Sound Synthesis ─────────────────────────────────────────────
 class SoundPlayer {
@@ -390,7 +392,9 @@ export default function GestureAcademy() {
       targetGameKey !== 'hill-climb' &&
       targetGameKey !== 'flappy-bird' &&
       targetGameKey !== 'archery' &&
-      targetGameKey !== 'bird-hunter',
+      targetGameKey !== 'bird-hunter' &&
+      targetGameKey !== 'fruit-ninja' &&
+      targetGameKey !== 'space-shooter',
   });
 
   // Cleanup timers on unmount
@@ -583,13 +587,49 @@ export default function GestureAcademy() {
           </span>
         </button>
 
+        <button
+          onClick={() => {
+            sounds.playClick();
+            navigate('/gesture-academy?game=fruit-ninja');
+          }}
+          className={`px-3 py-1 text-xs font-mono font-black uppercase border-2 border-black transition-all shrink-0 flex items-center gap-1.5 ${
+            targetGameKey === 'fruit-ninja'
+              ? 'bg-neo-yellow text-black shadow-neo-sm'
+              : 'bg-white text-zinc-700 hover:bg-zinc-100'
+          }`}
+        >
+          <span>🍉 Fruit Ninja Tutorial</span>
+          <span className="bg-neo-pink text-white text-[9px] px-1 py-0.2 border border-black font-black">
+            PLAYABLE
+          </span>
+        </button>
+
+        <button
+          onClick={() => {
+            sounds.playClick();
+            navigate('/gesture-academy?game=space-shooter');
+          }}
+          className={`px-3 py-1 text-xs font-mono font-black uppercase border-2 border-black transition-all shrink-0 flex items-center gap-1.5 ${
+            targetGameKey === 'space-shooter'
+              ? 'bg-neo-cyan text-black shadow-neo-sm'
+              : 'bg-white text-zinc-700 hover:bg-zinc-100'
+          }`}
+        >
+          <span>🚀 Space Shooter Tutorial</span>
+          <span className="bg-neo-pink text-white text-[9px] px-1 py-0.2 border border-black font-black">
+            PLAYABLE
+          </span>
+        </button>
+
         {Object.entries(GAME_MAP)
           .filter(
             ([key]) =>
               key !== 'hill-climb' &&
               key !== 'flappy-bird' &&
               key !== 'archery' &&
-              key !== 'bird-hunter'
+              key !== 'bird-hunter' &&
+              key !== 'fruit-ninja' &&
+              key !== 'space-shooter'
           )
           .map(([key, game]) => (
             <button
@@ -619,6 +659,10 @@ export default function GestureAcademy() {
           <ArcheryTutorial />
         ) : targetGameKey === 'bird-hunter' ? (
           <BirdHunterTutorial />
+        ) : targetGameKey === 'fruit-ninja' ? (
+          <FruitNinjaTutorial />
+        ) : targetGameKey === 'space-shooter' ? (
+          <SpaceShooterTutorial />
         ) : !isCompleted ? (
           <div className="flex flex-col gap-6">
             {/* ── Progress Bar & Lesson Counter ────────────────────────────── */}

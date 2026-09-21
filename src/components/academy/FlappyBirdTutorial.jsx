@@ -4,6 +4,7 @@ import { GESTURES } from '../../utils/gestureDetector';
 import { useGestureAcademy } from '../../hooks/useGestureAcademy';
 import { usePlayer } from '../../hooks/usePlayer';
 import { useHandTracking } from '../../hooks/useHandTracking';
+import AnimeCam from '../AnimeCam';
 
 // ── Web Audio Synthesizer for Flappy Tutorial ────────────────────────────────
 class FlappyAudio {
@@ -168,8 +169,11 @@ export default function FlappyBirdTutorial({
   useHandTracking({
     videoRef,
     overlayCanvasRef,
-    onGesture: (g) => setDetectedGesture(g),
+    onGesture: (g) => setDetectedGesture((prev) => (prev !== g ? g : prev)),
     enabled: propLiveGesture === undefined,
+    modelComplexity: 0,
+    cameraWidth: 640,
+    cameraHeight: 480,
   });
 
   const liveGesture = propLiveGesture !== undefined ? propLiveGesture : detectedGesture;
@@ -971,48 +975,39 @@ export default function FlappyBirdTutorial({
             💡 Pinch your thumb and index finger together in front of the camera, or press Space / Up Arrow
           </div>
 
-          {/* Floating Picture-in-Picture Webcam (Corner Widget) */}
-          <div className="fixed bottom-4 right-4 z-40 bg-white border-3 border-black shadow-neo-lg p-2 flex flex-col items-center">
-            <div className="w-full flex items-center justify-between border-b border-black pb-1 mb-1.5 gap-2">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse border border-black" />
-                <span className="font-display font-black text-[10px] uppercase tracking-wider">
-                  Camera Feed
-                </span>
-              </div>
+          {/* ── Corner Floating PiP AnimeCam Feed ───────────────────────────────── */}
+          <div
+            className={`fixed bottom-4 right-4 z-40 bg-black border-3 border-black shadow-neo-lg transition-all duration-300 overflow-hidden ${
+              isCamMinimized ? 'w-16 h-16' : 'w-48 sm:w-56'
+            }`}
+          >
+            <div className="bg-black text-white px-2 py-1 flex items-center justify-between text-[10px] font-mono font-bold z-10 relative">
+              <span className="truncate">
+                {isCamMinimized ? 'ANIME CAM' : `ANIME CAM · ${liveGesture || 'READY'}`}
+              </span>
               <button
-                onClick={() => setIsCamMinimized((prev) => !prev)}
-                className="text-[10px] font-mono font-bold px-1 hover:bg-zinc-200 border border-black"
-                title={isCamMinimized ? 'Expand Camera' : 'Minimize Camera'}
+                onClick={() => setIsCamMinimized(!isCamMinimized)}
+                className="text-zinc-300 hover:text-white px-1"
               >
-                {isCamMinimized ? '▲' : '▼'}
+                {isCamMinimized ? '▢' : '—'}
               </button>
             </div>
 
             {!isCamMinimized && (
-              <>
-                <div className="relative w-36 sm:w-44 aspect-video bg-black border border-black overflow-hidden flex items-center justify-center mb-1.5">
-                  <video
-                    ref={videoRef}
-                    className="w-full h-full object-cover transform -scale-x-100"
-                    playsInline
-                    muted
-                    autoPlay
-                  />
-                  <canvas
-                    ref={overlayCanvasRef}
-                    className="absolute inset-0 w-full h-full pointer-events-none transform -scale-x-100"
-                  />
-                </div>
-
-                <div
-                  className={`w-full py-0.5 px-1.5 border border-black text-center font-mono font-black text-[9px] uppercase ${
-                    isPinching ? 'bg-neo-lime text-black' : 'bg-zinc-100 text-zinc-700'
-                  }`}
-                >
-                  {isPinching ? '✅ PINCH DETECTED!' : 'SHOW: 🤏 PINCH'}
-                </div>
-              </>
+              <div className="relative aspect-[4/3] bg-zinc-950 overflow-hidden">
+                <AnimeCam videoRef={videoRef} overlayCanvasRef={overlayCanvasRef} />
+                <video
+                  ref={videoRef}
+                  className="hidden"
+                  playsInline
+                  muted
+                  autoPlay
+                />
+                <canvas
+                  ref={overlayCanvasRef}
+                  className="absolute inset-0 w-full h-full pointer-events-none"
+                />
+              </div>
             )}
           </div>
 

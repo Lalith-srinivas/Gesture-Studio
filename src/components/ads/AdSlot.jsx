@@ -19,21 +19,49 @@ export default function AdSlot({
   collapseIfEmpty = false,
 }) {
   const adRef = useRef(null);
+  const isPushed = useRef(false);
   const isDev = import.meta.env.DEV;
 
   useEffect(() => {
-    // Only push when adRef exists and hasn't already been populated by AdSense
+    // On localhost, AdSense is unapproved and cannot render ads
+    const isLocalhost =
+      typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname.endsWith('.local'));
+
+    if (isDev || isLocalhost) return;
+    if (isPushed.current) return;
+
     try {
       if (typeof window !== 'undefined' && adRef.current) {
-        const alreadyFilled = adRef.current.getAttribute('data-adsbygoogle-status');
-        if (!alreadyFilled) {
+        const el = adRef.current;
+        const alreadyFilled =
+          el.getAttribute('data-adsbygoogle-status') ||
+          el.getAttribute('data-ad-status') ||
+          el.childNodes.length > 0;
+
+        if (alreadyFilled) return;
+
+        // Ensure there is at least one unfilled <ins class="adsbygoogle"> in the document
+        const unfilledIns = Array.from(
+          document.querySelectorAll('ins.adsbygoogle')
+        ).filter(
+          (ins) =>
+            !ins.getAttribute('data-adsbygoogle-status') &&
+            !ins.getAttribute('data-ad-status') &&
+            ins.childNodes.length === 0
+        );
+
+        if (unfilledIns.length > 0) {
+          isPushed.current = true;
           (window.adsbygoogle = window.adsbygoogle || []).push({});
         }
       }
     } catch (e) {
-      console.warn('[AdSlot] AdSense push note:', e?.message || e);
+      // Ignored
     }
-  }, [placement]);
+  }, [placement, isDev]);
 
   if (!isDev && collapseIfEmpty) {
     return null;
