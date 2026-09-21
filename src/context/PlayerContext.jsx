@@ -548,6 +548,8 @@ export function PlayerProvider({ children }) {
     (id) => !seenAchievements.includes(id)
   ).length;
 
+  const nextDailyReward = playerData ? getNextClaimDay(playerData) : { day: 1, reward: { xp: 50 }, claimed: false };
+
   const value = {
     playerData,
     xpInfo,
