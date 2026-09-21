@@ -106,8 +106,8 @@ const BIRD_STAGES = [
     stepIndex: 1,
     title: 'Slingshot Aim & Launch (First Shot)',
     instruction: 'Pinch 🤏 to pull slingshot, then Release 🖐️ to fire!',
-    explanation: 'Pinch to stretch the elastic band, then release to launch the stone at the perched wooden bird.',
-    hint: 'Pinch 🤏 -> pull backward -> Open 🖐️ to fire!',
+    explanation: 'Follow the yellow Rock Direction line pointing at the perched wooden bird, then release!',
+    hint: 'Yellow line shows rock direction · Pinch 🤏 -> Open 🖐️ to launch rock.',
     birdType: 'PRACTICE',
     birdY: 240,
     speed: 0,
@@ -117,26 +117,26 @@ const BIRD_STAGES = [
     stepIndex: 2,
     title: 'Moving Target (Gliding Top to Bottom)',
     instruction: 'Bird is gliding slowly top to bottom! Time your release 🖐️!',
-    explanation: 'Watch the bird glide gently up and down. Align your aim with its slow vertical path.',
-    hint: 'The aim arrow tracks the gliding bird. Release when ready!',
+    explanation: 'The rock direction arrow tracks the bird as it glides. Release to strike!',
+    hint: 'Watch the rock direction arrow track the bird -> release to hit.',
     birdType: 'NORMAL',
     birdY: 140,
     minY: 130,
-    maxY: 340,
-    speed: 0.9,
+    maxY: 330,
+    speed: 0.85,
     color: 'bg-neo-cyan',
   },
   {
     stepIndex: 3,
-    title: 'Golden Bird (Speed & Precision)',
-    instruction: 'Golden Bird gliding top to bottom! Swift pull 🤏 & release 🖐️!',
-    explanation: 'Golden Birds award bonus points! Track its smooth vertical path and strike!',
-    hint: 'Pull quickly and release to strike the golden bird as it glides.',
+    title: 'Golden Bird (Precision Intercept)',
+    instruction: 'Golden Bird incoming! Time your release 🖐️ to intercept!',
+    explanation: 'Golden Birds award bonus points! The rock direction arc automatically leads the moving target.',
+    hint: 'Pinch to pull tension -> release when the rock direction arrow aligns with the golden bird!',
     birdType: 'GOLDEN',
-    birdY: 130,
-    minY: 120,
-    maxY: 350,
-    speed: 1.4,
+    birdY: 140,
+    minY: 130,
+    maxY: 320,
+    speed: 1.0,
     color: 'bg-amber-300',
   },
   {
@@ -167,6 +167,17 @@ export default function BirdHunterTutorial({
   const overlayCanvasRef = propOverlayRef || internalOverlayRef;
 
   const [detectedGesture, setDetectedGesture] = useState(GESTURES.NONE);
+  const lastGestureRef = useRef(GESTURES.NONE);
+
+  const [currentStageIdx, setCurrentStageIdx] = useState(0);
+  const [feedback, setFeedback] = useState(null);
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [isCamMinimized, setIsCamMinimized] = useState(false);
+
+  const stage = BIRD_STAGES[currentStageIdx] || BIRD_STAGES[0];
+  const { completeGame } = useGestureAcademy('bird-hunter');
+  const { recordGameResult } = usePlayer();
 
   // Simulation state refs
   const simRef = useRef({
@@ -182,80 +193,33 @@ export default function BirdHunterTutorial({
       y: 240,
       baseY: 240,
       speed: 0,
-      radius: 26,
+      radius: 28,
       dir: 1,
       wingCycle: 0,
       hit: false,
     },
-    lastPinch: false,
     particles: [],
     passedStage: false,
   });
 
-  useHandTracking({
-    videoRef,
-    overlayCanvasRef,
-    onGesture: (g, indexTip, dims, landmarks) => {
-      setDetectedGesture(g);
-      if (indexTip) {
-        const v = videoRef.current;
-        const videoW = v ? v.videoWidth : 640;
-        const videoH = v ? v.videoHeight : 480;
-        const thumbLm = landmarks ? landmarks[4] : indexTip;
-        const indexLm = landmarks ? landmarks[8] : indexTip;
-        const pinchLm = landmarks
-          ? { x: (thumbLm.x + indexLm.x) / 2, y: (thumbLm.y + indexLm.y) / 2 }
-          : indexTip;
-
-        const pos = mapHandToScreen(
-          g === GESTURES.PINCH ? pinchLm : indexLm,
-          CANVAS_W,
-          CANVAS_H,
-          videoW,
-          videoH,
-          true
-        );
-
-        if (g === GESTURES.PINCH) {
-          const dx = pos.x - SLING_X;
-          const dy = pos.y - SLING_Y;
-          const pullDist = Math.hypot(dx, dy);
-          simRef.current.slingshot.tension = Math.min(1, Math.max(0.2, pullDist / 90));
-        }
-      }
-    },
-    enabled: propLiveGesture === undefined,
-  });
-
-  const liveGesture = propLiveGesture !== undefined ? propLiveGesture : detectedGesture;
-  const { completeGame } = useGestureAcademy('bird-hunter');
-  const { recordGameResult } = usePlayer();
-
-  const [currentStageIdx, setCurrentStageIdx] = useState(0);
-  const [feedback, setFeedback] = useState(null);
-  const [isCompleted, setIsCompleted] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
-  const [isCamMinimized, setIsCamMinimized] = useState(false);
-
-  const stage = BIRD_STAGES[currentStageIdx] || BIRD_STAGES[0];
-  const isPinching = liveGesture === GESTURES.PINCH;
-  const isFist = liveGesture === GESTURES.PAN;
-
   // Launch stone projectile straight along trajectory curve towards bird
   const fireProjectile = useCallback(() => {
     const sim = simRef.current;
-    if (!sim.slingshot.isPulling || sim.slingshot.tension < 0.15) return;
+    if (!sim.slingshot.isPulling) return;
 
     audio.playLaunch();
-    // Compute parabolic trajectory so stone arcs directly into bird
     const startX = SLING_X;
     const startY = SLING_Y - 20;
-    const targetX = sim.bird.x;
-    const targetY = sim.bird.y;
-    const flightFrames = 22;
+    const flightFrames = 18;
     const gravity = 0.22;
+
+    // In Stage 3 or moving stages, lead the target slightly so the rock intersects the bird
+    const leadFrames = sim.bird.speed > 0 ? flightFrames * 0.75 : 0;
+    const targetX = sim.bird.x;
+    const targetY = sim.bird.y + sim.bird.speed * sim.bird.dir * leadFrames;
+
     const vx = (targetX - startX) / flightFrames;
-    const vy = ((targetY - startY) - 0.5 * gravity * flightFrames * flightFrames) / flightFrames;
+    const vy = (targetY - startY - 0.5 * gravity * flightFrames * flightFrames) / flightFrames;
 
     sim.projectiles.push({
       x: startX,
@@ -263,35 +227,12 @@ export default function BirdHunterTutorial({
       vx,
       vy,
       gravity,
-      radius: 8,
+      radius: 9,
       stuck: false,
+      trail: [],
     });
     sim.slingshot.isPulling = false;
     sim.slingshot.tension = 0;
-  }, []);
-
-  // Reset stage
-  const resetStage = useCallback((stageIndex) => {
-    const s = BIRD_STAGES[stageIndex];
-    if (!s) return;
-
-    const sim = simRef.current;
-    sim.slingshot = { tension: 0, isPulling: false, pullX: SLING_X, pullY: SLING_Y };
-    sim.projectiles = [];
-    sim.bird = {
-      x: 320,
-      y: s.birdY,
-      baseY: s.birdY,
-      speed: s.speed,
-      radius: s.birdType === 'GOLDEN' ? 22 : 26,
-      dir: 1, // Start gliding top-to-bottom
-      wingCycle: 0,
-      hit: false,
-    };
-    sim.particles = [];
-    sim.passedStage = false;
-    setIsResetting(true);
-    setTimeout(() => setIsResetting(false), 300);
   }, []);
 
   // Complete tutorial
@@ -306,6 +247,30 @@ export default function BirdHunterTutorial({
     audio.playFanfare();
   }, [completeGame, recordGameResult]);
 
+  // Reset stage
+  const resetStage = useCallback((stageIndex) => {
+    const s = BIRD_STAGES[stageIndex];
+    if (!s) return;
+
+    const sim = simRef.current;
+    sim.slingshot = { tension: 0, isPulling: false, pullX: SLING_X, pullY: SLING_Y };
+    sim.projectiles = [];
+    sim.bird = {
+      x: 320,
+      y: s.birdY,
+      baseY: s.birdY,
+      speed: s.speed,
+      radius: s.birdType === 'GOLDEN' ? 26 : 28,
+      dir: 1, // Smooth top-to-bottom glide
+      wingCycle: 0,
+      hit: false,
+    };
+    sim.particles = [];
+    sim.passedStage = false;
+    setIsResetting(true);
+    setTimeout(() => setIsResetting(false), 300);
+  }, []);
+
   // Stage advance
   const advanceToNextStage = useCallback(() => {
     const nextIdx = currentStageIdx + 1;
@@ -319,59 +284,98 @@ export default function BirdHunterTutorial({
     }
   }, [currentStageIdx, resetStage, handleCompleteTutorial]);
 
-  // Gesture handling
-  useEffect(() => {
-    const sim = simRef.current;
-    const s = BIRD_STAGES[currentStageIdx];
+  // Direct, synchronous hand tracking & gesture handling
+  useHandTracking({
+    videoRef,
+    overlayCanvasRef,
+    onGesture: (gesture, indexTip, dims, landmarks) => {
+      setDetectedGesture(gesture);
+      const sim = simRef.current;
+      const s = BIRD_STAGES[currentStageIdx];
 
-    // 1. PINCH to pull slingshot
-    if (isPinching && !isResetting && !isCompleted) {
-      if (!sim.slingshot.isPulling) {
-        sim.slingshot.isPulling = true;
-        audio.playStretch();
+      if (indexTip) {
+        const v = videoRef.current;
+        const videoW = v ? v.videoWidth : 640;
+        const videoH = v ? v.videoHeight : 480;
+        const thumbLm = landmarks ? landmarks[4] : indexTip;
+        const indexLm = landmarks ? landmarks[8] : indexTip;
+        const pinchLm = landmarks
+          ? { x: (thumbLm.x + indexLm.x) / 2, y: (thumbLm.y + indexLm.y) / 2 }
+          : indexTip;
+
+        const pos = mapHandToScreen(
+          gesture === GESTURES.PINCH ? pinchLm : indexLm,
+          CANVAS_W,
+          CANVAS_H,
+          videoW,
+          videoH,
+          true
+        );
+
+        if (gesture === GESTURES.PINCH) {
+          const dx = pos.x - SLING_X;
+          const dy = pos.y - SLING_Y;
+          const pullDist = Math.hypot(dx, dy);
+          sim.slingshot.tension = Math.min(1.2, Math.max(0.4, pullDist / 80));
+        }
       }
-      sim.slingshot.tension = Math.min(1, sim.slingshot.tension + 0.045);
-    }
-    // 2. RELEASE PINCH -> Fire Stone
-    else if (sim.lastPinch && !isPinching && sim.slingshot.isPulling) {
-      if (s.isCancelStep) {
-        setFeedback({ type: 'bump', text: 'Close fist ✊ to cancel instead of releasing!' });
-        setTimeout(() => setFeedback(null), 1800);
+
+      // 🤏 PINCH: Pull slingshot & tension
+      if (gesture === GESTURES.PINCH && !isResetting && !isCompleted) {
+        if (!sim.slingshot.isPulling) {
+          sim.slingshot.isPulling = true;
+          audio.playStretch();
+        }
+        sim.slingshot.tension = Math.min(1.2, Math.max(0.4, sim.slingshot.tension + 0.05));
+      }
+      // 🖐️ RELEASE PINCH: Launch rock immediately!
+      else if (lastGestureRef.current === GESTURES.PINCH && gesture !== GESTURES.PAN) {
+        if (sim.slingshot.isPulling) {
+          if (s.isCancelStep) {
+            setFeedback({ type: 'bump', text: 'Close fist ✊ to cancel instead of releasing!' });
+            setTimeout(() => setFeedback(null), 1800);
+            sim.slingshot.isPulling = false;
+            sim.slingshot.tension = 0;
+          } else {
+            fireProjectile();
+          }
+        }
+      }
+      // ✊ FIST: Cancel safely
+      else if (gesture === GESTURES.PAN && sim.slingshot.isPulling) {
         sim.slingshot.isPulling = false;
         sim.slingshot.tension = 0;
-      } else {
-        fireProjectile();
+        audio.playStretch();
+        if (s.isCancelStep && !sim.passedStage) {
+          sim.passedStage = true;
+          audio.playHit(false);
+          setFeedback({ type: 'success', text: '✓ SLINGSHOT SAFELY DISARMED WITH FIST!' });
+          setTimeout(advanceToNextStage, 1200);
+        }
       }
-    }
-    // 3. FIST to Cancel
-    else if (isFist && sim.slingshot.isPulling) {
-      sim.slingshot.isPulling = false;
-      sim.slingshot.tension = 0;
-      audio.playStretch();
-      if (s.isCancelStep && !sim.passedStage) {
-        sim.passedStage = true;
-        audio.playHit(false);
-        setFeedback({ type: 'success', text: '✓ SLINGSHOT SAFELY DISARMED WITH FIST!' });
-        setTimeout(advanceToNextStage, 1200);
-      }
-    }
 
-    sim.lastPinch = isPinching;
-  }, [isPinching, isFist, isResetting, isCompleted, currentStageIdx, fireProjectile, advanceToNextStage]);
+      lastGestureRef.current = gesture;
+    },
+    enabled: propLiveGesture === undefined,
+  });
+
+  const liveGesture = propLiveGesture !== undefined ? propLiveGesture : detectedGesture;
+  const isPinching = liveGesture === GESTURES.PINCH;
+  const isFist = liveGesture === GESTURES.PAN;
 
   // Initial stage setup
   useEffect(() => {
     resetStage(0);
   }, [resetStage]);
 
-  // Keyboard controls fallback (Space to pull, release Space to shoot, 'C' to cancel)
+  // Keyboard controls fallback (Space to pull, release to shoot, 'C' to cancel)
   useEffect(() => {
     const sim = simRef.current;
     const onDown = (e) => {
       if (e.key === ' ' || e.key === 'ArrowRight') {
         e.preventDefault();
         sim.slingshot.isPulling = true;
-        sim.slingshot.tension = Math.min(1, sim.slingshot.tension + 0.1);
+        sim.slingshot.tension = Math.min(1.2, sim.slingshot.tension + 0.15);
         audio.playStretch();
       } else if (e.key === 'c' || e.key === 'C' || e.key === 'f' || e.key === 'F') {
         sim.slingshot.isPulling = false;
@@ -405,35 +409,38 @@ export default function BirdHunterTutorial({
       const sim = simRef.current;
       const s = BIRD_STAGES[currentStageIdx];
 
-      // Update Bird movement: SLOW top-to-bottom within defined range
+      // Update Bird movement: SLOW, smooth top-to-bottom oscillation within range
       if (s.speed > 0 && !sim.bird.hit) {
         const minY = s.minY || 130;
-        const maxY = s.maxY || 340;
+        const maxY = s.maxY || 330;
         sim.bird.y += sim.bird.speed * sim.bird.dir;
         sim.bird.wingCycle += 0.14;
 
-        // Turn around at range boundaries: slow, smooth oscillation
         if (sim.bird.y >= maxY) {
           sim.bird.dir = -1;
         } else if (sim.bird.y <= minY) {
           sim.bird.dir = 1;
         }
 
-        // Gentle horizontal sway
         sim.bird.x = 320 + Math.sin(Date.now() / 420) * 10;
       }
 
-      // Update Projectiles (Stone physics)
+      // Update Projectiles (Stone / Rock physics with moving direction trail)
       for (let i = sim.projectiles.length - 1; i >= 0; i--) {
         const p = sim.projectiles[i];
         if (!p.stuck) {
+          p.trail.push({ x: p.x, y: p.y });
+          if (p.trail.length > 8) p.trail.shift();
+
           p.x += p.vx;
           p.y += p.vy;
           p.vy += p.gravity;
 
-          // Check hit on Bird
+          // Check hit on Bird (with generous forgiving radius for Stage 3 Golden Bird)
           const dist = Math.hypot(p.x - sim.bird.x, p.y - sim.bird.y);
-          if (dist < sim.bird.radius + p.radius + 6 && !sim.bird.hit) {
+          const hitThreshold = (s.birdType === 'GOLDEN' ? 36 : sim.bird.radius) + p.radius + 12;
+
+          if (dist < hitThreshold && !sim.bird.hit) {
             p.stuck = true;
             sim.bird.hit = true;
             const isGolden = s.birdType === 'GOLDEN';
@@ -446,7 +453,7 @@ export default function BirdHunterTutorial({
               ? ['#38BDF8', '#0284C7', '#FFFFFF']
               : ['#92400E', '#B45309', '#FCD34D'];
 
-            for (let k = 0; k < 16; k++) {
+            for (let k = 0; k < 20; k++) {
               const ang = Math.random() * Math.PI * 2;
               const spd = Math.random() * 4 + 2;
               sim.particles.push({
@@ -467,10 +474,10 @@ export default function BirdHunterTutorial({
           }
 
           // Off screen miss
-          if (p.x > CANVAS_W + 40 || p.y > CANVAS_H - 60) {
+          if (p.x > CANVAS_W + 50 || p.y > CANVAS_H - 40) {
             sim.projectiles.splice(i, 1);
             if (!sim.bird.hit) {
-              setFeedback({ type: 'bump', text: '💥 MISSED BIRD! PULL & AIM AGAIN!' });
+              setFeedback({ type: 'bump', text: '💥 MISSED BIRD! FOLLOW ROCK DIRECTION & LAUNCH AGAIN!' });
               setTimeout(() => setFeedback(null), 1800);
             }
           }
@@ -532,47 +539,56 @@ export default function BirdHunterTutorial({
       ctx.arc(370, 110, 20, 0, Math.PI * 2);
       ctx.fill();
 
-      // ── DYNAMIC SUBWAY SURFERS AIM ARROW (Follows Moving Bird in Real-Time) ──
+      // ─── PROMINENT ROCK MOVING DIRECTION PATH & ARROW ─────────────────────
+      // Shows exact forward launch path from slingshot to target
       if (!s.isCancelStep && !sim.bird.hit) {
         ctx.save();
         const startX = SLING_X + 15;
         const startY = SLING_Y - 25;
-        const targetX = sim.bird.x - 12;
+        const targetX = sim.bird.x - 10;
         const targetY = sim.bird.y;
         const midX = (startX + targetX) / 2 - 20;
-        const midY = Math.min(startY, targetY) - 70; // dynamic curved arc
+        const midY = Math.min(startY, targetY) - 75; // dynamic parabolic trajectory
 
-        // Glowing outer yellow beam
+        // 1. Broad backdrop shadow path
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.quadraticCurveTo(midX, midY, targetX, targetY);
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+        ctx.lineWidth = 14;
+        ctx.stroke();
+
+        // 2. Glowing outer yellow trajectory beam
         ctx.shadowColor = '#FFE600';
-        ctx.shadowBlur = 14;
+        ctx.shadowBlur = 16;
         ctx.beginPath();
         ctx.moveTo(startX, startY);
         ctx.quadraticCurveTo(midX, midY, targetX, targetY);
         ctx.strokeStyle = '#FFE600';
-        ctx.lineWidth = 11;
+        ctx.lineWidth = 10;
         ctx.lineCap = 'round';
         ctx.stroke();
 
-        // Inner luminous flowing white dashes
+        // 3. Inner animated white flow dashes indicating rock launch direction
         ctx.beginPath();
         ctx.moveTo(startX, startY);
         ctx.quadraticCurveTo(midX, midY, targetX, targetY);
         ctx.strokeStyle = '#FFFFFF';
         ctx.lineWidth = 3.5;
-        ctx.setLineDash([8, 6]);
-        ctx.lineDashOffset = -Date.now() / 25;
+        ctx.setLineDash([10, 6]);
+        ctx.lineDashOffset = -Date.now() / 22;
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Dynamic Moving Arrowhead at the Bird's live position
+        // 4. Sharp Directional Arrowhead pointing straight in the rock's path
         const angleAtTarget = Math.atan2(targetY - midY, targetX - midX);
         ctx.save();
         ctx.translate(targetX, targetY);
         ctx.rotate(angleAtTarget);
         ctx.beginPath();
         ctx.moveTo(0, 0);
-        ctx.lineTo(-20, -10);
-        ctx.lineTo(-20, 10);
+        ctx.lineTo(-24, -12);
+        ctx.lineTo(-24, 12);
         ctx.closePath();
         ctx.fillStyle = '#FFE600';
         ctx.fill();
@@ -580,6 +596,13 @@ export default function BirdHunterTutorial({
         ctx.lineWidth = 2.5;
         ctx.stroke();
         ctx.restore();
+
+        // 5. Rock Direction Label Banner
+        ctx.fillStyle = '#000000';
+        ctx.font = '900 10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('ROCK MOVING DIRECTION', midX + 15, midY - 12);
+
         ctx.restore();
       }
 
@@ -659,7 +682,7 @@ export default function BirdHunterTutorial({
       ctx.restore();
 
       // ── Render Slingshot & Rubber Bands ───────────────────────────────────
-      const pullBack = sim.slingshot.tension * 32;
+      const pullBack = (sim.slingshot.tension || 0) * 32;
       const pouchX = SLING_X - pullBack;
       const pouchY = SLING_Y - 20 + pullBack * 0.2;
 
@@ -706,11 +729,11 @@ export default function BirdHunterTutorial({
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // Loaded Stone (if pulling)
-      if (sim.slingshot.isPulling) {
+      // Loaded Rock in Pouch
+      if (sim.slingshot.isPulling || sim.projectiles.length === 0) {
         ctx.fillStyle = '#9ca3af';
         ctx.beginPath();
-        ctx.arc(pouchX + 2, pouchY, 7, 0, Math.PI * 2);
+        ctx.arc(pouchX + 2, pouchY, 8, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 1.8;
@@ -719,8 +742,22 @@ export default function BirdHunterTutorial({
 
       ctx.restore();
 
-      // ── Render Projectiles ────────────────────────────────────────────────
+      // ── Render Flying Projectiles (Rocks with Motion Direction Trails) ────
       for (const p of sim.projectiles) {
+        // Rock motion trail
+        if (p.trail && p.trail.length > 1) {
+          ctx.save();
+          ctx.strokeStyle = 'rgba(255, 230, 0, 0.6)';
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(p.trail[0].x, p.trail[0].y);
+          for (let k = 1; k < p.trail.length; k++) {
+            ctx.lineTo(p.trail[k].x, p.trail[k].y);
+          }
+          ctx.stroke();
+          ctx.restore();
+        }
+
         ctx.save();
         ctx.translate(p.x, p.y);
         ctx.fillStyle = '#9ca3af';
@@ -897,12 +934,12 @@ export default function BirdHunterTutorial({
                   }`}
                 >
                   {isPinching
-                    ? '🤏 PULLING TENSION! RELEASE 🖐️ TO LAUNCH'
+                    ? '🤏 PULLING TENSION! RELEASE 🖐️ TO LAUNCH ROCK'
                     : isFist
                     ? '✊ FIST DETECTED: CANCELLED'
                     : stage.isCancelStep
                     ? '✊ MAKE CLOSED FIST TO CANCEL'
-                    : '🤏 PINCH POUCH & RELEASE 🖐️'}
+                    : 'FOLLOW ROCK DIRECTION · 🤏 PINCH & 🖐️ RELEASE'}
                 </div>
               </div>
 
@@ -925,7 +962,7 @@ export default function BirdHunterTutorial({
 
           {/* Controls helper bar */}
           <div className="mt-3 flex items-center justify-between w-full max-w-[440px] text-xs font-mono font-bold text-zinc-600 px-1">
-            <span>KEYBOARD: [SPACE] PULL/FIRE | [C] CANCEL</span>
+            <span>KEYBOARD: [SPACE] PULL/LAUNCH ROCK | [C] CANCEL</span>
             <button
               onClick={() => resetStage(currentStageIdx)}
               className="text-black underline font-black hover:text-zinc-800"
@@ -944,7 +981,7 @@ export default function BirdHunterTutorial({
             SLINGSHOT MASTER!
           </h2>
           <p className="text-zinc-700 font-mono text-sm max-w-md mx-auto mb-6">
-            Outstanding hunting! You've mastered pulling the slingshot, tracking birds gliding slowly from top to bottom, hunting golden targets, and cancelling shots with a closed fist.
+            Outstanding hunting! You've mastered following the rock direction line, hitting gliding targets, intercepting golden birds, and cancelling shots with a closed fist.
           </p>
 
           <div className="bg-neo-lime border-3 border-black p-4 mb-6 inline-block font-mono font-black text-base shadow-neo">
