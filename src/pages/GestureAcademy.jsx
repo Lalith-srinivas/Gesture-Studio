@@ -6,6 +6,7 @@ import { GESTURES } from '../utils/gestureDetector';
 import { useGestureAcademy } from '../hooks/useGestureAcademy';
 import { usePlayer } from '../hooks/usePlayer';
 import CrazyRoadTutorial from '../components/academy/CrazyRoadTutorial';
+import FlappyBirdTutorial from '../components/academy/FlappyBirdTutorial';
 
 // ── Web Audio Sound Synthesis ─────────────────────────────────────────────
 class SoundPlayer {
@@ -383,7 +384,7 @@ export default function GestureAcademy() {
     videoRef,
     overlayCanvasRef,
     onGesture: handleGestureDetected,
-    enabled: targetGameKey !== 'hill-climb',
+    enabled: targetGameKey !== 'hill-climb' && targetGameKey !== 'flappy-bird',
   });
 
   // Cleanup timers on unmount
@@ -525,8 +526,25 @@ export default function GestureAcademy() {
           </span>
         </button>
 
+        <button
+          onClick={() => {
+            sounds.playClick();
+            navigate('/gesture-academy?game=flappy-bird');
+          }}
+          className={`px-3 py-1 text-xs font-mono font-black uppercase border-2 border-black transition-all shrink-0 flex items-center gap-1.5 ${
+            targetGameKey === 'flappy-bird'
+              ? 'bg-neo-cyan text-black shadow-neo-sm'
+              : 'bg-white text-zinc-700 hover:bg-zinc-100'
+          }`}
+        >
+          <span>🐦 Flappy Bird Simulation</span>
+          <span className="bg-neo-pink text-white text-[9px] px-1 py-0.2 border border-black font-black">
+            PLAYABLE
+          </span>
+        </button>
+
         {Object.entries(GAME_MAP)
-          .filter(([key]) => key !== 'hill-climb')
+          .filter(([key]) => key !== 'hill-climb' && key !== 'flappy-bird')
           .map(([key, game]) => (
             <button
               key={key}
@@ -549,6 +567,8 @@ export default function GestureAcademy() {
       <main className="flex-1 max-w-6xl mx-auto w-full p-4 sm:p-6 md:p-8 flex flex-col justify-center">
         {targetGameKey === 'hill-climb' ? (
           <CrazyRoadTutorial />
+        ) : targetGameKey === 'flappy-bird' ? (
+          <FlappyBirdTutorial />
         ) : !isCompleted ? (
           <div className="flex flex-col gap-6">
             {/* ── Progress Bar & Lesson Counter ────────────────────────────── */}
