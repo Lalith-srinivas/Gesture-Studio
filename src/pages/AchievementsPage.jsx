@@ -1,7 +1,7 @@
 /**
  * AchievementsPage — Standalone achievements page.
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { usePlayer } from '../hooks/usePlayer';
 import { ACHIEVEMENTS, getAchievementProgress } from '../services/achievementService';
@@ -17,8 +17,12 @@ const FILTER_OPTIONS = [
 ];
 
 export default function AchievementsPage() {
-  const { unlockedAchievements, playerData, allGameStats, loading } = usePlayer();
+  const { unlockedAchievements, playerData, allGameStats, loading, markAchievementsAsSeen } = usePlayer();
   const [filter, setFilter] = useState('all');
+
+  useEffect(() => {
+    markAchievementsAsSeen?.();
+  }, [markAchievementsAsSeen]);
 
   const checkUnlocked = (ach) => {
     return (

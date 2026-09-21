@@ -129,7 +129,7 @@ const GESTURE_GUIDES = [
 ];
 
 export default function Home() {
-  const { playerData } = usePlayer();
+  const { playerData, unseenAchievementsCount } = usePlayer();
   const { isGlobalDone } = useGestureAcademy();
   const [showAuthModal, setShowAuthModal] = useState(false);
 
@@ -172,7 +172,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Top Actions: Gesture Academy, Leaderboards & Profile Dropdown */}
+        {/* Top Actions: Gesture Academy, Leaderboards, Achievements & Profile Dropdown */}
         <div className="flex items-center gap-2 shrink-0 ml-3">
           <Link
             to="/gesture-academy"
@@ -188,6 +188,20 @@ export default function Home() {
           >
             <span>🏆</span>
             <span className="hidden sm:inline">Leaderboard</span>
+          </Link>
+
+          <Link
+            to="/achievements"
+            className="relative px-2.5 sm:px-3 py-1 bg-[#FDE047] hover:bg-yellow-300 text-black border-2 border-black font-mono font-black text-xs uppercase flex items-center gap-1.5 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
+            title="Achievements"
+          >
+            <span>🥇</span>
+            <span className="hidden sm:inline">Achievements</span>
+            {unseenAchievementsCount > 0 && (
+              <span className="absolute -top-2.5 -right-2 bg-red-500 text-white border-2 border-black rounded-full min-w-[19px] h-[19px] px-1 flex items-center justify-center font-mono font-black text-[9px] shadow-sm animate-bounce z-20">
+                {unseenAchievementsCount > 99 ? '99+' : unseenAchievementsCount}
+              </span>
+            )}
           </Link>
 
           <ProfileDropdown />

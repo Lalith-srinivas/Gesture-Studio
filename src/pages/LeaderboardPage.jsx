@@ -99,7 +99,7 @@ export default function LeaderboardPage() {
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   const { currentUser, isGuest } = useAuth();
-  const { playerData, allGameStats } = usePlayer();
+  const { playerData, allGameStats, unseenAchievementsCount } = usePlayer();
   const { data, loading, error } = useLeaderboard(selectedGame);
 
   const playerEntry = currentUser ? findPlayerRank(currentUser.uid, data) : null;
@@ -137,7 +137,19 @@ export default function LeaderboardPage() {
           <span>← HOME</span>
         </Link>
         <h1 className="font-display font-black text-base uppercase tracking-tight">🏆 LEADERBOARDS</h1>
-        <div className="w-16" />
+        <Link
+          to="/achievements"
+          className="relative px-2 py-1 bg-white hover:bg-zinc-100 text-black border-2 border-black font-mono font-black text-xs uppercase flex items-center gap-1 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
+          title="Achievements"
+        >
+          <span>🥇</span>
+          <span className="hidden sm:inline">Achievements</span>
+          {unseenAchievementsCount > 0 && (
+            <span className="absolute -top-2.5 -right-2 bg-red-500 text-white border-2 border-black rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center font-mono font-black text-[9px] shadow-sm animate-bounce">
+              {unseenAchievementsCount > 99 ? '99+' : unseenAchievementsCount}
+            </span>
+          )}
+        </Link>
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-6">

@@ -12,7 +12,7 @@ import DailyRewardModal from './DailyRewardModal';
 
 export default function ProfileDropdown() {
   const { currentUser, isGuest, logout } = useAuth();
-  const { playerData, xpInfo, dailyRewardClaimed } = usePlayer();
+  const { playerData, xpInfo, dailyRewardClaimed, unseenAchievementsCount } = usePlayer();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
@@ -62,7 +62,7 @@ export default function ProfileDropdown() {
         {/* Trigger button */}
         <button
           onClick={() => setOpen((o) => !o)}
-          className="px-3 py-1 bg-white hover:bg-zinc-100 border-2 border-black font-mono font-black text-xs uppercase flex items-center gap-1.5 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
+          className="px-3 py-1 bg-white hover:bg-zinc-100 border-2 border-black font-mono font-black text-xs uppercase flex items-center gap-1.5 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform relative"
         >
           <span>{avatar}</span>
           <span className="hidden sm:inline max-w-[80px] truncate">{username}</span>
@@ -74,6 +74,12 @@ export default function ProfileDropdown() {
           {/* Daily reward indicator */}
           {!dailyRewardClaimed && (
             <span className="w-2 h-2 bg-neo-pink rounded-full border border-black animate-pulse" />
+          )}
+          {/* Unseen achievements indicator bubble */}
+          {unseenAchievementsCount > 0 && (
+            <span className="bg-red-500 text-white border border-black rounded-full min-w-[17px] h-[17px] px-1 flex items-center justify-center font-mono font-black text-[9px] shadow-sm animate-pulse">
+              {unseenAchievementsCount > 99 ? '99+' : unseenAchievementsCount}
+            </span>
           )}
           <span className="text-[10px] text-zinc-400">▾</span>
         </button>
@@ -103,6 +109,11 @@ export default function ProfileDropdown() {
               >
                 <span>{item.icon}</span>
                 <span>{item.label}</span>
+                {item.to === '/achievements' && unseenAchievementsCount > 0 && (
+                  <span className="ml-auto bg-red-500 text-white border border-black rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center font-mono font-black text-[9px] shadow-sm animate-pulse">
+                    {unseenAchievementsCount > 99 ? '99+' : unseenAchievementsCount}
+                  </span>
+                )}
               </Link>
             ))}
 

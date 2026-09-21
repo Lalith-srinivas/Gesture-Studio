@@ -42,8 +42,22 @@ export default function ProfilePage() {
   const tab = searchParams.get('tab') || 'profile';
   const navigate = useNavigate();
   const { currentUser, isGuest, logout } = useAuth();
-  const { playerData, xpInfo, allGameStats, unlockedAchievements, dailyRewardClaimed } = usePlayer();
+  const {
+    playerData,
+    xpInfo,
+    allGameStats,
+    unlockedAchievements,
+    dailyRewardClaimed,
+    unseenAchievementsCount,
+    markAchievementsAsSeen,
+  } = usePlayer();
   const { resetAll, settings } = useGestureAcademy();
+
+  useEffect(() => {
+    if (tab === 'achievements') {
+      markAchievementsAsSeen?.();
+    }
+  }, [tab, markAchievementsAsSeen]);
 
   const [showReward, setShowReward] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
@@ -173,9 +187,14 @@ export default function ProfilePage() {
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex-1 py-2 text-[11px] font-mono font-black uppercase whitespace-nowrap transition-colors px-2 ${tab === t.id ? 'bg-neo-yellow border-2 border-black shadow-neo-sm' : 'hover:bg-zinc-100'}`}
+              className={`flex-1 py-2 text-[11px] font-mono font-black uppercase whitespace-nowrap transition-colors px-2 flex items-center justify-center gap-1.5 ${tab === t.id ? 'bg-neo-yellow border-2 border-black shadow-neo-sm' : 'hover:bg-zinc-100'}`}
             >
-              {t.label}
+              <span>{t.label}</span>
+              {t.id === 'achievements' && unseenAchievementsCount > 0 && (
+                <span className="bg-red-500 text-white border border-black rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center font-mono font-black text-[9px] shadow-sm animate-pulse">
+                  {unseenAchievementsCount > 99 ? '99+' : unseenAchievementsCount}
+                </span>
+              )}
             </button>
           ))}
         </div>

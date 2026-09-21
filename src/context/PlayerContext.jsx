@@ -518,13 +518,44 @@ export function PlayerProvider({ children }) {
     } catch { /* silent */ }
   }, [uid]);
 
-  const nextDailyReward = playerData ? getNextClaimDay(playerData) : { day: 1, reward: { xp: 50 }, claimed: false };
+  // ── Seen achievements tracking for notification bubble ────────────────────
+  const [seenAchievements, setSeenAchievements] = useState(() => {
+    try {
+      const raw = localStorage.getItem(`gs_seen_achievements_${effectiveUid}`);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`gs_seen_achievements_${effectiveUid}`);
+      setSeenAchievements(raw ? JSON.parse(raw) : []);
+    } catch {
+      setSeenAchievements([]);
+    }
+  }, [effectiveUid]);
+
+  const markAchievementsAsSeen = useCallback(() => {
+    try {
+      localStorage.setItem(`gs_seen_achievements_${effectiveUid}`, JSON.stringify(unlockedAchievements));
+    } catch { /* silent */ }
+    setSeenAchievements([...unlockedAchievements]);
+  }, [effectiveUid, unlockedAchievements]);
+
+  const unseenAchievementsCount = unlockedAchievements.filter(
+    (id) => !seenAchievements.includes(id)
+  ).length;
 
   const value = {
     playerData,
     xpInfo,
     allGameStats,
     unlockedAchievements,
+    seenAchievements,
+    unseenAchievementsCount,
+    markAchievementsAsSeen,
     loading,
 
     dailyRewardClaimed,
