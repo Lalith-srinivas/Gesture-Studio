@@ -4,6 +4,7 @@ import { GESTURES } from '../../utils/gestureDetector';
 import { useGestureAcademy } from '../../hooks/useGestureAcademy';
 import { usePlayer } from '../../hooks/usePlayer';
 import { useHandTracking } from '../../hooks/useHandTracking';
+import { mapHandToScreen } from '../../utils/resolution';
 
 // ── Web Audio Synthesizer for Archery Tutorial ─────────────────────────────
 class ArcheryAudio {
@@ -97,7 +98,7 @@ const audio = new ArcheryAudio();
 const CANVAS_W = 440;
 const CANVAS_H = 560;
 const BOW_X = 90;
-const BOW_Y = 320;
+const DEFAULT_BOW_Y = 300;
 
 // ── Archery Tutorial Stages ────────────────────────────────────────────────
 const ARCHERY_STAGES = [
@@ -105,29 +106,29 @@ const ARCHERY_STAGES = [
     stepIndex: 1,
     title: 'Draw & Release (First Shot)',
     instruction: 'Pinch 🤏 to Draw Bow, then Release 🖐️ to Shoot!',
-    explanation: 'Grip the bowstring by pinching, then open your hand to release the arrow.',
-    hint: 'Pinch 🤏 -> pull back -> Open 🖐️ to hit the target.',
-    targetY: 320,
+    explanation: 'Move hand up/down to position bow. Grip the bowstring by pinching, then open your hand to fire.',
+    hint: 'Move hand up/down to aim · Pinch 🤏 -> pull back -> Open 🖐️ to hit.',
+    targetY: 300,
     moving: false,
     color: 'bg-neo-yellow',
   },
   {
     stepIndex: 2,
-    title: 'Long Distance (Full Power)',
-    instruction: 'Pinch & pull further back 🤏 to build maximum tension!',
-    explanation: 'Holding tension increases arrow speed and accuracy.',
-    hint: 'Pull all the way back before opening your hand.',
-    targetY: 260,
+    title: 'High Target (Aim High)',
+    instruction: 'Move hand UP to raise the bow, pinch & pull back 🤏!',
+    explanation: 'Raise your hand to align the bow with high targets before releasing.',
+    hint: 'Move hand up to line up with target -> Pinch & release!',
+    targetY: 200,
     moving: false,
     color: 'bg-neo-cyan',
   },
   {
     stepIndex: 3,
-    title: 'Moving Target (Time the Release)',
-    instruction: 'Target is on the move! Time your release 🖐️!',
-    explanation: 'Wait until the bullseye aligns with your sightline.',
-    hint: 'Release when the moving target reaches the center.',
-    targetY: 300,
+    title: 'Moving Target (Track & Release)',
+    instruction: 'Target is gliding vertically! Follow it with your bow 🖐️!',
+    explanation: 'Move your bow to track the bullseye and time your release cleanly.',
+    hint: 'Move bow up and down to match target -> release to strike.',
+    targetY: 280,
     moving: true,
     color: 'bg-orange-300',
   },
@@ -137,7 +138,7 @@ const ARCHERY_STAGES = [
     instruction: 'Pinch 🤏 to draw, then make a Closed Fist ✊ to Cancel!',
     explanation: 'Avoid wasting arrows when your aim is off by closing your fist.',
     hint: 'Draw the bowstring, then show a closed fist to cancel.',
-    targetY: 320,
+    targetY: 300,
     moving: false,
     isCancelStep: true,
     color: 'bg-neo-lime',
@@ -158,11 +159,60 @@ export default function ArcheryTutorial({
   const overlayCanvasRef = propOverlayRef || internalOverlayRef;
 
   const [detectedGesture, setDetectedGesture] = useState(GESTURES.NONE);
+  const [bowDisplayY, setBowDisplayY] = useState(DEFAULT_BOW_Y);
+
+  // Simulation state refs
+  const simRef = useRef({
+    bow: {
+      x: BOW_X,
+      y: DEFAULT_BOW_Y,
+      targetY: DEFAULT_BOW_Y,
+      tension: 0,
+      isAiming: false,
+      angle: 0,
+    },
+    arrows: [],
+    target: {
+      x: 350,
+      y: 300,
+      baseY: 300,
+      speed: 1.2,
+      radius: 42,
+      dir: 1,
+    },
+    lastPinch: false,
+    particles: [],
+    passedStage: false,
+  });
 
   useHandTracking({
     videoRef,
     overlayCanvasRef,
-    onGesture: (g) => setDetectedGesture(g),
+    onGesture: (g, indexTip, dims, landmarks) => {
+      setDetectedGesture(g);
+      if (indexTip) {
+        const v = videoRef.current;
+        const videoW = v ? v.videoWidth : 640;
+        const videoH = v ? v.videoHeight : 480;
+        const thumbLm = landmarks ? landmarks[4] : indexTip;
+        const indexLm = landmarks ? landmarks[8] : indexTip;
+        const pinchLm = landmarks
+          ? { x: (thumbLm.x + indexLm.x) / 2, y: (thumbLm.y + indexLm.y) / 2 }
+          : indexTip;
+
+        const pos = mapHandToScreen(
+          g === GESTURES.PINCH ? pinchLm : indexLm,
+          CANVAS_W,
+          CANVAS_H,
+          videoW,
+          videoH,
+          true
+        );
+
+        const clampedY = Math.max(130, Math.min(CANVAS_H - 120, pos.y));
+        simRef.current.bow.targetY = clampedY;
+      }
+    },
     enabled: propLiveGesture === undefined,
   });
 
@@ -180,40 +230,20 @@ export default function ArcheryTutorial({
   const isPinching = liveGesture === GESTURES.PINCH;
   const isFist = liveGesture === GESTURES.PAN;
 
-  // Simulation state refs
-  const simRef = useRef({
-    bow: {
-      tension: 0,
-      isAiming: false,
-      pullX: BOW_X,
-      pullY: BOW_Y,
-    },
-    arrows: [],
-    target: {
-      x: 350,
-      y: 320,
-      baseY: 320,
-      speed: 1.6,
-      radius: 42,
-      dir: 1,
-    },
-    lastPinch: false,
-    particles: [],
-    passedStage: false,
-  });
-
-  // Shoot arrow
+  // Shoot arrow towards target based on bow position & aim angle
   const fireArrow = useCallback(() => {
     const sim = simRef.current;
     if (!sim.bow.isAiming || sim.bow.tension < 0.15) return;
 
     audio.playRelease();
-    const power = sim.bow.tension * 16 + 6;
+    const power = sim.bow.tension * 18 + 8;
+    const angle = sim.bow.angle;
     sim.arrows.push({
-      x: BOW_X,
-      y: BOW_Y,
-      vx: power,
-      vy: 0,
+      x: sim.bow.x,
+      y: sim.bow.y,
+      vx: Math.cos(angle) * power,
+      vy: Math.sin(angle) * power,
+      angle: angle,
       stuck: false,
     });
     sim.bow.isAiming = false;
@@ -226,13 +256,15 @@ export default function ArcheryTutorial({
     if (!s) return;
 
     const sim = simRef.current;
-    sim.bow = { tension: 0, isAiming: false, pullX: BOW_X, pullY: BOW_Y };
+    sim.bow.tension = 0;
+    sim.bow.isAiming = false;
+    sim.bow.targetY = s.targetY;
     sim.arrows = [];
     sim.target = {
       x: 350,
       y: s.targetY,
       baseY: s.targetY,
-      speed: s.moving ? 1.6 : 0,
+      speed: s.moving ? 1.2 : 0,
       radius: 42,
       dir: 1,
     };
@@ -278,12 +310,11 @@ export default function ArcheryTutorial({
         sim.bow.isAiming = true;
         audio.playTension();
       }
-      sim.bow.tension = Math.min(1, sim.bow.tension + 0.04);
+      sim.bow.tension = Math.min(1, sim.bow.tension + 0.045);
     }
     // 2. RELEASE PINCH -> Fire Arrow
     else if (sim.lastPinch && !isPinching && sim.bow.isAiming) {
       if (s.isCancelStep) {
-        // Did not cancel with fist
         setFeedback({ type: 'bump', text: 'Close fist ✊ to cancel instead of releasing!' });
         setTimeout(() => setFeedback(null), 1800);
         sim.bow.isAiming = false;
@@ -313,11 +344,17 @@ export default function ArcheryTutorial({
     resetStage(0);
   }, [resetStage]);
 
-  // Keyboard controls (Space to draw, release Space to shoot, 'C' to cancel)
+  // Keyboard controls: ArrowUp/ArrowDown (or W/S) to move bow, Space to draw & shoot, 'C' to cancel
   useEffect(() => {
     const sim = simRef.current;
     const onDown = (e) => {
-      if (e.key === ' ' || e.key === 'ArrowRight') {
+      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+        e.preventDefault();
+        sim.bow.targetY = Math.max(130, sim.bow.targetY - 30);
+      } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        sim.bow.targetY = Math.min(CANVAS_H - 120, sim.bow.targetY + 30);
+      } else if (e.key === ' ' || e.key === 'ArrowRight') {
         e.preventDefault();
         sim.bow.isAiming = true;
         sim.bow.tension = Math.min(1, sim.bow.tension + 0.1);
@@ -354,18 +391,28 @@ export default function ArcheryTutorial({
       const sim = simRef.current;
       const s = ARCHERY_STAGES[currentStageIdx];
 
-      // Update Moving Target
+      // Smoothly move bow Y towards target Y
+      sim.bow.y += (sim.bow.targetY - sim.bow.y) * 0.16;
+
+      // Update Target Position
       if (s.moving) {
         sim.target.y += sim.target.speed * sim.target.dir;
-        if (sim.target.y < s.baseY - 70) sim.target.dir = 1;
-        if (sim.target.y > s.baseY + 70) sim.target.dir = -1;
+        if (sim.target.y < s.baseY - 75) sim.target.dir = 1;
+        if (sim.target.y > s.baseY + 75) sim.target.dir = -1;
       }
+
+      // Calculate Bow Aim Angle pointing directly at Target
+      const dx = sim.target.x - sim.bow.x;
+      const dy = sim.target.y - sim.bow.y;
+      sim.bow.angle = Math.atan2(dy, dx);
 
       // Update Arrows
       for (let i = sim.arrows.length - 1; i >= 0; i--) {
         const arr = sim.arrows[i];
         if (!arr.stuck) {
           arr.x += arr.vx;
+          arr.y += arr.vy;
+          arr.angle = Math.atan2(arr.vy, arr.vx);
 
           // Check hit on target
           const dist = Math.hypot(arr.x - sim.target.x, arr.y - sim.target.y);
@@ -375,7 +422,7 @@ export default function ArcheryTutorial({
             audio.playHit(isBullseye);
 
             // Add hit spark particles
-            for (let k = 0; k < 12; k++) {
+            for (let k = 0; k < 14; k++) {
               const ang = Math.random() * Math.PI * 2;
               sim.particles.push({
                 x: arr.x,
@@ -394,9 +441,9 @@ export default function ArcheryTutorial({
           }
 
           // Off screen miss
-          if (arr.x > CANVAS_W + 50) {
+          if (arr.x > CANVAS_W + 50 || arr.y < 0 || arr.y > CANVAS_H) {
             sim.arrows.splice(i, 1);
-            setFeedback({ type: 'bump', text: '💥 MISSED TARGET! DRAW & AIM AGAIN!' });
+            setFeedback({ type: 'bump', text: '💥 MISSED TARGET! MOVE BOW & AIM AGAIN!' });
             setTimeout(() => setFeedback(null), 1800);
           }
         }
@@ -410,6 +457,9 @@ export default function ArcheryTutorial({
         p.alpha -= 0.04;
         if (p.alpha <= 0) sim.particles.splice(i, 1);
       }
+
+      // Sync display state for hand overlay smoothly
+      setBowDisplayY(Math.round(sim.bow.y));
 
       // ── RENDER SCENE ───────────────────────────────────────────────────────
       // Background gradient (Dojo Dojo / Range)
@@ -431,14 +481,75 @@ export default function ArcheryTutorial({
       ctx.lineTo(CANVAS_W, CANVAS_H - 70);
       ctx.stroke();
 
+      // Vertical Bow Track Guide Line
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(sim.bow.x, 110);
+      ctx.lineTo(sim.bow.x, CANVAS_H - 80);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+
+      // ── Dynamic Moving Subway Surfers Aim Arrow between Bow and Target ──
+      if (!s.isCancelStep) {
+        ctx.save();
+        const startX = sim.bow.x + 24;
+        const startY = sim.bow.y;
+        const targetX = sim.target.x - 16;
+        const targetY = sim.target.y;
+
+        // Glowing outer beam
+        ctx.shadowColor = '#EF4444';
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(targetX, targetY);
+        ctx.strokeStyle = '#EF4444';
+        ctx.lineWidth = 12;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+
+        // Inner luminous flowing dashes
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(targetX, targetY);
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 3.5;
+        ctx.setLineDash([8, 6]);
+        ctx.lineDashOffset = -Date.now() / 25;
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Target Arrowhead
+        const arrowAngle = Math.atan2(targetY - startY, targetX - startX);
+        ctx.save();
+        ctx.translate(targetX, targetY);
+        ctx.rotate(arrowAngle);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-20, -10);
+        ctx.lineTo(-20, 10);
+        ctx.closePath();
+        ctx.fillStyle = '#EF4444';
+        ctx.fill();
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        ctx.restore();
+        ctx.restore();
+      }
+
       // Render Target (Traditional Archery Rings)
       const tg = sim.target;
       ctx.save();
       ctx.translate(tg.x, tg.y);
 
-      // Target stand pole
+      // Target stand pole down to grass
       ctx.fillStyle = '#78350f';
-      ctx.fillRect(-4, 0, 8, CANVAS_H - 70 - tg.y);
+      ctx.fillRect(-4, 0, 8, Math.max(10, CANVAS_H - 70 - tg.y));
 
       // Target rings
       const rings = [
@@ -459,10 +570,11 @@ export default function ArcheryTutorial({
       });
       ctx.restore();
 
-      // Render Bow & String
+      // Render Moving Bow & String
       const bowPullBack = sim.bow.tension * 28;
       ctx.save();
-      ctx.translate(BOW_X, BOW_Y);
+      ctx.translate(sim.bow.x, sim.bow.y);
+      ctx.rotate(sim.bow.angle);
 
       // Bow Limb (Curved Wood)
       ctx.beginPath();
@@ -517,6 +629,7 @@ export default function ArcheryTutorial({
       for (const arr of sim.arrows) {
         ctx.save();
         ctx.translate(arr.x, arr.y);
+        ctx.rotate(arr.angle);
         ctx.beginPath();
         ctx.moveTo(0, 0);
         ctx.lineTo(-45, 0);
@@ -623,66 +736,13 @@ export default function ArcheryTutorial({
               className="w-full h-full block select-none"
             />
 
-            {/* ── Subway Surfers Aim Arrow & Animated Hand Overlay ─────────── */}
+            {/* ── Animated Hand Overlay (Smoothly Tracks Moving Bow) ─────────── */}
             <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden">
-              <style>{`
-                @keyframes archeryDrawRelease {
-                  0%, 25% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-                  45%, 70% { opacity: 1; transform: translate(-70%, -50%) scale(1.05); }
-                  82%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
-                }
-                @keyframes arrowAimFlow {
-                  0% { stroke-dashoffset: 40; opacity: 0.5; }
-                  50% { opacity: 1; }
-                  100% { stroke-dashoffset: 0; opacity: 0.5; }
-                }
-              `}</style>
-
-              {/* Subway Surfers Style Flight Arrow to Target */}
-              <svg className="absolute inset-0 w-full h-full pointer-events-none select-none" viewBox="0 0 440 560">
-                <defs>
-                  <filter id="archeryGlow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor="#EF4444" floodOpacity="0.8" />
-                  </filter>
-                  <linearGradient id="archeryGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#EF4444" stopOpacity="0.2" />
-                    <stop offset="100%" stopColor="#EF4444" stopOpacity="0.95" />
-                  </linearGradient>
-                </defs>
-
-                {!stage.isCancelStep && (
-                  <g filter="url(#archeryGlow)">
-                    <path
-                      d={`M 140 320 L 320 ${stage.targetY}`}
-                      fill="none"
-                      stroke="url(#archeryGrad)"
-                      strokeWidth="14"
-                      strokeLinecap="round"
-                    />
-                    <polygon
-                      points={`340,${stage.targetY} 315,${stage.targetY - 18} 315,${stage.targetY + 18}`}
-                      fill="#EF4444"
-                      stroke="#000000"
-                      strokeWidth="2.5"
-                    />
-                    <path
-                      d={`M 140 320 L 320 ${stage.targetY}`}
-                      fill="none"
-                      stroke="#FFFFFF"
-                      strokeWidth="3.5"
-                      strokeDasharray="8 6"
-                      style={{ animation: 'arrowAimFlow 0.7s linear infinite' }}
-                    />
-                  </g>
-                )}
-              </svg>
-
-              {/* Animated White Semi-Transparent Hand Overlay */}
               <div
-                className="absolute transition-all duration-300 flex flex-col items-center select-none"
+                className="absolute transition-all duration-150 flex flex-col items-center select-none"
                 style={{
-                  left: '42%',
-                  top: '56%',
+                  left: '38%',
+                  top: `${Math.round((bowDisplayY / CANVAS_H) * 100)}%`,
                   transform: 'translate(-50%, -50%)',
                 }}
               >
@@ -749,183 +809,73 @@ export default function ArcheryTutorial({
                 <div
                   className={`mt-2 px-3.5 py-1.5 font-display font-black text-xs uppercase tracking-wider border-3 border-black shadow-neo transition-all duration-200 text-center whitespace-nowrap ${
                     isPinching
-                      ? 'bg-neo-lime text-black scale-110 shadow-neo-lg'
+                      ? 'bg-neo-lime text-black scale-105'
                       : isFist
-                      ? 'bg-neo-pink text-white scale-110 shadow-neo-lg'
+                      ? 'bg-red-400 text-black scale-105'
                       : 'bg-white text-black'
                   }`}
                 >
-                  {isPinching ? (
-                    <span className="flex items-center gap-1.5">
-                      <span className="text-sm">✓</span>
-                      <span>BOW DRAWN! RELEASE 🖐️ TO SHOOT!</span>
-                    </span>
-                  ) : isFist ? (
-                    <span>✊ CANCELLED!</span>
-                  ) : (
-                    <div className="flex flex-col items-center leading-tight">
-                      <span className="text-xs">
-                        {stage.isCancelStep ? '✊ MAKE CLOSED FIST TO CANCEL' : '🤏 PINCH TO DRAW ➔ 🖐️ RELEASE'}
-                      </span>
-                      <span className="font-mono text-[9px] text-zinc-600 font-bold mt-0.5">
-                        {stage.isCancelStep ? 'RESETS BOW AIM' : 'AIM AT THE BULLSEYE!'}
-                      </span>
-                    </div>
-                  )}
+                  {isPinching
+                    ? '🤏 TENSION DRAWN! RELEASE 🖐️ TO SHOOT'
+                    : isFist
+                    ? '✊ FIST DETECTED: SHOT CANCELLED'
+                    : stage.isCancelStep
+                    ? '✊ MAKE CLOSED FIST TO CANCEL'
+                    : 'MOVE HAND UP/DOWN · 🤏 PINCH & 🖐️ RELEASE'}
                 </div>
               </div>
+
+              {/* Feedback Overlay Toast */}
+              {feedback && (
+                <div className="absolute top-6 inset-x-4 flex justify-center z-30 animate-bounce">
+                  <div
+                    className={`px-4 py-2 border-3 border-black shadow-neo font-mono font-black text-xs uppercase tracking-wider ${
+                      feedback.type === 'success'
+                        ? 'bg-neo-lime text-black'
+                        : 'bg-red-400 text-white'
+                    }`}
+                  >
+                    {feedback.text}
+                  </div>
+                </div>
+              )}
             </div>
-
-            {/* Top In-Canvas Status Pill */}
-            <div className="absolute top-2 inset-x-2 flex items-center justify-between gap-2 z-10 pointer-events-none">
-              <div className="bg-black/80 backdrop-blur-xs border border-white/40 text-[10px] font-mono font-bold text-white px-2 py-0.5 uppercase tracking-wider">
-                Action: {stage.isCancelStep ? '✊ Fist Cancel' : '🤏 Pinch & Release'}
-              </div>
-              <div
-                className={`border text-[10px] font-mono font-black px-2 py-0.5 uppercase tracking-wider transition-colors ${
-                  isPinching || isFist
-                    ? 'bg-neo-lime border-black text-black shadow-xs'
-                    : 'bg-black/80 border-white/40 text-zinc-300'
-                }`}
-              >
-                {isPinching ? '✅ DRAWING BOW...' : isFist ? '✊ CANCEL' : `LIVE: ${liveGesture || 'READY'}`}
-              </div>
-            </div>
-
-            {/* Dynamic Feedback Banner */}
-            {feedback && (
-              <div
-                className={`absolute top-12 inset-x-4 p-2.5 border-3 border-black shadow-neo font-display font-black text-xs sm:text-sm text-center uppercase tracking-wide animate-in fade-in zoom-in-95 duration-150 z-30 ${
-                  feedback.type === 'success' ? 'bg-neo-lime text-black' : 'bg-neo-red text-white'
-                }`}
-              >
-                {feedback.text}
-              </div>
-            )}
-
-            {/* Resetting Indicator */}
-            {isResetting && (
-              <div className="absolute inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center font-mono font-black text-xs uppercase text-neo-yellow z-30">
-                ↺ RESETTING TARGET RANGE...
-              </div>
-            )}
           </div>
 
-          {/* Step Action Buttons & Controls Footer */}
-          <div className="w-full max-w-[440px] mt-3 flex items-center justify-between gap-3">
+          {/* Controls helper bar */}
+          <div className="mt-3 flex items-center justify-between w-full max-w-[440px] text-xs font-mono font-bold text-zinc-600 px-1">
+            <span>[↑/↓] MOVE BOW | [SPACE] DRAW/SHOOT | [C] CANCEL</span>
             <button
-              onClick={() => {
-                audio.playTension();
-                resetStage(currentStageIdx);
-              }}
-              className="flex-1 py-2 bg-white hover:bg-zinc-100 border-2 border-black font-mono font-bold text-xs uppercase shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
+              onClick={() => resetStage(currentStageIdx)}
+              className="text-black underline font-black hover:text-zinc-800"
             >
-              ↺ Retry Step
-            </button>
-            <button
-              onClick={() => {
-                audio.playHit(true);
-                advanceToNextStage();
-              }}
-              className="flex-1 py-2 bg-neo-yellow hover:bg-yellow-300 border-2 border-black font-display font-black text-xs uppercase shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
-            >
-              Skip Step ➔
+              Reset Target ↺
             </button>
           </div>
-
-          {/* Quick Guidance Footer Note */}
-          <div className="w-full max-w-[440px] mt-2.5 text-center text-[11px] font-mono text-zinc-600 font-bold">
-            💡 Pinch in camera to pull bowstring, release to shoot (or hold Space to draw, release to fire)
-          </div>
-
-          {/* Floating Picture-in-Picture Webcam (Corner Widget) */}
-          <div className="fixed bottom-4 right-4 z-40 bg-white border-3 border-black shadow-neo-lg p-2 flex flex-col items-center">
-            <div className="w-full flex items-center justify-between border-b border-black pb-1 mb-1.5 gap-2">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse border border-black" />
-                <span className="font-display font-black text-[10px] uppercase tracking-wider">
-                  Camera Feed
-                </span>
-              </div>
-              <button
-                onClick={() => setIsCamMinimized((prev) => !prev)}
-                className="text-[10px] font-mono font-bold px-1 hover:bg-zinc-200 border border-black"
-                title={isCamMinimized ? 'Expand Camera' : 'Minimize Camera'}
-              >
-                {isCamMinimized ? '▲' : '▼'}
-              </button>
-            </div>
-
-            {!isCamMinimized && (
-              <>
-                <div className="relative w-36 sm:w-44 aspect-video bg-black border border-black overflow-hidden flex items-center justify-center mb-1.5">
-                  <video
-                    ref={videoRef}
-                    className="w-full h-full object-cover transform -scale-x-100"
-                    playsInline
-                    muted
-                    autoPlay
-                  />
-                  <canvas
-                    ref={overlayCanvasRef}
-                    className="absolute inset-0 w-full h-full pointer-events-none transform -scale-x-100"
-                  />
-                </div>
-
-                <div
-                  className={`w-full py-0.5 px-1.5 border border-black text-center font-mono font-black text-[9px] uppercase ${
-                    isPinching || isFist ? 'bg-neo-lime text-black' : 'bg-zinc-100 text-zinc-700'
-                  }`}
-                >
-                  {isPinching ? '✅ BOWSTRING GRABBED!' : isFist ? '✊ CANCEL AIM' : 'SHOW: 🤏 PINCH'}
-                </div>
-              </>
-            )}
-          </div>
-
         </div>
       ) : (
-        /* ── Completion & Mastery Screen ───────────────────────────────────── */
-        <div className="w-full max-w-xl bg-white border-4 border-black p-6 sm:p-8 shadow-neo-2xl text-center animate-in zoom-in-95 duration-200">
-          <div className="w-20 h-20 mx-auto mb-4 bg-neo-lime border-3 border-black shadow-neo flex items-center justify-center text-4xl rounded-2xl rotate-3 hover:rotate-0 transition-transform">
-            🏹
+        /* ── Completion & Mastery Screen ─────────────────────────────────── */
+        <div className="w-full max-w-xl bg-white border-4 border-black p-8 shadow-neo-xl text-center">
+          <div className="inline-block p-4 bg-neo-yellow border-3 border-black shadow-neo mb-4 text-5xl">
+            🎯
           </div>
-
-          <div className="inline-block px-3 py-1 bg-neo-yellow border-2 border-black font-mono font-black text-xs uppercase tracking-wider mb-3">
-            🏆 ARCHERY CERTIFIED
-          </div>
-
-          <h2 className="font-display font-black text-2xl sm:text-4xl uppercase tracking-tight text-black mb-2">
-            Master of the Bow!
+          <h2 className="font-display font-black text-3xl sm:text-4xl uppercase tracking-tight text-black mb-2">
+            ARCHERY MASTERED!
           </h2>
-
-          <p className="text-zinc-700 text-sm sm:text-base font-medium max-w-md mx-auto mb-6 leading-relaxed">
-            You've mastered pinch draw, release timing, and fist-cancellation. You are now 100% prepared to hit bullseyes in the Archery Challenge!
+          <p className="text-zinc-700 font-mono text-sm max-w-md mx-auto mb-6">
+            Fantastic shooting! You've mastered moving the bow, drawing string tension, tracking targets at different heights, and cancelling shots with a closed fist.
           </p>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6">
-            <div className="bg-neo-cream border-2 border-black p-2.5 text-center">
-              <span className="text-2xl block mb-1">🤏</span>
-              <span className="font-mono font-black text-[10px] uppercase block">Pinch to Draw</span>
-            </div>
-            <div className="bg-neo-cream border-2 border-black p-2.5 text-center">
-              <span className="text-2xl block mb-1">🖐️</span>
-              <span className="font-mono font-black text-[10px] uppercase block">Release to Shoot</span>
-            </div>
-            <div className="bg-neo-cream border-2 border-black p-2.5 text-center">
-              <span className="text-2xl block mb-1">✊</span>
-              <span className="font-mono font-black text-[10px] uppercase block">Fist to Cancel</span>
-            </div>
+          <div className="bg-neo-lime border-3 border-black p-4 mb-6 inline-block font-mono font-black text-base shadow-neo">
+            🏆 +50 XP EARNED & ARCHER BADGE UNLOCKED!
           </div>
 
-          {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <button
               onClick={() => navigate('/archery')}
-              className="w-full sm:w-auto px-8 py-3.5 bg-neo-lime hover:bg-lime-400 border-3 border-black font-display font-black text-sm uppercase tracking-wider shadow-neo hover:shadow-neo-lg active:translate-x-1 active:translate-y-1 transition-all flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-6 py-3 bg-neo-yellow hover:bg-yellow-300 border-3 border-black font-display font-black text-sm uppercase shadow-neo active:translate-x-0.5 active:translate-y-0.5 transition-transform"
             >
-              <span>Play Archery Now</span>
-              <span>➔</span>
+              Play Archery Challenge →
             </button>
             <button
               onClick={() => {
@@ -933,13 +883,47 @@ export default function ArcheryTutorial({
                 setCurrentStageIdx(0);
                 resetStage(0);
               }}
-              className="w-full sm:w-auto px-6 py-3.5 bg-white hover:bg-zinc-100 border-3 border-black font-display font-black text-xs uppercase tracking-wider shadow-neo active:translate-x-0.5 active:translate-y-0.5 transition-all"
+              className="w-full sm:w-auto px-6 py-3 bg-white hover:bg-zinc-100 border-3 border-black font-mono font-black text-sm uppercase shadow-neo active:translate-x-0.5 active:translate-y-0.5 transition-transform"
             >
               Replay Tutorial ↺
             </button>
           </div>
         </div>
       )}
+
+      {/* ── Corner Floating PiP Webcam Feed ───────────────────────────────── */}
+      <div
+        className={`fixed bottom-4 right-4 z-40 bg-white border-3 border-black shadow-neo-lg transition-all duration-300 ${
+          isCamMinimized ? 'w-16 h-16' : 'w-48 sm:w-56'
+        }`}
+      >
+        <div className="bg-black text-white px-2 py-1 flex items-center justify-between text-[10px] font-mono font-bold">
+          <span className="truncate">
+            {isCamMinimized ? 'CAM' : `HAND: ${liveGesture || 'NONE'}`}
+          </span>
+          <button
+            onClick={() => setIsCamMinimized(!isCamMinimized)}
+            className="text-zinc-300 hover:text-white px-1"
+          >
+            {isCamMinimized ? '▢' : '—'}
+          </button>
+        </div>
+
+        {!isCamMinimized && (
+          <div className="relative aspect-[4/3] bg-zinc-900 overflow-hidden">
+            <video
+              ref={videoRef}
+              className="w-full h-full object-cover scale-x-[-1]"
+              playsInline
+              muted
+            />
+            <canvas
+              ref={overlayCanvasRef}
+              className="absolute inset-0 w-full h-full pointer-events-none scale-x-[-1]"
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

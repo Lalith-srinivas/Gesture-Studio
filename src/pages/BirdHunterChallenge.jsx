@@ -435,11 +435,12 @@ export default function BirdHunterChallenge() {
         startX = w + 60;
         startY = 80 + Math.random() * (h * 0.45);
       } else if (dirChoice === 2) {
-        // Top to Bottom
+        // Top to Bottom: slow and gentle glide
         moveAxis = 'vertical';
         dir = 1;
         startX = Math.random() * (w * 0.65) + w * 0.25;
         startY = -60;
+        baseSpeed = 75 + Math.random() * 30;
       } else {
         // Bottom to Top
         moveAxis = 'vertical';
@@ -1120,6 +1121,22 @@ export default function BirdHunterChallenge() {
       ctx.moveTo(slingshot.x, slingshot.y - 15);
       ctx.lineTo(endX, endY);
       ctx.stroke();
+
+      // Clear Arrowhead at end of aim guide
+      ctx.save();
+      ctx.translate(endX, endY);
+      ctx.rotate(drawAimAngle);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-18, -9);
+      ctx.lineTo(-18, 9);
+      ctx.closePath();
+      ctx.fillStyle = slingshot.isPulling ? '#EF4444' : '#DC2626';
+      ctx.fill();
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
 
       // Aim Reticle Crosshair when Pulling
       if (slingshot.isPulling) {

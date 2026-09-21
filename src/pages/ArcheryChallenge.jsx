@@ -359,6 +359,14 @@ export default function ArcheryChallenge() {
         );
         handPosRef.current = pos;
 
+        // Move the bow vertically to match player's hand height
+        const targetBowY = Math.max(c.height * 0.18, Math.min(c.height * 0.82, pos.y));
+        if (!s.bow.isAiming) {
+          s.bow.y += (targetBowY - s.bow.y) * 0.25;
+        } else {
+          s.bow.y += (targetBowY - s.bow.y) * 0.08;
+        }
+
         // 🤏 PINCH: Grab bowstring & aim
         if (gesture === GESTURES.PINCH) {
           if (currentGameState === 'PLAYING') {
