@@ -5,6 +5,7 @@ import { useHandTracking } from '../hooks/useHandTracking';
 import { GESTURES } from '../utils/gestureDetector';
 import { useGestureAcademy } from '../hooks/useGestureAcademy';
 import { usePlayer } from '../hooks/usePlayer';
+import CrazyRoadTutorial from '../components/academy/CrazyRoadTutorial';
 
 // ── Web Audio Sound Synthesis ─────────────────────────────────────────────
 class SoundPlayer {
@@ -382,6 +383,7 @@ export default function GestureAcademy() {
     videoRef,
     overlayCanvasRef,
     onGesture: handleGestureDetected,
+    enabled: targetGameKey !== 'hill-climb',
   });
 
   // Cleanup timers on unmount
@@ -487,9 +489,67 @@ export default function GestureAcademy() {
         </div>
       </header>
 
+      {/* ── Mode & Game Selector Sub-bar ───────────────────────────────────── */}
+      <div className="w-full bg-[#FFFDF5] border-b-2 border-black px-4 py-2 flex items-center gap-2 overflow-x-auto shadow-xs z-20">
+        <span className="font-mono font-black text-[11px] uppercase text-zinc-600 shrink-0">
+          Mode:
+        </span>
+        <button
+          onClick={() => {
+            sounds.playClick();
+            navigate('/gesture-academy');
+          }}
+          className={`px-3 py-1 text-xs font-mono font-black uppercase border-2 border-black transition-all shrink-0 ${
+            !targetGameKey
+              ? 'bg-neo-yellow text-black shadow-neo-sm'
+              : 'bg-white text-zinc-700 hover:bg-zinc-100'
+          }`}
+        >
+          🎓 Universal Gestures
+        </button>
+
+        <button
+          onClick={() => {
+            sounds.playClick();
+            navigate('/gesture-academy?game=hill-climb');
+          }}
+          className={`px-3 py-1 text-xs font-mono font-black uppercase border-2 border-black transition-all shrink-0 flex items-center gap-1.5 ${
+            targetGameKey === 'hill-climb'
+              ? 'bg-neo-lime text-black shadow-neo-sm'
+              : 'bg-white text-zinc-700 hover:bg-zinc-100'
+          }`}
+        >
+          <span>🏎️ Crazy Road Mini-Tutorial</span>
+          <span className="bg-neo-pink text-white text-[9px] px-1 py-0.2 border border-black font-black">
+            PLAYABLE
+          </span>
+        </button>
+
+        {Object.entries(GAME_MAP)
+          .filter(([key]) => key !== 'hill-climb')
+          .map(([key, game]) => (
+            <button
+              key={key}
+              onClick={() => {
+                sounds.playClick();
+                navigate(`/gesture-academy?game=${key}`);
+              }}
+              className={`px-2.5 py-1 text-xs font-mono font-bold uppercase border-2 border-black transition-all shrink-0 ${
+                targetGameKey === key
+                  ? 'bg-neo-cyan text-black shadow-neo-sm'
+                  : 'bg-white text-zinc-700 hover:bg-zinc-100'
+              }`}
+            >
+              {game.emoji} {game.name}
+            </button>
+          ))}
+      </div>
+
       {/* ── Main Content Area ──────────────────────────────────────────────── */}
       <main className="flex-1 max-w-6xl mx-auto w-full p-4 sm:p-6 md:p-8 flex flex-col justify-center">
-        {!isCompleted ? (
+        {targetGameKey === 'hill-climb' ? (
+          <CrazyRoadTutorial />
+        ) : !isCompleted ? (
           <div className="flex flex-col gap-6">
             {/* ── Progress Bar & Lesson Counter ────────────────────────────── */}
             <div className="w-full bg-white border-3 border-black p-4 shadow-neo-md">
