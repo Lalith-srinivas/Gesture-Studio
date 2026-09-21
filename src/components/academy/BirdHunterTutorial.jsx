@@ -106,8 +106,8 @@ const BIRD_STAGES = [
     stepIndex: 1,
     title: 'Slingshot Aim & Launch (First Shot)',
     instruction: 'Pinch 🤏 to pull slingshot, then Release 🖐️ to fire!',
-    explanation: 'Follow the yellow Rock Direction line pointing at the perched wooden bird, then release!',
-    hint: 'Yellow line shows rock direction · Pinch 🤏 -> Open 🖐️ to launch rock.',
+    explanation: 'Follow the Red Dashed Aim Line and Reticle pointing at the perched wooden bird, then release!',
+    hint: 'Red dashed aim line points to bird · Pinch 🤏 -> Open 🖐️ to fire.',
     birdType: 'PRACTICE',
     birdY: 240,
     speed: 0,
@@ -117,8 +117,8 @@ const BIRD_STAGES = [
     stepIndex: 2,
     title: 'Moving Target (Gliding Top to Bottom)',
     instruction: 'Bird is gliding slowly top to bottom! Time your release 🖐️!',
-    explanation: 'The rock direction arrow tracks the bird as it glides. Release to strike!',
-    hint: 'Watch the rock direction arrow track the bird -> release to hit.',
+    explanation: 'The red dashed aim line tracks the gliding bird. Release when ready to strike!',
+    hint: 'Follow the red aim line and reticle as it tracks the bird -> release to hit.',
     birdType: 'NORMAL',
     birdY: 140,
     minY: 130,
@@ -128,10 +128,10 @@ const BIRD_STAGES = [
   },
   {
     stepIndex: 3,
-    title: 'Golden Bird (Precision Intercept)',
-    instruction: 'Golden Bird incoming! Time your release 🖐️ to intercept!',
-    explanation: 'Golden Birds award bonus points! The rock direction arc automatically leads the moving target.',
-    hint: 'Pinch to pull tension -> release when the rock direction arrow aligns with the golden bird!',
+    title: 'Golden Bird (Speed & Precision)',
+    instruction: 'Golden Bird incoming! Time your release 🖐️ to strike!',
+    explanation: 'Golden Birds award bonus points! The red dashed aim line tracks its smooth vertical path.',
+    hint: 'Pinch to draw tension -> release when the red aim reticle is on the golden bird!',
     birdType: 'GOLDEN',
     birdY: 140,
     minY: 130,
@@ -186,6 +186,7 @@ export default function BirdHunterTutorial({
       isPulling: false,
       pullX: SLING_X,
       pullY: SLING_Y,
+      aimAngle: -0.22,
     },
     projectiles: [],
     bird: {
@@ -202,21 +203,18 @@ export default function BirdHunterTutorial({
     passedStage: false,
   });
 
-  // Launch stone projectile straight along trajectory curve towards bird
+  // Launch stone projectile straight along the red aim line towards bird
   const fireProjectile = useCallback(() => {
     const sim = simRef.current;
     if (!sim.slingshot.isPulling) return;
 
     audio.playLaunch();
     const startX = SLING_X;
-    const startY = SLING_Y - 20;
+    const startY = SLING_Y - 15;
+    const targetX = sim.bird.x;
+    const targetY = sim.bird.y;
     const flightFrames = 18;
     const gravity = 0.22;
-
-    // In Stage 3 or moving stages, lead the target slightly so the rock intersects the bird
-    const leadFrames = sim.bird.speed > 0 ? flightFrames * 0.75 : 0;
-    const targetX = sim.bird.x;
-    const targetY = sim.bird.y + sim.bird.speed * sim.bird.dir * leadFrames;
 
     const vx = (targetX - startX) / flightFrames;
     const vy = (targetY - startY - 0.5 * gravity * flightFrames * flightFrames) / flightFrames;
@@ -253,7 +251,7 @@ export default function BirdHunterTutorial({
     if (!s) return;
 
     const sim = simRef.current;
-    sim.slingshot = { tension: 0, isPulling: false, pullX: SLING_X, pullY: SLING_Y };
+    sim.slingshot = { tension: 0, isPulling: false, pullX: SLING_X, pullY: SLING_Y, aimAngle: -0.22 };
     sim.projectiles = [];
     sim.bird = {
       x: 320,
@@ -409,7 +407,7 @@ export default function BirdHunterTutorial({
       const sim = simRef.current;
       const s = BIRD_STAGES[currentStageIdx];
 
-      // Update Bird movement: SLOW, smooth top-to-bottom oscillation within range
+      // Update Bird movement: SLOW top-to-bottom oscillation within range
       if (s.speed > 0 && !sim.bird.hit) {
         const minY = s.minY || 130;
         const maxY = s.maxY || 330;
@@ -425,7 +423,10 @@ export default function BirdHunterTutorial({
         sim.bird.x = 320 + Math.sin(Date.now() / 420) * 10;
       }
 
-      // Update Projectiles (Stone / Rock physics with moving direction trail)
+      // Calculate Aim Angle directly from slingshot prongs to bird
+      sim.slingshot.aimAngle = Math.atan2(sim.bird.y - (SLING_Y - 15), sim.bird.x - SLING_X);
+
+      // Update Projectiles (Stone / Rock physics with motion direction trails)
       for (let i = sim.projectiles.length - 1; i >= 0; i--) {
         const p = sim.projectiles[i];
         if (!p.stuck) {
@@ -436,9 +437,9 @@ export default function BirdHunterTutorial({
           p.y += p.vy;
           p.vy += p.gravity;
 
-          // Check hit on Bird (with generous forgiving radius for Stage 3 Golden Bird)
+          // Check hit on Bird (with generous hit radius for Stage 3 Golden Bird)
           const dist = Math.hypot(p.x - sim.bird.x, p.y - sim.bird.y);
-          const hitThreshold = (s.birdType === 'GOLDEN' ? 36 : sim.bird.radius) + p.radius + 12;
+          const hitThreshold = (s.birdType === 'GOLDEN' ? 38 : sim.bird.radius) + p.radius + 15;
 
           if (dist < hitThreshold && !sim.bird.hit) {
             p.stuck = true;
@@ -477,7 +478,7 @@ export default function BirdHunterTutorial({
           if (p.x > CANVAS_W + 50 || p.y > CANVAS_H - 40) {
             sim.projectiles.splice(i, 1);
             if (!sim.bird.hit) {
-              setFeedback({ type: 'bump', text: '💥 MISSED BIRD! FOLLOW ROCK DIRECTION & LAUNCH AGAIN!' });
+              setFeedback({ type: 'bump', text: '💥 MISSED BIRD! FOLLOW RED AIM LINE & LAUNCH AGAIN!' });
               setTimeout(() => setFeedback(null), 1800);
             }
           }
@@ -539,69 +540,59 @@ export default function BirdHunterTutorial({
       ctx.arc(370, 110, 20, 0, Math.PI * 2);
       ctx.fill();
 
-      // ─── PROMINENT ROCK MOVING DIRECTION PATH & ARROW ─────────────────────
-      // Shows exact forward launch path from slingshot to target
+      // ─── EXACT STRAIGHT RED DASHED AIM GUIDE LINE & RETICLE (AS IN ACTUAL GAME) ───
       if (!s.isCancelStep && !sim.bird.hit) {
         ctx.save();
-        const startX = SLING_X + 15;
-        const startY = SLING_Y - 25;
-        const targetX = sim.bird.x - 10;
-        const targetY = sim.bird.y;
-        const midX = (startX + targetX) / 2 - 20;
-        const midY = Math.min(startY, targetY) - 75; // dynamic parabolic trajectory
+        const drawAimAngle = sim.slingshot.aimAngle !== undefined ? sim.slingshot.aimAngle : -0.22;
+        const guideLength = CANVAS_W * 1.1;
+        const endX = SLING_X + Math.cos(drawAimAngle) * guideLength;
+        const endY = SLING_Y - 15 + Math.sin(drawAimAngle) * guideLength;
 
-        // 1. Broad backdrop shadow path
+        // 1. Straight Red Dashed Line extending across screen
+        ctx.strokeStyle = sim.slingshot.isPulling ? '#DC2626' : 'rgba(220, 38, 38, 0.7)';
+        ctx.lineWidth = sim.slingshot.isPulling ? 3.5 : 2.2;
+        ctx.setLineDash([12, 8]);
         ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        ctx.quadraticCurveTo(midX, midY, targetX, targetY);
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
-        ctx.lineWidth = 14;
+        ctx.moveTo(SLING_X, SLING_Y - 15);
+        ctx.lineTo(endX, endY);
         ctx.stroke();
 
-        // 2. Glowing outer yellow trajectory beam
-        ctx.shadowColor = '#FFE600';
-        ctx.shadowBlur = 16;
-        ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        ctx.quadraticCurveTo(midX, midY, targetX, targetY);
-        ctx.strokeStyle = '#FFE600';
-        ctx.lineWidth = 10;
-        ctx.lineCap = 'round';
-        ctx.stroke();
-
-        // 3. Inner animated white flow dashes indicating rock launch direction
-        ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        ctx.quadraticCurveTo(midX, midY, targetX, targetY);
-        ctx.strokeStyle = '#FFFFFF';
-        ctx.lineWidth = 3.5;
-        ctx.setLineDash([10, 6]);
-        ctx.lineDashOffset = -Date.now() / 22;
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // 4. Sharp Directional Arrowhead pointing straight in the rock's path
-        const angleAtTarget = Math.atan2(targetY - midY, targetX - midX);
+        // 2. Clear Red Arrowhead at the end of the line
         ctx.save();
-        ctx.translate(targetX, targetY);
-        ctx.rotate(angleAtTarget);
+        ctx.translate(endX, endY);
+        ctx.rotate(drawAimAngle);
         ctx.beginPath();
         ctx.moveTo(0, 0);
-        ctx.lineTo(-24, -12);
-        ctx.lineTo(-24, 12);
+        ctx.lineTo(-18, -9);
+        ctx.lineTo(-18, 9);
         ctx.closePath();
-        ctx.fillStyle = '#FFE600';
+        ctx.fillStyle = '#DC2626';
         ctx.fill();
         ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2.5;
+        ctx.lineWidth = 1.5;
         ctx.stroke();
         ctx.restore();
 
-        // 5. Rock Direction Label Banner
-        ctx.fillStyle = '#000000';
-        ctx.font = '900 10px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('ROCK MOVING DIRECTION', midX + 15, midY - 12);
+        // 3. Aim Reticle Crosshair (⊕) directly on the Aim Line at the Target's Distance
+        const rx = sim.bird.x;
+        const ry = sim.bird.y;
+
+        ctx.setLineDash([]);
+        ctx.strokeStyle = '#DC2626';
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.25)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(rx, ry, 15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Crosshair (+)
+        ctx.beginPath();
+        ctx.moveTo(rx - 20, ry);
+        ctx.lineTo(rx + 20, ry);
+        ctx.moveTo(rx, ry - 20);
+        ctx.lineTo(rx, ry + 20);
+        ctx.stroke();
 
         ctx.restore();
       }
@@ -747,7 +738,7 @@ export default function BirdHunterTutorial({
         // Rock motion trail
         if (p.trail && p.trail.length > 1) {
           ctx.save();
-          ctx.strokeStyle = 'rgba(255, 230, 0, 0.6)';
+          ctx.strokeStyle = 'rgba(255, 230, 0, 0.7)';
           ctx.lineWidth = 4;
           ctx.beginPath();
           ctx.moveTo(p.trail[0].x, p.trail[0].y);
@@ -939,7 +930,7 @@ export default function BirdHunterTutorial({
                     ? '✊ FIST DETECTED: CANCELLED'
                     : stage.isCancelStep
                     ? '✊ MAKE CLOSED FIST TO CANCEL'
-                    : 'FOLLOW ROCK DIRECTION · 🤏 PINCH & 🖐️ RELEASE'}
+                    : 'AIM WITH RED LINE · 🤏 PINCH & 🖐️ RELEASE'}
                 </div>
               </div>
 
@@ -981,7 +972,7 @@ export default function BirdHunterTutorial({
             SLINGSHOT MASTER!
           </h2>
           <p className="text-zinc-700 font-mono text-sm max-w-md mx-auto mb-6">
-            Outstanding hunting! You've mastered following the rock direction line, hitting gliding targets, intercepting golden birds, and cancelling shots with a closed fist.
+            Outstanding hunting! You've mastered following the red dashed aim line, hitting gliding targets, intercepting golden birds, and cancelling shots with a closed fist.
           </p>
 
           <div className="bg-neo-lime border-3 border-black p-4 mb-6 inline-block font-mono font-black text-base shadow-neo">

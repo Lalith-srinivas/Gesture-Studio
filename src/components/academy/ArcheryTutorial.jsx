@@ -97,7 +97,8 @@ const audio = new ArcheryAudio();
 
 const CANVAS_W = 440;
 const CANVAS_H = 560;
-const BOW_X = 90;
+// Bow is anchored at fixed coordinate; NEVER moves or translates
+const BOW_X = 80;
 const BOW_Y = 280;
 
 // ── Archery Tutorial Stages ────────────────────────────────────────────────
@@ -106,8 +107,8 @@ const ARCHERY_STAGES = [
     stepIndex: 1,
     title: 'Draw & Release (First Shot)',
     instruction: 'Pinch 🤏 to Draw, then Release 🖐️ to Shoot!',
-    explanation: 'The bow stays anchored. Move your hand to aim the arrow path line, then pinch & release to fire!',
-    hint: 'Move hand to aim arrow path · Pinch 🤏 -> Open 🖐️ to shoot.',
+    explanation: 'The bow stays fixed. Move hand to rotate the arrow path line, pinch to draw tension, and release!',
+    hint: 'Aim arrow path line at target · Pinch 🤏 -> Open 🖐️ to fire.',
     targetY: 280,
     moving: false,
     color: 'bg-neo-yellow',
@@ -116,9 +117,9 @@ const ARCHERY_STAGES = [
     stepIndex: 2,
     title: 'High Target (Aim Arrow Path Up)',
     instruction: 'Aim the arrow path line UP, pinch & release 🖐️!',
-    explanation: 'Move your hand up to aim the arrow line at the high target, then release!',
-    hint: 'Move hand up to angle the arrow path towards target -> Release to strike!',
-    targetY: 180,
+    explanation: 'Move your hand up to angle the arrow path towards the high target, then release!',
+    hint: 'Angle arrow path upwards -> Pinch & release to strike!',
+    targetY: 200,
     moving: false,
     color: 'bg-neo-cyan',
   },
@@ -126,8 +127,8 @@ const ARCHERY_STAGES = [
     stepIndex: 3,
     title: 'Moving Target (Track with Arrow Line)',
     instruction: 'Target is gliding vertically! Track it with your arrow line 🖐️!',
-    explanation: 'Move your arrow line to track the bullseye and release cleanly.',
-    hint: 'Follow the target with the arrow path line -> release to hit.',
+    explanation: 'The target glides smoothly up and down. Track it with your arrow line and release cleanly.',
+    hint: 'Follow the target with your arrow line -> release to hit.',
     targetY: 280,
     moving: true,
     color: 'bg-orange-300',
@@ -171,7 +172,7 @@ export default function ArcheryTutorial({
   const { completeGame } = useGestureAcademy('archery');
   const { recordGameResult } = usePlayer();
 
-  // Simulation state refs: bow position is FIXED at (BOW_X, BOW_Y)
+  // Simulation state: Bow is strictly stationary at BOW_X, BOW_Y
   const simRef = useRef({
     bow: {
       x: BOW_X,
@@ -179,29 +180,32 @@ export default function ArcheryTutorial({
       tension: 0,
       isAiming: false,
       aimAngle: 0,
+      lockedAngle: 0,
     },
     arrows: [],
     target: {
       x: 350,
       y: 280,
       baseY: 280,
-      speed: 1.2,
-      radius: 42,
+      speed: 1.1,
+      radius: 44,
       dir: 1,
     },
     particles: [],
     passedStage: false,
   });
 
-  // Shoot arrow immediately along the current aim line
+  // Shoot arrow immediately without moving or shifting the bow
   const fireArrow = useCallback(() => {
     const sim = simRef.current;
     if (!sim.bow.isAiming) return;
 
     audio.playRelease();
-    const tension = Math.max(0.4, sim.bow.tension);
+    const tension = Math.max(0.45, sim.bow.tension);
     const power = tension * 18 + 8;
-    const angle = sim.bow.aimAngle;
+    // Use locked angle from when string was drawn so release gesture doesn't twitch the shot
+    const angle = sim.bow.lockedAngle !== undefined ? sim.bow.lockedAngle : sim.bow.aimAngle;
+
     sim.arrows.push({
       x: BOW_X,
       y: BOW_Y,
@@ -237,13 +241,14 @@ export default function ArcheryTutorial({
     const dy = s.targetY - BOW_Y;
     const dx = 350 - BOW_X;
     sim.bow.aimAngle = Math.atan2(dy, dx);
+    sim.bow.lockedAngle = sim.bow.aimAngle;
     sim.arrows = [];
     sim.target = {
       x: 350,
       y: s.targetY,
       baseY: s.targetY,
-      speed: s.moving ? 1.2 : 0,
-      radius: 42,
+      speed: s.moving ? 1.1 : 0,
+      radius: 44,
       dir: 1,
     };
     sim.particles = [];
@@ -265,7 +270,7 @@ export default function ArcheryTutorial({
     }
   }, [currentStageIdx, resetStage, handleCompleteTutorial]);
 
-  // Hand tracking callback: direct, synchronous gesture & aim angle update
+  // Direct, synchronous hand tracking: bow NEVER translates; aim angle updates smoothly
   useHandTracking({
     videoRef,
     overlayCanvasRef,
@@ -293,12 +298,21 @@ export default function ArcheryTutorial({
           true
         );
 
-        // Vector from stationary bow to hand position -> rotates the arrow path line!
+        // Calculate aim angle from stationary bow to hand
         const dx = pos.x - BOW_X;
         const dy = pos.y - BOW_Y;
         const rawAngle = Math.atan2(dy, dx);
-        // Clamp to a natural forward firing arc
-        sim.bow.aimAngle = Math.max(-Math.PI * 0.45, Math.min(Math.PI * 0.45, rawAngle));
+        // Clamp to a safe, natural forward angle so arrow line NEVER goes off-page
+        const clampedAngle = Math.max(-0.42, Math.min(0.42, rawAngle));
+
+        // When actively aiming with pinch, lock the aim angle to prevent twitch on release
+        if (gesture === GESTURES.PINCH) {
+          sim.bow.aimAngle = clampedAngle;
+          sim.bow.lockedAngle = clampedAngle;
+        } else if (!sim.bow.isAiming) {
+          sim.bow.aimAngle = clampedAngle;
+          sim.bow.lockedAngle = clampedAngle;
+        }
       }
 
       // 🤏 PINCH: Draw bowstring & charge tension
@@ -307,9 +321,9 @@ export default function ArcheryTutorial({
           sim.bow.isAiming = true;
           audio.playTension();
         }
-        sim.bow.tension = Math.min(1.2, Math.max(0.4, sim.bow.tension + 0.05));
+        sim.bow.tension = Math.min(1.2, Math.max(0.45, sim.bow.tension + 0.05));
       }
-      // 🖐️ RELEASE PINCH: Fire arrow immediately!
+      // 🖐️ RELEASE PINCH: Fire arrow immediately without jerking!
       else if (lastGestureRef.current === GESTURES.PINCH && gesture !== GESTURES.PAN) {
         if (sim.bow.isAiming) {
           if (s.isCancelStep) {
@@ -349,16 +363,18 @@ export default function ArcheryTutorial({
     resetStage(0);
   }, [resetStage]);
 
-  // Keyboard controls: ArrowUp/ArrowDown to move arrow path line, Space to shoot, 'C' to cancel
+  // Keyboard controls: ArrowUp/ArrowDown to aim arrow line, Space to shoot, 'C' to cancel
   useEffect(() => {
     const sim = simRef.current;
     const onDown = (e) => {
       if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
         e.preventDefault();
-        sim.bow.aimAngle = Math.max(-Math.PI * 0.45, sim.bow.aimAngle - 0.06);
+        sim.bow.aimAngle = Math.max(-0.42, sim.bow.aimAngle - 0.05);
+        sim.bow.lockedAngle = sim.bow.aimAngle;
       } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
         e.preventDefault();
-        sim.bow.aimAngle = Math.min(Math.PI * 0.45, sim.bow.aimAngle + 0.06);
+        sim.bow.aimAngle = Math.min(0.42, sim.bow.aimAngle + 0.05);
+        sim.bow.lockedAngle = sim.bow.aimAngle;
       } else if (e.key === ' ' || e.key === 'ArrowRight') {
         e.preventDefault();
         sim.bow.isAiming = true;
@@ -396,11 +412,11 @@ export default function ArcheryTutorial({
       const sim = simRef.current;
       const s = ARCHERY_STAGES[currentStageIdx];
 
-      // Update Target Position
+      // Update Moving Target: Smooth vertical range [220, 340], never goes off-page
       if (s.moving) {
         sim.target.y += sim.target.speed * sim.target.dir;
-        if (sim.target.y < s.baseY - 75) sim.target.dir = 1;
-        if (sim.target.y > s.baseY + 75) sim.target.dir = -1;
+        if (sim.target.y < 220) sim.target.dir = 1;
+        if (sim.target.y > 340) sim.target.dir = -1;
       }
 
       // Update Arrows
@@ -418,7 +434,7 @@ export default function ArcheryTutorial({
             const isBullseye = dist < 16;
             audio.playHit(isBullseye);
 
-            // Add hit spark particles
+            // Hit spark particles
             for (let k = 0; k < 16; k++) {
               const ang = Math.random() * Math.PI * 2;
               sim.particles.push({
@@ -456,7 +472,7 @@ export default function ArcheryTutorial({
       }
 
       // ── RENDER SCENE ───────────────────────────────────────────────────────
-      // Background gradient (Dojo / Range)
+      // Background gradient
       const bgGrad = ctx.createLinearGradient(0, 0, 0, CANVAS_H);
       bgGrad.addColorStop(0, '#1e293b');
       bgGrad.addColorStop(1, '#0f172a');
@@ -476,13 +492,14 @@ export default function ArcheryTutorial({
       ctx.stroke();
 
       // ─── DYNAMIC ARROW PATH LINE (AS PRESENT IN THE ACTUAL GAME) ───────────
-      // The bow stays anchored, while the arrow path line rotates and tracks hand aim!
+      // The bow stays anchored, while the arrow path line rotates and tracks aim!
+      const currentAngle = sim.bow.aimAngle;
       const aimLen = 220 + (sim.bow.tension || 0) * 80;
-      const endX = BOW_X + Math.cos(sim.bow.aimAngle) * aimLen;
-      const endY = BOW_Y + Math.sin(sim.bow.aimAngle) * aimLen;
+      const endX = BOW_X + Math.cos(currentAngle) * aimLen;
+      const endY = BOW_Y + Math.sin(currentAngle) * aimLen;
 
       ctx.save();
-      // 1. Broad backdrop glow line
+      // 1. Broad backdrop shadow path
       ctx.beginPath();
       ctx.moveTo(BOW_X, BOW_Y);
       ctx.lineTo(endX, endY);
@@ -506,7 +523,7 @@ export default function ArcheryTutorial({
       // 3. Arrowhead at the end of the arrow path line
       ctx.save();
       ctx.translate(endX, endY);
-      ctx.rotate(sim.bow.aimAngle);
+      ctx.rotate(currentAngle);
       ctx.beginPath();
       ctx.moveTo(0, 0);
       ctx.lineTo(-20, -9);
@@ -522,11 +539,11 @@ export default function ArcheryTutorial({
       // 4. Parabolic trajectory guide dots (when pulling tension)
       if (sim.bow.isAiming && sim.bow.tension > 0.2) {
         ctx.fillStyle = 'rgba(255, 230, 0, 0.85)';
-        const pwr = (Math.max(0.4, sim.bow.tension) * 18 + 8) * 0.9;
+        const pwr = (Math.max(0.45, sim.bow.tension) * 18 + 8) * 0.9;
         let px = BOW_X;
         let py = BOW_Y;
-        let pvx = Math.cos(sim.bow.aimAngle) * pwr;
-        let pvy = Math.sin(sim.bow.aimAngle) * pwr;
+        let pvx = Math.cos(currentAngle) * pwr;
+        let pvy = Math.sin(currentAngle) * pwr;
         for (let step = 0; step < 18; step++) {
           px += pvx * 1.2;
           py += pvy * 1.2;
@@ -565,15 +582,15 @@ export default function ArcheryTutorial({
       });
       ctx.restore();
 
-      // ── Render Stationary Bow (Anchored at BOW_X, BOW_Y, Rotating along Aim Angle) ──
+      // ── Render Stationary Bow (Anchored at BOW_X, BOW_Y; wood limb NEVER shifts) ──
       const bowPullBack = (sim.bow.tension || 0) * 28;
       ctx.save();
       ctx.translate(BOW_X, BOW_Y);
-      ctx.rotate(sim.bow.aimAngle);
+      ctx.rotate(currentAngle);
 
-      // Bow Limb (Curved Wood)
+      // Bow Limb (Curved Wood: fixed perfectly at origin 0, 0)
       ctx.beginPath();
-      ctx.arc(-bowPullBack * 0.2, 0, 56, -Math.PI * 0.38, Math.PI * 0.38);
+      ctx.arc(0, 0, 56, -Math.PI * 0.38, Math.PI * 0.38);
       ctx.strokeStyle = '#92400e';
       ctx.lineWidth = 7;
       ctx.lineCap = 'round';
@@ -583,9 +600,9 @@ export default function ArcheryTutorial({
       ctx.stroke();
 
       // Bowstring
-      const topTipX = -bowPullBack * 0.2 + Math.cos(-Math.PI * 0.38) * 56;
+      const topTipX = Math.cos(-Math.PI * 0.38) * 56;
       const topTipY = Math.sin(-Math.PI * 0.38) * 56;
-      const botTipX = -bowPullBack * 0.2 + Math.cos(Math.PI * 0.38) * 56;
+      const botTipX = Math.cos(Math.PI * 0.38) * 56;
       const botTipY = Math.sin(Math.PI * 0.38) * 56;
 
       ctx.beginPath();
