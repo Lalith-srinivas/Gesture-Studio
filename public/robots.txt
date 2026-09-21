@@ -1,5 +1,5 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://gesturestudio.in/sitemap.xml
+Sitemap: https://www.gesturestudio.in/sitemap.xml
 
