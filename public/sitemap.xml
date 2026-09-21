@@ -6,7 +6,7 @@
 
   <!-- Home Page -->
   <url>
-    <loc>https://gesturestudio.in/</loc>
+    <loc>https://www.gesturestudio.in/</loc>
     <lastmod>2026-09-17</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
@@ -14,7 +14,7 @@
 
   <!-- Gesture Academy -->
   <url>
-    <loc>https://gesturestudio.in/gesture-academy</loc>
+    <loc>https://www.gesturestudio.in/gesture-academy</loc>
     <lastmod>2026-09-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
@@ -22,42 +22,42 @@
 
   <!-- Games -->
   <url>
-    <loc>https://gesturestudio.in/fruit-ninja</loc>
+    <loc>https://www.gesturestudio.in/fruit-ninja</loc>
     <lastmod>2026-09-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
 
   <url>
-    <loc>https://gesturestudio.in/hill-climb</loc>
+    <loc>https://www.gesturestudio.in/hill-climb</loc>
     <lastmod>2026-09-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
 
   <url>
-    <loc>https://gesturestudio.in/flappy-bird</loc>
+    <loc>https://www.gesturestudio.in/flappy-bird</loc>
     <lastmod>2026-09-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
 
   <url>
-    <loc>https://gesturestudio.in/archery</loc>
+    <loc>https://www.gesturestudio.in/archery</loc>
     <lastmod>2026-09-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
 
   <url>
-    <loc>https://gesturestudio.in/bird-hunter</loc>
+    <loc>https://www.gesturestudio.in/bird-hunter</loc>
     <lastmod>2026-09-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
 
   <url>
-    <loc>https://gesturestudio.in/space-shooter</loc>
+    <loc>https://www.gesturestudio.in/space-shooter</loc>
     <lastmod>2026-09-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
@@ -65,21 +65,21 @@
 
   <!-- Community & Progression -->
   <url>
-    <loc>https://gesturestudio.in/leaderboard</loc>
+    <loc>https://www.gesturestudio.in/leaderboard</loc>
     <lastmod>2026-09-17</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
-    <loc>https://gesturestudio.in/achievements</loc>
+    <loc>https://www.gesturestudio.in/achievements</loc>
     <lastmod>2026-09-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
-    <loc>https://gesturestudio.in/profile</loc>
+    <loc>https://www.gesturestudio.in/profile</loc>
     <lastmod>2026-09-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
@@ -87,14 +87,14 @@
 
   <!-- Legal -->
   <url>
-    <loc>https://gesturestudio.in/privacy-policy</loc>
+    <loc>https://www.gesturestudio.in/privacy-policy</loc>
     <lastmod>2026-09-18</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
 
   <url>
-    <loc>https://gesturestudio.in/terms</loc>
+    <loc>https://www.gesturestudio.in/terms</loc>
     <lastmod>2026-09-18</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
