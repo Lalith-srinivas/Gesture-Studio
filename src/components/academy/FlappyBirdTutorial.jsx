@@ -97,11 +97,11 @@ const audio = new FlappyAudio();
 // ── Physics & Dimensions ───────────────────────────────────────────────────
 const CANVAS_W = 420;
 const CANVAS_H = 560;
-const GRAVITY = 0.28;
-const FLAP_FORCE = -6.8;
-const PIPE_SPEED = 2.4;
+const GRAVITY = 0.15; // Gentle floaty gravity!
+const FLAP_FORCE = -5.0; // Smooth controllable lift!
+const PIPE_SPEED = 1.8; // Relaxed speed
 const BIRD_X = 100;
-const BIRD_RADIUS = 16;
+const BIRD_RADIUS = 15;
 const GROUND_H = 65;
 
 // ── Tutorial Stages ────────────────────────────────────────────────────────
@@ -109,8 +109,8 @@ const FLAPPY_STAGES = [
   {
     stepIndex: 1,
     title: 'Flap & Hover (Stay Airborne)',
-    instruction: 'Pinch your thumb & index finger 🤏 to Flap!',
-    explanation: 'Tap your fingers together rhythmically to keep the bird flying.',
+    instruction: 'Open Hand 🖐️ then Pinch 🤏 to Flap!',
+    explanation: 'Tap your thumb & index finger together rhythmically to fly.',
     hint: 'Pinch 3 times to maintain altitude without touching the ground.',
     targetFlaps: 3,
     hasPipes: false,
@@ -119,22 +119,22 @@ const FLAPPY_STAGES = [
   {
     stepIndex: 2,
     title: 'High Clearance (Flap Upward)',
-    instruction: 'Flap upward 🤏 to clear the tall pipe!',
-    explanation: 'Pinch repeatedly to climb high into the upper gap.',
-    hint: 'Quick pinches give rapid altitude lift!',
-    pipeGapY: 130, // High opening
-    pipeGapH: 190,
+    instruction: 'Pinch repeatedly 🤏 to climb high!',
+    explanation: 'Quick pinches give smooth altitude lift to clear the pipe.',
+    hint: 'Flap upward into the safe flight zone.',
+    pipeGapY: 120, // High opening
+    pipeGapH: 210, // Extra wide gap
     hasPipes: true,
     color: 'bg-neo-cyan',
   },
   {
     stepIndex: 3,
     title: 'Center Glide (Timing & Control)',
-    instruction: 'Time your pinch 🤏 to glide through the center gap!',
-    explanation: 'Let gravity lower you, then pinch at the right second.',
+    instruction: 'Pinch 🤏 to glide through the center gap!',
+    explanation: 'Let gravity gently lower you, then pinch at the right second.',
     hint: 'One gentle pinch right before entering the opening.',
-    pipeGapY: 210, // Center opening
-    pipeGapH: 180,
+    pipeGapY: 190, // Center opening
+    pipeGapH: 200, // Extra wide gap
     hasPipes: true,
     color: 'bg-orange-300',
   },
@@ -331,9 +331,9 @@ export default function FlappyBirdTutorial({
       // Update Bird Physics
       if (!isResetting && !isCompleted) {
         sim.birdVy += GRAVITY;
-        sim.birdVy = Math.min(sim.birdVy, 8.5); // cap fall velocity
+        sim.birdVy = Math.min(sim.birdVy, 4.2); // Gentle fall speed cap! No more fast diving!
         sim.birdY += sim.birdVy;
-        sim.birdAngle = Math.max(-25, Math.min(75, (sim.birdVy / 6) * 40));
+        sim.birdAngle = Math.max(-25, Math.min(65, (sim.birdVy / 5) * 35));
 
         // Ground collision
         const groundY = CANVAS_H - GROUND_H;
@@ -352,14 +352,14 @@ export default function FlappyBirdTutorial({
           p.x -= PIPE_SPEED;
           const pw = 60;
 
-          // Check Pipe collision
+          // Check Pipe collision (forgiving hitbox for smooth learning)
           if (
-            BIRD_X + BIRD_RADIUS * 0.7 > p.x &&
-            BIRD_X - BIRD_RADIUS * 0.7 < p.x + pw
+            BIRD_X + BIRD_RADIUS * 0.55 > p.x &&
+            BIRD_X - BIRD_RADIUS * 0.55 < p.x + pw
           ) {
             if (
-              sim.birdY - BIRD_RADIUS * 0.75 < p.gapY ||
-              sim.birdY + BIRD_RADIUS * 0.75 > p.gapY + p.gapH
+              sim.birdY - BIRD_RADIUS * 0.6 < p.gapY ||
+              sim.birdY + BIRD_RADIUS * 0.6 > p.gapY + p.gapH
             ) {
               triggerBump('pipe');
               break;
@@ -605,22 +605,39 @@ export default function FlappyBirdTutorial({
               className="w-full h-full block select-none"
             />
 
-            {/* ── In-Game Animated Flapping Hand & Subway Surfers Upward Arrow ── */}
+            {/* ── In-Game Animated 🖐️ -> 🤏 Hand & Subway Surfers Upward Arrow ── */}
             <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden">
               <style>{`
-                @keyframes flapPinch {
-                  0%, 100% { transform: translate(-50%, -50%) scale(1) translateY(0px); }
-                  35% { transform: translate(-50%, -50%) scale(0.92) translateY(4px); }
-                  50% { transform: translate(-50%, -50%) scale(1.05) translateY(-8px); }
+                @keyframes handStateOpen {
+                  0%, 38% { opacity: 1; transform: scale(1); }
+                  48%, 90% { opacity: 0; transform: scale(0.9); }
+                  98%, 100% { opacity: 1; transform: scale(1); }
+                }
+                @keyframes handStatePinch {
+                  0%, 38% { opacity: 0; transform: scale(0.9); }
+                  48%, 90% { opacity: 1; transform: scale(1.05); }
+                  98%, 100% { opacity: 0; transform: scale(0.9); }
+                }
+                @keyframes handFlapBounce {
+                  0%, 38% { transform: translateY(0px); }
+                  50% { transform: translateY(-16px); }
+                  75% { transform: translateY(-10px); }
+                  100% { transform: translateY(0px); }
                 }
                 @keyframes upwardArrowFlow {
                   0% { stroke-dashoffset: 40; opacity: 0.5; }
                   50% { opacity: 1; }
                   100% { stroke-dashoffset: 0; opacity: 0.5; }
                 }
-                @keyframes flapRipple {
-                  0% { transform: scale(0.7); opacity: 0.9; }
-                  100% { transform: scale(1.4); opacity: 0; }
+                @keyframes pinchRipple {
+                  0% { transform: scale(0.6); opacity: 0.9; }
+                  100% { transform: scale(1.5); opacity: 0; }
+                }
+                @keyframes sparkFlare {
+                  0%, 42% { opacity: 0; transform: scale(0.3); }
+                  48% { opacity: 1; transform: scale(1.3); }
+                  70% { opacity: 0.9; transform: scale(1); }
+                  88%, 100% { opacity: 0; transform: scale(0.3); }
                 }
               `}</style>
 
@@ -638,25 +655,30 @@ export default function FlappyBirdTutorial({
                     <stop offset="0%" stopColor="#16A34A" stopOpacity="0.3" />
                     <stop offset="100%" stopColor="#4ADE80" stopOpacity="0.95" />
                   </linearGradient>
+                  <linearGradient id="flappyHandGlass" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.5" />
+                    <stop offset="60%" stopColor="#FFFFFF" stopOpacity="0.28" />
+                    <stop offset="100%" stopColor="#E2E8F0" stopOpacity="0.4" />
+                  </linearGradient>
                 </defs>
 
                 {/* Vertical Upward Boost Arrow pointing from Bird */}
                 <g filter="url(#flappyGlow)">
                   <path
-                    d="M 100 380 L 100 240"
+                    d="M 100 370 L 100 230"
                     fill="none"
                     stroke={isPinching ? 'url(#flappyGreenGrad)' : 'url(#flappyArrowGrad)'}
                     strokeWidth="16"
                     strokeLinecap="round"
                   />
                   <polygon
-                    points="100,205 75,250 125,250"
+                    points="100,195 75,240 125,240"
                     fill={isPinching ? '#4ADE80' : '#EF4444'}
                     stroke="#000000"
                     strokeWidth="2.5"
                   />
                   <path
-                    d="M 100 380 L 100 240"
+                    d="M 100 370 L 100 230"
                     fill="none"
                     stroke="#FFFFFF"
                     strokeWidth="3.5"
@@ -666,97 +688,198 @@ export default function FlappyBirdTutorial({
                 </g>
               </svg>
 
-              {/* High-Definition Animated White Semi-Transparent Flapping Hand */}
+              {/* High-Definition Animated Hand: Cycles from 🖐️ (Open) to 🤏 (Pinch) */}
               <div
                 className="absolute transition-all duration-300 flex flex-col items-center select-none"
                 style={{
-                  left: '62%',
-                  top: '46%',
-                  animation: 'flapPinch 1.3s ease-in-out infinite',
+                  left: '64%',
+                  top: '44%',
+                  transform: 'translate(-50%, -50%)',
                 }}
               >
-                {/* Flap Wave Ripple */}
+                {/* Flap Wave Ripple upon Pinch */}
                 <div
-                  className={`absolute -bottom-2 w-28 h-10 rounded-full border-2 transition-colors pointer-events-none ${
+                  className={`absolute -bottom-2 w-32 h-12 rounded-full border-2 transition-colors pointer-events-none ${
                     isPinching ? 'border-neo-lime bg-neo-lime/20' : 'border-white/60 bg-white/10'
                   }`}
-                  style={{ animation: 'flapRipple 1.3s ease-out infinite' }}
+                  style={{ animation: 'pinchRipple 1.4s ease-out infinite' }}
                 />
 
-                {/* Hand Vector Illustration (Pinching / Flapping) */}
-                <svg
-                  width="115"
-                  height="135"
-                  viewBox="0 0 100 130"
-                  className="overflow-visible"
+                {/* Animated Hand Container with Upward Hop Animation */}
+                <div
+                  className="relative flex items-center justify-center"
                   style={{
-                    filter: `drop-shadow(0 0 12px ${isPinching ? 'rgba(74, 222, 128, 0.9)' : 'rgba(255, 255, 255, 0.85)'})`,
+                    animation: isPinching ? 'none' : 'handFlapBounce 1.4s ease-in-out infinite',
+                    filter: `drop-shadow(0 0 14px ${isPinching ? 'rgba(74, 222, 128, 0.9)' : 'rgba(255, 255, 255, 0.9)'})`,
                   }}
                 >
-                  {/* Palm & Base */}
-                  <path
-                    d="M 30 76 
-                       C 30 64, 42 60, 50 64
-                       C 54 60, 64 62, 68 66
-                       C 72 64, 80 66, 80 76
-                       L 80 94
-                       C 80 112, 66 124, 48 124
-                       C 30 124, 22 112, 22 94
-                       L 22 80
-                       C 22 72, 26 70, 30 76 Z"
-                    fill={isPinching ? 'rgba(74, 222, 128, 0.45)' : 'rgba(255, 255, 255, 0.35)'}
-                    stroke={isPinching ? '#4ADE80' : '#FFFFFF'}
-                    strokeWidth="3.5"
-                    strokeLinejoin="round"
-                  />
+                  {/* ── PHASE 1: OPEN HAND 🖐️ (Fingers Spread, Ready to Flap) ── */}
+                  <div
+                    className="transition-all duration-200"
+                    style={{
+                      animation: isPinching ? 'none' : 'handStateOpen 1.4s ease-in-out infinite',
+                      display: isPinching ? 'none' : 'block',
+                    }}
+                  >
+                    <svg width="125" height="145" viewBox="0 0 110 135" className="overflow-visible">
+                      {/* Open Palm Body */}
+                      <path
+                        d="M 30 76 
+                           C 28 64, 38 60, 48 64
+                           L 66 64
+                           C 76 60, 84 64, 84 76
+                           L 84 96
+                           C 84 114, 70 126, 50 126
+                           C 32 126, 22 114, 22 96
+                           L 22 82 Z"
+                        fill="url(#flappyHandGlass)"
+                        stroke="#FFFFFF"
+                        strokeWidth="3.5"
+                        strokeLinejoin="round"
+                      />
 
-                  {/* Curled Middle, Ring, Pinky Knuckles */}
-                  <path d="M 50 64 C 50 56, 62 56, 62 64 L 62 78 C 62 84, 50 84, 50 78 Z" fill={isPinching ? 'rgba(74, 222, 128, 0.45)' : 'rgba(255, 255, 255, 0.35)'} stroke={isPinching ? '#4ADE80' : '#FFFFFF'} strokeWidth="2.5" />
-                  <path d="M 62 66 C 62 58, 72 58, 72 66 L 72 80 C 72 86, 62 86, 62 80 Z" fill={isPinching ? 'rgba(74, 222, 128, 0.45)' : 'rgba(255, 255, 255, 0.35)'} stroke={isPinching ? '#4ADE80' : '#FFFFFF'} strokeWidth="2.5" />
-                  <path d="M 72 70 C 72 62, 80 62, 80 70 L 80 84 C 80 90, 72 90, 72 84 Z" fill={isPinching ? 'rgba(74, 222, 128, 0.45)' : 'rgba(255, 255, 255, 0.35)'} stroke={isPinching ? '#4ADE80' : '#FFFFFF'} strokeWidth="2.5" />
+                      {/* Extended Thumb (Left) */}
+                      <path
+                        d="M 22 84
+                           C 14 80, 10 68, 20 62
+                           C 26 56, 36 60, 36 68"
+                        fill="url(#flappyHandGlass)"
+                        stroke="#FFFFFF"
+                        strokeWidth="3.5"
+                        strokeLinecap="round"
+                      />
 
-                  {/* Index Finger Arcing Down to Pinch */}
-                  <path
-                    d="M 32 74
-                       C 30 52, 34 32, 46 22
-                       C 54 14, 66 18, 64 30
-                       C 62 42, 54 52, 48 56"
-                    fill={isPinching ? 'rgba(74, 222, 128, 0.45)' : 'rgba(255, 255, 255, 0.35)'}
-                    stroke={isPinching ? '#4ADE80' : '#FFFFFF'}
-                    strokeWidth="3.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <line x1="40" y1="36" x2="52" y2="34" stroke={isPinching ? '#4ADE80' : '#FFFFFF'} strokeWidth="2" strokeLinecap="round" opacity="0.8" />
+                      {/* Extended Index Finger */}
+                      <path
+                        d="M 34 66
+                           L 30 18
+                           C 28 8, 44 6, 46 16
+                           L 48 64"
+                        fill="url(#flappyHandGlass)"
+                        stroke="#FFFFFF"
+                        strokeWidth="3.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <line x1="32" y1="36" x2="44" y2="36" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
 
-                  {/* Thumb Reaching Up into Pinch with Index Finger */}
-                  <path
-                    d="M 22 86
-                       C 18 80, 22 68, 34 68
-                       C 42 68, 50 62, 54 52
-                       C 56 46, 50 42, 46 48
-                       C 40 56, 30 64, 26 78 Z"
-                    fill={isPinching ? 'rgba(74, 222, 128, 0.45)' : 'rgba(255, 255, 255, 0.35)'}
-                    stroke={isPinching ? '#4ADE80' : '#FFFFFF'}
-                    strokeWidth="3.2"
-                    strokeLinejoin="round"
-                  />
+                      {/* Extended Middle Finger (Longest) */}
+                      <path
+                        d="M 48 64
+                           L 52 10
+                           C 54 2, 68 2, 70 10
+                           L 66 64"
+                        fill="url(#flappyHandGlass)"
+                        stroke="#FFFFFF"
+                        strokeWidth="3.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <line x1="52" y1="30" x2="66" y2="30" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
 
-                  {/* Contact Pinch Spark Ring */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r={isPinching ? 8 : 5}
-                    fill={isPinching ? '#4ADE80' : 'none'}
-                    stroke={isPinching ? '#FFFFFF' : '#FFE600'}
-                    strokeWidth="2.5"
-                    strokeDasharray={isPinching ? 'none' : '3 3'}
-                  />
-                </svg>
+                      {/* Extended Ring Finger */}
+                      <path
+                        d="M 66 64
+                           L 74 18
+                           C 76 10, 88 12, 86 22
+                           L 78 66"
+                        fill="url(#flappyHandGlass)"
+                        stroke="#FFFFFF"
+                        strokeWidth="3.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <line x1="70" y1="36" x2="82" y2="38" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
 
-                {/* Action Badge */}
+                      {/* Extended Pinky Finger */}
+                      <path
+                        d="M 78 68
+                           L 90 32
+                           C 92 24, 102 28, 98 38
+                           L 84 76"
+                        fill="url(#flappyHandGlass)"
+                        stroke="#FFFFFF"
+                        strokeWidth="3.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <line x1="84" y1="48" x2="94" y2="50" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
+                    </svg>
+                  </div>
+
+                  {/* ── PHASE 2: PINCH HAND 🤏 (Index & Thumb Pinching Together) ── */}
+                  <div
+                    className={isPinching ? 'block' : 'absolute inset-0 transition-all duration-200'}
+                    style={{
+                      animation: isPinching ? 'none' : 'handStatePinch 1.4s ease-in-out infinite',
+                    }}
+                  >
+                    <svg width="125" height="145" viewBox="0 0 110 135" className="overflow-visible">
+                      {/* Palm & Base */}
+                      <path
+                        d="M 30 76 
+                           C 30 64, 42 60, 50 64
+                           C 54 60, 64 62, 68 66
+                           C 72 64, 80 66, 80 76
+                           L 80 94
+                           C 80 112, 66 124, 48 124
+                           C 30 124, 22 112, 22 94
+                           L 22 80 Z"
+                        fill={isPinching ? 'rgba(74, 222, 128, 0.45)' : 'url(#flappyHandGlass)'}
+                        stroke={isPinching ? '#4ADE80' : '#FFFFFF'}
+                        strokeWidth="3.5"
+                        strokeLinejoin="round"
+                      />
+
+                      {/* Curled Middle, Ring, Pinky Knuckles */}
+                      <path d="M 50 64 C 50 56, 62 56, 62 64 L 62 78 C 62 84, 50 84, 50 78 Z" fill={isPinching ? 'rgba(74, 222, 128, 0.45)' : 'url(#flappyHandGlass)'} stroke={isPinching ? '#4ADE80' : '#FFFFFF'} strokeWidth="2.5" />
+                      <path d="M 62 66 C 62 58, 72 58, 72 66 L 72 80 C 72 86, 62 86, 62 80 Z" fill={isPinching ? 'rgba(74, 222, 128, 0.45)' : 'url(#flappyHandGlass)'} stroke={isPinching ? '#4ADE80' : '#FFFFFF'} strokeWidth="2.5" />
+                      <path d="M 72 70 C 72 62, 80 62, 80 70 L 80 84 C 80 90, 72 90, 72 84 Z" fill={isPinching ? 'rgba(74, 222, 128, 0.45)' : 'url(#flappyHandGlass)'} stroke={isPinching ? '#4ADE80' : '#FFFFFF'} strokeWidth="2.5" />
+
+                      {/* Index Finger Arcing Down into Pinch with Thumb */}
+                      <path
+                        d="M 32 74
+                           C 30 52, 34 30, 46 20
+                           C 54 12, 66 16, 64 28
+                           C 62 40, 56 50, 50 54"
+                        fill={isPinching ? 'rgba(74, 222, 128, 0.45)' : 'url(#flappyHandGlass)'}
+                        stroke={isPinching ? '#4ADE80' : '#FFFFFF'}
+                        strokeWidth="3.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <line x1="40" y1="36" x2="52" y2="34" stroke={isPinching ? '#4ADE80' : '#FFFFFF'} strokeWidth="2" strokeLinecap="round" opacity="0.8" />
+
+                      {/* Thumb Reaching Up to meet Index Finger Tip */}
+                      <path
+                        d="M 22 86
+                           C 18 80, 22 68, 34 68
+                           C 42 68, 50 62, 54 52
+                           C 56 46, 50 42, 46 48
+                           C 40 56, 30 64, 26 78 Z"
+                        fill={isPinching ? 'rgba(74, 222, 128, 0.45)' : 'url(#flappyHandGlass)'}
+                        stroke={isPinching ? '#4ADE80' : '#FFFFFF'}
+                        strokeWidth="3.2"
+                        strokeLinejoin="round"
+                      />
+
+                      {/* Pinch Contact Point Spark Ring */}
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r={isPinching ? 8 : 6}
+                        fill={isPinching ? '#4ADE80' : '#FFE600'}
+                        stroke="#000000"
+                        strokeWidth="1.5"
+                        style={{ animation: 'sparkFlare 1.4s ease-out infinite' }}
+                      />
+                    </svg>
+                  </div>
+                </div>
+
+                {/* ── BOLD INSTRUCTION ACTION BADGE ────────────────────────────── */}
                 <div
-                  className={`mt-2 px-3 py-1 font-display font-black text-xs uppercase tracking-wider border-3 border-black shadow-neo transition-all duration-200 text-center whitespace-nowrap ${
+                  className={`mt-2 px-3.5 py-1.5 font-display font-black text-xs uppercase tracking-wider border-3 border-black shadow-neo transition-all duration-200 text-center whitespace-nowrap ${
                     isPinching
                       ? 'bg-neo-lime text-black scale-110 shadow-neo-lg'
                       : 'bg-white text-black'
@@ -765,13 +888,17 @@ export default function FlappyBirdTutorial({
                   {isPinching ? (
                     <span className="flex items-center gap-1.5">
                       <span className="text-sm">✓</span>
-                      <span>FLAP!</span>
+                      <span>FLAP DETECTED!</span>
                     </span>
                   ) : (
                     <div className="flex flex-col items-center leading-tight">
-                      <span className="text-xs">🤏 PINCH TO FLAP</span>
-                      <span className="font-mono text-[9px] text-zinc-600 font-bold">
-                        {stage.stepIndex === 1 && `FLAP ${flapCount}/3 TIMES`}
+                      <span className="text-xs flex items-center gap-1">
+                        <span>🖐️ OPEN</span>
+                        <span className="text-neo-pink">➔</span>
+                        <span className="text-black font-black">🤏 PINCH</span>
+                      </span>
+                      <span className="font-mono text-[9px] text-zinc-600 font-bold mt-0.5">
+                        {stage.stepIndex === 1 && `FLAP ${flapCount}/3 TO HOVER`}
                         {stage.stepIndex === 2 && 'CLIMB HIGH OVER PIPE'}
                         {stage.stepIndex === 3 && 'GLIDE THROUGH CENTER'}
                         {stage.stepIndex === 4 && 'CLEAR 2 PIPES!'}
@@ -949,3 +1076,4 @@ export default function FlappyBirdTutorial({
     </div>
   );
 }
+
