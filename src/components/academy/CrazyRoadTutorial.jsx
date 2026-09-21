@@ -4,6 +4,7 @@ import { GESTURES } from '../../utils/gestureDetector';
 import { useGestureAcademy } from '../../hooks/useGestureAcademy';
 import { usePlayer } from '../../hooks/usePlayer';
 import { useHandTracking } from '../../hooks/useHandTracking';
+import AnimatedTutorialHand from './AnimatedTutorialHand';
 
 // ── Web Audio Sound Synthesizer for Mini-Tutorial ───────────────────────────
 class MiniAudio {
@@ -186,6 +187,7 @@ export default function CrazyRoadTutorial({ liveGesture: propLiveGesture, videoR
   const [feedback, setFeedback] = useState(null); // { type: 'success' | 'bump', text: string }
   const [isCompleted, setIsCompleted] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [isCamMinimized, setIsCamMinimized] = useState(false);
 
   // Simulation internal state refs (keeps loop running smoothly at 60fps)
   const simRef = useRef({
@@ -210,6 +212,7 @@ export default function CrazyRoadTutorial({ liveGesture: propLiveGesture, videoR
   });
 
   const stage = STAGES[currentStageIdx] || STAGES[0];
+  const isMatched = liveGesture === stage.requiredGesture || (stage.altGesture && liveGesture === stage.altGesture);
 
   // Reset simulation for the current stage
   const resetStage = useCallback((stageIndex, isSoftRetry = false) => {
@@ -588,166 +591,153 @@ export default function CrazyRoadTutorial({ liveGesture: propLiveGesture, videoR
         </div>
       </div>
 
-      {/* ── Main Interactive Simulation Stage ─────────────────────────────── */}
+      {/* ── Main Centered Interactive Game Stage ─────────────────────────── */}
       {!isCompleted ? (
-        <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="w-full max-w-xl flex flex-col items-center">
           
-          {/* Left Column: Live Playable Road Simulator (7 Cols) */}
-          <div className="lg:col-span-7 bg-white border-3 border-black p-4 sm:p-5 shadow-neo-lg relative flex flex-col items-center">
-            
-            {/* Stage Prompt Banner */}
-            <div className={`w-full p-3 border-2 border-black shadow-neo-sm mb-3 ${stage.color} flex items-center justify-between gap-3`}>
-              <div className="flex items-center gap-2.5">
-                <span className="text-3xl sm:text-4xl filter drop-shadow-[1px_1px_0px_#000]">
-                  {stage.gestureEmoji}
-                </span>
-                <div>
-                  <h3 className="font-display font-black text-sm sm:text-base uppercase tracking-tight text-black leading-tight">
-                    {stage.instruction}
-                  </h3>
-                  <p className="font-mono text-[11px] sm:text-xs text-zinc-800 font-bold">
-                    {stage.explanation}
-                  </p>
-                </div>
-              </div>
-              <span className="hidden sm:inline-block neo-tag bg-white font-mono text-[10px] font-black uppercase">
-                ACTIVE STEP
+          {/* Stage Prompt Banner */}
+          <div className={`w-full max-w-[430px] p-3 border-3 border-black shadow-neo mb-3 ${stage.color} flex items-center justify-between gap-3`}>
+            <div className="flex items-center gap-2.5">
+              <span className="text-3xl sm:text-4xl filter drop-shadow-[1px_1px_0px_#000]">
+                {stage.gestureEmoji}
               </span>
+              <div>
+                <h3 className="font-display font-black text-xs sm:text-sm uppercase tracking-tight text-black leading-tight">
+                  {stage.instruction}
+                </h3>
+                <p className="font-mono text-[10px] sm:text-[11px] text-zinc-800 font-bold">
+                  {stage.explanation}
+                </p>
+              </div>
             </div>
-
-            {/* Game Canvas Container */}
-            <div className="relative w-full max-w-[420px] aspect-[3/4] bg-black border-3 border-black shadow-neo overflow-hidden rounded-none">
-              <canvas
-                ref={canvasRef}
-                width={420}
-                height={560}
-                className="w-full h-full block select-none"
-              />
-
-              {/* Dynamic In-Game Feedback Banner */}
-              {feedback && (
-                <div className={`absolute top-4 inset-x-4 p-2.5 border-2 border-black shadow-neo font-display font-black text-xs sm:text-sm text-center uppercase tracking-wide animate-in fade-in zoom-in-95 duration-150 z-20 ${
-                  feedback.type === 'success'
-                    ? 'bg-neo-lime text-black'
-                    : 'bg-neo-red text-white'
-                }`}>
-                  {feedback.text}
-                </div>
-              )}
-
-              {/* Resetting Transition Indicator */}
-              {isResetting && (
-                <div className="absolute inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center font-mono font-black text-xs uppercase text-neo-yellow z-10">
-                  ↺ RESETTING LANE POSITION...
-                </div>
-              )}
-            </div>
-
-            {/* Keyboard & Hand Hint Footer */}
-            <div className="w-full max-w-[420px] mt-3 flex items-center justify-between text-[11px] font-mono text-zinc-600 font-bold">
-              <span>☝️ Hand gestures or Arrow keys (1, 2, 3)</span>
-              <span>⚡ Practice Sandbox</span>
-            </div>
+            <span className="neo-tag bg-white font-mono text-[9px] font-black uppercase shrink-0">
+              STEP {stage.stepIndex}/4
+            </span>
           </div>
 
-          {/* Right Column: Live Webcam Feedback & Coaching (5 Cols) */}
-          <div className="lg:col-span-5 flex flex-col gap-4">
-            
-            {/* Live Camera Feed Card */}
-            <div className="bg-white border-3 border-black p-4 sm:p-5 shadow-neo-lg">
-              <div className="flex items-center justify-between border-b-2 border-black pb-2 mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border border-black" />
-                  <span className="font-display font-black text-xs sm:text-sm uppercase tracking-tight">
-                    Live Gesture Camera
-                  </span>
-                </div>
-                <span className="font-mono text-[11px] font-black bg-neo-yellow border border-black px-2 py-0.5">
-                  Detected: {liveGesture || 'Searching...'}
+          {/* Centered Game Canvas Container */}
+          <div className="relative w-full max-w-[430px] aspect-[3/4] bg-black border-4 border-black shadow-neo-xl overflow-hidden rounded-none">
+            <canvas
+              ref={canvasRef}
+              width={420}
+              height={560}
+              className="w-full h-full block select-none"
+            />
+
+            {/* In-Game Animated White Transparent Tutorial Hand */}
+            <AnimatedTutorialHand
+              stepIndex={stage.stepIndex}
+              isMatched={isMatched}
+              targetLane={stage.targetLane}
+            />
+
+            {/* Top In-Canvas Gesture Match Status Pill */}
+            <div className="absolute top-2 inset-x-2 flex items-center justify-between gap-2 z-10 pointer-events-none">
+              <div className="bg-black/80 backdrop-blur-xs border border-white/40 text-[10px] font-mono font-bold text-white px-2 py-0.5 uppercase tracking-wider">
+                Target: {stage.gestureEmoji} {stage.gestureName}
+              </div>
+              <div className={`border text-[10px] font-mono font-black px-2 py-0.5 uppercase tracking-wider transition-colors ${
+                isMatched
+                  ? 'bg-neo-lime border-black text-black shadow-xs'
+                  : 'bg-black/80 border-white/40 text-zinc-300'
+              }`}>
+                {isMatched ? '✅ MATCH DETECTED!' : `LIVE: ${liveGesture || 'SEARCHING...'}`}
+              </div>
+            </div>
+
+            {/* Dynamic In-Game Feedback Banner */}
+            {feedback && (
+              <div className={`absolute top-12 inset-x-4 p-2.5 border-3 border-black shadow-neo font-display font-black text-xs sm:text-sm text-center uppercase tracking-wide animate-in fade-in zoom-in-95 duration-150 z-30 ${
+                feedback.type === 'success'
+                  ? 'bg-neo-lime text-black'
+                  : 'bg-neo-red text-white'
+              }`}>
+                {feedback.text}
+              </div>
+            )}
+
+            {/* Resetting Transition Indicator */}
+            {isResetting && (
+              <div className="absolute inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center font-mono font-black text-xs uppercase text-neo-yellow z-30">
+                ↺ RESETTING LANE POSITION...
+              </div>
+            )}
+          </div>
+
+          {/* Step Action Buttons & Controls Footer */}
+          <div className="w-full max-w-[430px] mt-3 flex items-center justify-between gap-3">
+            <button
+              onClick={() => {
+                audio.playSteer();
+                resetStage(currentStageIdx, true);
+              }}
+              className="flex-1 py-2 bg-white hover:bg-zinc-100 border-2 border-black font-mono font-bold text-xs uppercase shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
+            >
+              ↺ Retry Step
+            </button>
+            <button
+              onClick={() => {
+                audio.playSuccess();
+                if (currentStageIdx + 1 < STAGES.length) {
+                  setCurrentStageIdx((prev) => prev + 1);
+                } else {
+                  handleCompleteTutorial();
+                }
+              }}
+              className="flex-1 py-2 bg-neo-yellow hover:bg-yellow-300 border-2 border-black font-display font-black text-xs uppercase shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
+            >
+              Skip Step ➔
+            </button>
+          </div>
+
+          {/* Quick Guidance Footer Note */}
+          <div className="w-full max-w-[430px] mt-2.5 text-center text-[11px] font-mono text-zinc-600 font-bold">
+            ☝️ Show the gesture in camera to move your car (or use Arrow keys 1, 2, 3)
+          </div>
+
+          {/* Floating Picture-in-Picture Webcam (Corner Widget) */}
+          <div className="fixed bottom-4 right-4 z-40 bg-white border-3 border-black shadow-neo-lg p-2 flex flex-col items-center">
+            <div className="w-full flex items-center justify-between border-b border-black pb-1 mb-1.5 gap-2">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse border border-black" />
+                <span className="font-display font-black text-[10px] uppercase tracking-wider">
+                  Camera Feed
                 </span>
               </div>
-
-              {/* Video with Hand Landmarks Overlay */}
-              <div className="relative w-full aspect-video bg-black border-2 border-black shadow-neo-sm overflow-hidden flex items-center justify-center mb-3">
-                <video
-                  ref={videoRef}
-                  className="w-full h-full object-cover transform -scale-x-100"
-                  playsInline
-                  muted
-                  autoPlay
-                />
-                <canvas
-                  ref={overlayCanvasRef}
-                  className="absolute inset-0 w-full h-full pointer-events-none transform -scale-x-100"
-                />
-
-                {/* Status Watermark */}
-                <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/75 border border-white/30 text-[9px] font-mono text-white uppercase tracking-wider">
-                  Target: {stage.gestureEmoji} {stage.gestureName}
-                </div>
-              </div>
-
-              {/* Live Match Verification Indicator */}
-              <div className={`p-2.5 border-2 border-black flex items-center justify-between gap-2 ${
-                liveGesture === stage.requiredGesture || (stage.altGesture && liveGesture === stage.altGesture)
-                  ? 'bg-neo-lime/30 border-neo-lime text-black'
-                  : 'bg-zinc-100 text-zinc-700'
-              }`}>
-                <div className="flex items-center gap-2 font-mono font-black text-xs uppercase">
-                  <span>{liveGesture === stage.requiredGesture ? '✅' : '⏳'}</span>
-                  <span>
-                    {liveGesture === stage.requiredGesture
-                      ? `MATCH: ${stage.gestureName.toUpperCase()} DETECTED!`
-                      : `Show ${stage.gestureEmoji} in front of camera`}
-                  </span>
-                </div>
-                <span className="text-xl">{stage.gestureEmoji}</span>
-              </div>
-            </div>
-
-            {/* Step Explanation & Quick Tips Card */}
-            <div className="bg-[#FFFDF5] border-3 border-black p-4 sm:p-5 shadow-neo-lg">
-              <h4 className="font-display font-black text-sm uppercase tracking-tight mb-2 flex items-center gap-1.5">
-                <span>💡</span>
-                <span>How This Works in the Real Game</span>
-              </h4>
-              <p className="text-zinc-800 text-xs sm:text-sm font-medium leading-relaxed mb-3">
-                In Crazy Road, traffic spawns randomly in all 3 lanes. Holding your finger signs allows instant lane changes without touching any screen or keyboard.
-              </p>
-              <div className="bg-neo-cream border-2 border-black p-2.5 font-mono text-xs font-bold text-zinc-800 space-y-1">
-                <div>• <strong className="text-black">Lane 1 (Left):</strong> ☝️ Index Point</div>
-                <div>• <strong className="text-black">Lane 2 (Middle):</strong> ✌️ Peace Sign or ✋ Palm</div>
-                <div>• <strong className="text-black">Lane 3 (Right):</strong> 🤟 Rock Sign</div>
-                <div>• <strong className="text-black">Nitro Boost:</strong> ✊ Closed Fist</div>
-              </div>
-            </div>
-
-            {/* Quick Skip or Manual Advance */}
-            <div className="flex items-center justify-between gap-3">
               <button
-                onClick={() => {
-                  audio.playSteer();
-                  resetStage(currentStageIdx, true);
-                }}
-                className="flex-1 py-2 bg-white hover:bg-zinc-100 border-2 border-black font-mono font-bold text-xs uppercase shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
+                onClick={() => setIsCamMinimized((prev) => !prev)}
+                className="text-[10px] font-mono font-bold px-1 hover:bg-zinc-200 border border-black"
+                title={isCamMinimized ? 'Expand Camera' : 'Minimize Camera'}
               >
-                ↺ Retry Step
-              </button>
-              <button
-                onClick={() => {
-                  audio.playSuccess();
-                  if (currentStageIdx + 1 < STAGES.length) {
-                    setCurrentStageIdx((prev) => prev + 1);
-                  } else {
-                    handleCompleteTutorial();
-                  }
-                }}
-                className="flex-1 py-2 bg-neo-yellow hover:bg-yellow-300 border-2 border-black font-display font-black text-xs uppercase shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
-              >
-                Skip Step ➔
+                {isCamMinimized ? '▲' : '▼'}
               </button>
             </div>
+
+            {!isCamMinimized && (
+              <>
+                <div className="relative w-36 sm:w-44 aspect-video bg-black border border-black overflow-hidden flex items-center justify-center mb-1.5">
+                  <video
+                    ref={videoRef}
+                    className="w-full h-full object-cover transform -scale-x-100"
+                    playsInline
+                    muted
+                    autoPlay
+                  />
+                  <canvas
+                    ref={overlayCanvasRef}
+                    className="absolute inset-0 w-full h-full pointer-events-none transform -scale-x-100"
+                  />
+                </div>
+
+                <div className={`w-full py-0.5 px-1.5 border border-black text-center font-mono font-black text-[9px] uppercase ${
+                  isMatched ? 'bg-neo-lime text-black' : 'bg-zinc-100 text-zinc-700'
+                }`}>
+                  {isMatched ? `✅ ${stage.gestureName.toUpperCase()} MATCH!` : `SHOW: ${stage.gestureEmoji}`}
+                </div>
+              </>
+            )}
           </div>
+
         </div>
       ) : (
         /* ── Completion & Mastery Celebration Screen ───────────────────────── */
