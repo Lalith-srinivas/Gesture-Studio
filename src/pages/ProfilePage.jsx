@@ -2,7 +2,7 @@
  * ProfilePage — Full player profile with stats, achievements, settings.
  * Tabs: PROFILE | ACHIEVEMENTS | SETTINGS (via ?tab= query param)
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { doc, updateDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
