@@ -15,6 +15,8 @@ import Terms from './pages/Terms';
 import GestureCursor from './components/GestureCursor';
 import TutorialGate from './components/TutorialGate';
 import BottomNav from './components/BottomNav';
+import CanonicalManager from './components/CanonicalManager';
+import ErrorBoundary from './components/ErrorBoundary';
 import AchievementToastContainer from './components/AchievementToast';
 import LevelUpModal from './components/LevelUpModal';
 import WelcomeModal from './components/WelcomeModal';
@@ -157,9 +159,11 @@ export default function App() {
         <AdProvider>
           <Router>
             <ScrollToTop />
+            <CanonicalManager />
             <ConditionalCursor />
             <GlobalProgressionModals />
-            <Routes>
+            <ErrorBoundary>
+              <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/leaderboard" element={<LeaderboardPage />} />
@@ -229,6 +233,7 @@ export default function App() {
                 }
               />
             </Routes>
+            </ErrorBoundary>
             <ConditionalBottomNav />
           </Router>
         </AdProvider>

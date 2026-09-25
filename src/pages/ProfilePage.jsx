@@ -2,7 +2,7 @@
  * ProfilePage — Full player profile with stats, achievements, settings.
  * Tabs: PROFILE | ACHIEVEMENTS | SETTINGS (via ?tab= query param)
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { doc, updateDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
@@ -144,8 +144,8 @@ export default function ProfilePage() {
 
   const checkUnlocked = (ach) => {
     return (
-      unlockedAchievements.includes(ach.id) ||
-      Boolean(ach.check && ach.check({ ...playerData, allGameStats }))
+      (unlockedAchievements || []).includes(ach.id) ||
+      Boolean(ach.check && ach.check({ ...playerData, allGameStats: allGameStats || {} }))
     );
   };
 
@@ -159,8 +159,8 @@ export default function ProfilePage() {
   });
 
   // Sort per-game stats by lastPlayed desc
-  const recentGames = Object.entries(allGameStats)
-    .filter(([, s]) => s.lastPlayed)
+  const recentGames = Object.entries(allGameStats || {})
+    .filter(([, s]) => s && s.lastPlayed)
     .sort(([, a], [, b]) => new Date(b.lastPlayed) - new Date(a.lastPlayed))
     .slice(0, 4);
 
