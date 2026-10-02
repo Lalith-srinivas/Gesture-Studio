@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
  * Official Privacy Policy for Gesture Studio.
  * Owner: Lalith Srinivas
  * Contact: webryza@gmail.com
- * Domain: gesturestudio.in
+ * Domain: www.gesturestudio.in
  */
 
 export default function PrivacyPolicy() {
@@ -99,7 +99,7 @@ export default function PrivacyPolicy() {
           </h1>
 
           <p className="text-zinc-700 text-sm sm:text-base font-medium leading-relaxed mb-4">
-            Welcome to Gesture Studio (<strong className="text-black font-bold">gesturestudio.in</strong>). We believe in complete
+            Welcome to Gesture Studio (<strong className="text-black font-bold">www.gesturestudio.in</strong>). We believe in complete
             transparency, minimal data collection, and putting player control first. This Privacy Policy outlines
             exactly what information we collect, how it is processed, and how your privacy is safeguarded.
           </p>
@@ -323,24 +323,31 @@ export default function PrivacyPolicy() {
             </p>
           </article>
 
-          {/* Section 8: Advertising (Future) */}
+          {/* Section 8: Advertising & Google AdSense Policy Disclosures */}
           <article className="bg-white border-3 border-black shadow-neo p-5 sm:p-7 space-y-3">
             <h2 className="font-display font-black text-lg sm:text-xl uppercase tracking-tight border-b-2 border-black/15 pb-2 flex items-center gap-2">
               <span className="w-6 h-6 bg-neo-lime border border-black flex items-center justify-center text-xs font-mono">
                 8
               </span>
-              <span>Future Advertising &amp; Third Parties</span>
+              <span>Advertising &amp; Google AdSense Disclosures</span>
             </h2>
             <p className="text-zinc-800 text-sm sm:text-base leading-relaxed">
-              Gesture Studio does not currently run live commercial advertisements. However, the platform layout is designed
-              to support third-party advertising in the future (such as Google AdSense and HTML5 game ad networks) to help
-              sustain free gaming.
+              Gesture Studio uses third-party advertising partners, including Google AdSense, to display advertisements when you visit our website. These ads help support and maintain free access to our web games.
             </p>
-            <p className="text-zinc-800 text-sm sm:text-base leading-relaxed">
-              When advertising is actively enabled in the future, this Privacy Policy will be promptly updated to provide
-              detailed disclosures regarding advertising cookies (including Google DART cookies), personalized versus
-              non-personalized ad preferences, and relevant opt-out tools.
-            </p>
+            <ul className="list-disc list-inside space-y-1.5 text-sm sm:text-base text-zinc-800 pl-2">
+              <li>
+                <strong className="text-black">Third-Party Cookies &amp; Ad Serving:</strong> Third-party vendors, including Google, use cookies (such as the DoubleClick DART cookie) to serve advertisements based on a user's prior visits to Gesture Studio or other websites across the Internet.
+              </li>
+              <li>
+                <strong className="text-black">Personalized &amp; Non-Personalized Ads:</strong> Google's use of advertising cookies enables it and its partners to serve ads to users based on their browsing history and interaction with websites.
+              </li>
+              <li>
+                <strong className="text-black">Opt-Out Preferences:</strong> Users may opt out of personalized advertising by visiting <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener noreferrer" className="font-bold underline text-black hover:text-blue-700">Google Ads Settings</a>. Alternatively, users can opt out of third-party vendors' use of cookies for personalized advertising by visiting <a href="https://www.aboutads.info" target="_blank" rel="noopener noreferrer" className="font-bold underline text-black hover:text-blue-700">www.aboutads.info</a>.
+              </li>
+              <li>
+                <strong className="text-black">Non-Intrusive Layout:</strong> All advertisement slots on Gesture Studio are rendered in dedicated, fixed-size container components. Ads are strictly positioned outside active gameplay areas and do not obscure game canvas controls or mobile navigation elements.
+              </li>
+            </ul>
           </article>
 
           {/* Section 9: Third-Party Service Providers */}
@@ -467,7 +474,7 @@ export default function PrivacyPolicy() {
                   webryza@gmail.com
                 </a>
               </p>
-              <p className="text-zinc-700">Website: gesturestudio.in</p>
+              <p className="text-zinc-700">Website: www.gesturestudio.in</p>
             </div>
           </article>
         </div>
