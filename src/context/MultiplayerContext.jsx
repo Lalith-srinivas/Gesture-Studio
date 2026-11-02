@@ -253,10 +253,10 @@ export function MultiplayerProvider({ children }) {
     }
   }, [currentRoom, sendWs]);
 
-  const submitFinalScore = useCallback((finalScore) => {
+  const submitFinalScore = useCallback((finalScore, reason = 'game_over') => {
     setMyScore(finalScore);
     if (currentRoom) {
-      sendWs({ type: 'SUBMIT_FINAL_SCORE', roomId: currentRoom, score: finalScore });
+      sendWs({ type: 'SUBMIT_FINAL_SCORE', roomId: currentRoom, score: finalScore, reason });
     }
   }, [currentRoom, sendWs]);
 

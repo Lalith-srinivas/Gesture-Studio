@@ -750,7 +750,7 @@ class RoomManager:
             "extra": extra_info or {}
         })
 
-    async def submit_final_score(self, room_id: str, uid: str, final_score: int):
+    async def submit_final_score(self, room_id: str, uid: str, final_score: int, reason: str = "game_over"):
         room = self.rooms.get(room_id)
         if not room or room["settled"]:
             return
@@ -758,12 +758,20 @@ class RoomManager:
         if room["player1"]["uid"] == uid:
             room["player1"]["score"] = final_score
             room["player1"]["finished"] = True
+            room["player1"]["reason"] = reason
+            other_uid = room["player2"]["uid"]
         elif room["player2"]["uid"] == uid:
             room["player2"]["score"] = final_score
             room["player2"]["finished"] = True
+            room["player2"]["reason"] = reason
+            other_uid = room["player1"]["uid"]
+        else:
+            return
 
-        # Settle once both submit or timeout
-        if room["player1"]["finished"] and room["player2"]["finished"]:
+        # Settle match immediately upon any player game over
+        if reason in ("bomb", "miss", "defeat", "game_over"):
+            await self.settle_match(room_id, default_winner_uid=other_uid)
+        else:
             await self.settle_match(room_id)
 
     async def settle_match(self, room_id: str, default_winner_uid: Optional[str] = None):

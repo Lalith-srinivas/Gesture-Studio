@@ -12,10 +12,9 @@ export default function MatchInviteNotification() {
 
   const handleAccept = () => {
     respondToInvite(inviteId, true);
-    // Navigate to the challenged game if not already there
-    if (gameId === 'fruit-ninja') {
-      navigate('/fruit-ninja?mode=multiplayer');
-    }
+    dismissInvite();
+    const targetGame = gameId || 'fruit-ninja';
+    navigate(`/${targetGame}?mode=multiplayer`);
   };
 
   const handleReject = () => {

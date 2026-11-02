@@ -156,11 +156,12 @@ async def websocket_endpoint(
                 if room_id:
                     await room_manager.update_score(room_id, uid, score, extra)
 
-            elif msg_type == "SUBMIT_FINAL_SCORE":
+            elif msg_type in ("SUBMIT_FINAL_SCORE", "SUBMIT_SCORE"):
                 room_id = data.get("roomId")
                 score = data.get("score", 0)
+                reason = data.get("reason", "game_over")
                 if room_id:
-                    await room_manager.submit_final_score(room_id, uid, score)
+                    await room_manager.submit_final_score(room_id, uid, score, reason)
 
             elif msg_type == "PLAY_AGAIN":
                 room_id = data.get("roomId")

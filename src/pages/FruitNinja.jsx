@@ -172,6 +172,30 @@ export default function FruitNinja() {
   const isMultiplayerRef = useRef(isMultiplayer);
   useEffect(() => { isMultiplayerRef.current = isMultiplayer; }, [isMultiplayer]);
 
+  // Automatically open lobby & hide mode selection whenever invited or in multiplayer
+  useEffect(() => {
+    const isMp = isModeParam || (matchState && matchState !== 'IDLE');
+    if (isMp) {
+      setIsMultiplayer(true);
+      setShowModeModal(false);
+      setShowLobbyModal(true);
+    }
+  }, [isModeParam, matchState]);
+
+  // If ANY player gets game over or match finishes, stop the game immediately!
+  useEffect(() => {
+    if (isMultiplayer && (matchState === 'FINISHED' || matchResult)) {
+      const s = stateRef.current;
+      s.running = false;
+      if (s.animId) cancelAnimationFrame(s.animId);
+      if (s.spawnTimer) clearInterval(s.spawnTimer);
+      s.spawnTimer = null;
+      if (mpTimerRef.current) clearInterval(mpTimerRef.current);
+      setGameState("over");
+      setSlowmo(false);
+    }
+  }, [isMultiplayer, matchState, matchResult]);
+
   // Sync high score from Firestore allGameStats across all devices/origins
   useEffect(() => {
     const firestoreBest = allGameStats?.['fruit-ninja']?.bestScore || 0;
@@ -259,7 +283,7 @@ export default function FruitNinja() {
     const final = s.score;
 
     if (isMultiplayerRef.current) {
-      submitFinalScore(final);
+      submitFinalScore(final, reason);
       return;
     }
 

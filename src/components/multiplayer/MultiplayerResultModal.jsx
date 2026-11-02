@@ -17,7 +17,7 @@ export default function MultiplayerResultModal({ isOpen, onReturnToLobby }) {
 
   if (!isOpen || !matchResult) return null;
 
-  const myUid = currentUser?.uid || '';
+  const myUid = currentUser?.uid || playerData?.uid || localStorage.getItem('gesture_studio_last_uid') || '';
   const isWinner = matchResult.winnerId === myUid;
   const isDraw = matchResult.winnerId === 'DRAW';
 
