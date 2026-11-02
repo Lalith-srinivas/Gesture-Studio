@@ -145,6 +145,23 @@ export function PlayerProvider({ children }) {
           const updatesNeeded = {};
           if (resolvedUsername !== data.username) {
             updatesNeeded.username = resolvedUsername;
+            updatesNeeded.username_lowercase = resolvedUsername.toLowerCase();
+          }
+          if (!data.playerTag) {
+            updatesNeeded.playerTag = merged.playerTag;
+            updatesNeeded.playerTag_lowercase = merged.playerTag.toLowerCase();
+          }
+          if (data.coins === undefined) {
+            updatesNeeded.coins = 1000;
+          }
+          if (!Array.isArray(data.friends)) {
+            updatesNeeded.friends = [];
+          }
+          if (!Array.isArray(data.incomingFriendRequests)) {
+            updatesNeeded.incomingFriendRequests = [];
+          }
+          if (!Array.isArray(data.outgoingFriendRequests)) {
+            updatesNeeded.outgoingFriendRequests = [];
           }
           if ((merged.totalScore || 0) > (data.totalScore || 0)) {
             updatesNeeded.totalScore = merged.totalScore;
@@ -164,9 +181,14 @@ export function PlayerProvider({ children }) {
           // Document does not exist in Firestore yet: initialize it with cached data + user profile
           const cached = getCachedPlayer(uid) || {};
           const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+          const initialUsername = currentUser.displayName || (currentUser.isAnonymous ? `Guest_${randomSuffix}` : 'Player');
+          const initialTag = generatePlayerTag(uid);
           const initial = {
             uid,
-            username: currentUser.displayName || (currentUser.isAnonymous ? `Guest_${randomSuffix}` : 'Player'),
+            username: initialUsername,
+            username_lowercase: initialUsername.toLowerCase(),
+            playerTag: initialTag,
+            playerTag_lowercase: initialTag.toLowerCase(),
             avatar: '🎮',
             xp: 0,
             level: 1,
@@ -180,6 +202,8 @@ export function PlayerProvider({ children }) {
             achievementsUnlocked: [],
             coins: 1000,
             friends: [],
+            incomingFriendRequests: [],
+            outgoingFriendRequests: [],
             tutorialCompleted: localStorage.getItem('gesture_academy_global_done') === 'true',
             ...cached,
             ...(userProfile || {}),

@@ -25,6 +25,14 @@ room_manager = RoomManager()
 class FriendStatusRequest(BaseModel):
     friendUids: List[str]
 
+class FriendRequestPayload(BaseModel):
+    sender: dict
+    targetUser: dict
+
+class FriendActionPayload(BaseModel):
+    myUid: str
+    otherUid: str
+
 @app.get("/")
 def read_root():
     return {
@@ -51,6 +59,40 @@ def get_friends_status(req: FriendStatusRequest):
             "status": room_manager.get_user_status(uid)
         }
     return {"friends": status_map}
+
+@app.get("/api/friends/search")
+def search_friends(q: str = Query(...), currentUid: str = Query("")):
+    users = room_manager.search_users(q, currentUid)
+    return {"users": users}
+
+@app.post("/api/friends/request")
+async def send_friend_request_endpoint(req: FriendRequestPayload):
+    success = await room_manager.send_friend_request(req.sender, req.targetUser)
+    if not success:
+        raise HTTPException(status_code=400, detail="Failed to send friend request")
+    return {"status": "ok", "success": True}
+
+@app.post("/api/friends/accept")
+async def accept_friend_request_endpoint(req: FriendActionPayload):
+    success = await room_manager.accept_friend_request(req.myUid, req.otherUid)
+    if not success:
+        raise HTTPException(status_code=400, detail="Failed to accept friend request")
+    return {"status": "ok", "success": True}
+
+@app.post("/api/friends/decline")
+async def decline_friend_request_endpoint(req: FriendActionPayload):
+    success = await room_manager.decline_friend_request(req.myUid, req.otherUid)
+    return {"status": "ok", "success": success}
+
+@app.post("/api/friends/cancel")
+async def cancel_friend_request_endpoint(req: FriendActionPayload):
+    success = await room_manager.cancel_friend_request(req.myUid, req.otherUid)
+    return {"status": "ok", "success": success}
+
+@app.post("/api/friends/remove")
+async def remove_friend_endpoint(req: FriendActionPayload):
+    success = await room_manager.remove_friend(req.myUid, req.otherUid)
+    return {"status": "ok", "success": success}
 
 @app.websocket("/ws")
 async def websocket_endpoint(
@@ -150,6 +192,27 @@ async def websocket_endpoint(
                     "type": "FRIENDS_STATUS",
                     "friends": status_map
                 })
+
+            elif msg_type == "SEND_FRIEND_REQUEST":
+                sender = data.get("sender", {})
+                target_user = data.get("targetUser", {})
+                await room_manager.send_friend_request(sender, target_user)
+
+            elif msg_type == "ACCEPT_FRIEND_REQUEST":
+                requester_uid = data.get("requesterUid")
+                await room_manager.accept_friend_request(uid, requester_uid)
+
+            elif msg_type == "DECLINE_FRIEND_REQUEST":
+                requester_uid = data.get("requesterUid")
+                await room_manager.decline_friend_request(uid, requester_uid)
+
+            elif msg_type == "CANCEL_FRIEND_REQUEST":
+                target_uid = data.get("targetUid")
+                await room_manager.cancel_friend_request(uid, target_uid)
+
+            elif msg_type == "REMOVE_FRIEND":
+                friend_uid = data.get("friendUid")
+                await room_manager.remove_friend(uid, friend_uid)
 
     except WebSocketDisconnect:
         logger.info(f"WebSocket client disconnected: {uid}")

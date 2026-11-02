@@ -588,8 +588,14 @@ export const getFriendsProfiles = async (friendUids = []) => {
   return profiles;
 };
 
+// Helper to get backend HTTP URL from WebSocket URL
+const getBackendHttpUrl = () => {
+  const wsUrl = import.meta.env.VITE_WS_BACKEND_URL || 'wss://gesture-studio.onrender.com/ws';
+  return wsUrl.replace(/^wss:/i, 'https:').replace(/^ws:/i, 'http:').replace(/\/ws\/?$/i, '');
+};
+
 /**
- * Search users by Nickname OR by Special Player ID (e.g. "GS-8912")
+ * Search users by Nickname OR by Special Player ID (e.g. "GS-VB082" or "MANOJ")
  */
 export const searchUsersByUsername = async (searchQuery = '', currentUid = null) => {
   let raw = (searchQuery || '').trim();
@@ -599,30 +605,67 @@ export const searchUsersByUsername = async (searchQuery = '', currentUid = null)
 
   const resultsMap = new Map();
 
+  // 1. Try Backend REST Search First (uses Admin SDK to bypass index/rule limits)
   try {
-    // 1. Direct lookup by Special Player ID
-    if (queryLower.includes('gs') || queryLower.length >= 4) {
-      const tagQuery = query(
-        collection(db, COLLECTIONS.USERS),
-        where('playerTag_lowercase', '==', queryLower),
-        limit(5)
-      );
-      const tagSnap = await getDocs(tagQuery);
-      tagSnap.forEach((docSnap) => {
-        if (docSnap.id !== currentUid) {
-          const d = docSnap.data();
-          resultsMap.set(docSnap.id, {
-            uid: docSnap.id,
-            username: d.username || 'Player',
-            avatar: d.avatar || '🎮',
-            playerTag: d.playerTag || generatePlayerTag(docSnap.id),
-            level: d.level || 1,
-          });
-        }
-      });
+    const httpBase = getBackendHttpUrl();
+    const res = await fetch(`${httpBase}/api/friends/search?q=${encodeURIComponent(raw)}&currentUid=${encodeURIComponent(currentUid || '')}`, {
+      headers: { 'Accept': 'application/json' }
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (Array.isArray(json.users)) {
+        json.users.forEach((u) => {
+          if (u.uid !== currentUid) resultsMap.set(u.uid, u);
+        });
+      }
     }
+  } catch (err) {
+    console.warn('[Firestore] Backend search fallback to client query:', err?.message);
+  }
 
-    // 2. Prefix search by username
+  // 2. Direct Firestore Client Query
+  try {
+    // Lookup by Player Tag Lowercase
+    const tagQuery = query(
+      collection(db, COLLECTIONS.USERS),
+      where('playerTag_lowercase', '==', queryLower),
+      limit(5)
+    );
+    const tagSnap = await getDocs(tagQuery);
+    tagSnap.forEach((docSnap) => {
+      if (docSnap.id !== currentUid && !resultsMap.has(docSnap.id)) {
+        const d = docSnap.data();
+        resultsMap.set(docSnap.id, {
+          uid: docSnap.id,
+          username: d.username || 'Player',
+          avatar: d.avatar || '🎮',
+          playerTag: d.playerTag || generatePlayerTag(docSnap.id),
+          level: d.level || 1,
+        });
+      }
+    });
+
+    // Lookup by Player Tag Uppercase
+    const tagQueryUpper = query(
+      collection(db, COLLECTIONS.USERS),
+      where('playerTag', '==', raw.toUpperCase()),
+      limit(5)
+    );
+    const tagSnapUpper = await getDocs(tagQueryUpper);
+    tagSnapUpper.forEach((docSnap) => {
+      if (docSnap.id !== currentUid && !resultsMap.has(docSnap.id)) {
+        const d = docSnap.data();
+        resultsMap.set(docSnap.id, {
+          uid: docSnap.id,
+          username: d.username || 'Player',
+          avatar: d.avatar || '🎮',
+          playerTag: d.playerTag || generatePlayerTag(docSnap.id),
+          level: d.level || 1,
+        });
+      }
+    });
+
+    // Prefix search by username
     const nameQuery = query(
       collection(db, COLLECTIONS.USERS),
       where('username_lowercase', '>=', queryLower),
@@ -643,10 +686,32 @@ export const searchUsersByUsername = async (searchQuery = '', currentUid = null)
       }
     });
 
+    // Fallback: match by UID suffix (for tags like GS-VB082 or VB082)
+    const cleanCode = raw.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    if (cleanCode.length >= 4) {
+      const allDocsSnap = await getDocs(query(collection(db, COLLECTIONS.USERS), limit(50)));
+      allDocsSnap.forEach((docSnap) => {
+        if (docSnap.id !== currentUid && !resultsMap.has(docSnap.id)) {
+          const genTag = generatePlayerTag(docSnap.id);
+          const d = docSnap.data() || {};
+          const dTag = d.playerTag || genTag;
+          if (cleanCode === dTag.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || docSnap.id.toUpperCase().endsWith(cleanCode)) {
+            resultsMap.set(docSnap.id, {
+              uid: docSnap.id,
+              username: d.username || 'Player',
+              avatar: d.avatar || '🎮',
+              playerTag: dTag,
+              level: d.level || 1,
+            });
+          }
+        }
+      });
+    }
+
     return Array.from(resultsMap.values());
   } catch (e) {
     console.error('Error searching users:', e);
-    return [];
+    return Array.from(resultsMap.values());
   }
 };
 
@@ -656,35 +721,51 @@ export const searchUsersByUsername = async (searchQuery = '', currentUid = null)
 export const sendFriendRequest = async (sender, targetUser) => {
   if (!sender?.uid || !targetUser?.uid || sender.uid === targetUser.uid) return false;
 
+  const now = new Date().toISOString();
+  const incomingPayload = {
+    uid: sender.uid,
+    username: sender.username || 'Player',
+    avatar: sender.avatar || '🎮',
+    playerTag: sender.playerTag || generatePlayerTag(sender.uid),
+    sentAt: now,
+  };
+
+  const outgoingPayload = {
+    uid: targetUser.uid,
+    username: targetUser.username || 'Player',
+    avatar: targetUser.avatar || '🎮',
+    playerTag: targetUser.playerTag || generatePlayerTag(targetUser.uid),
+    sentAt: now,
+  };
+
+  // 1. Try Backend API first (Admin SDK bypasses client permissions)
+  try {
+    const httpBase = getBackendHttpUrl();
+    const res = await fetch(`${httpBase}/api/friends/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sender, targetUser })
+    });
+    if (res.ok) {
+      return true;
+    }
+  } catch (err) {
+    console.warn('[Firestore] Backend request API fallback to client Firestore:', err?.message);
+  }
+
+  // 2. Direct Firestore fallback using setDoc merge
   try {
     const senderRef = doc(db, COLLECTIONS.USERS, sender.uid);
     const targetRef = doc(db, COLLECTIONS.USERS, targetUser.uid);
 
-    const now = new Date().toISOString();
-
-    const incomingPayload = {
-      uid: sender.uid,
-      username: sender.username || 'Player',
-      avatar: sender.avatar || '🎮',
-      playerTag: sender.playerTag || generatePlayerTag(sender.uid),
-      sentAt: now,
-    };
-
-    const outgoingPayload = {
-      uid: targetUser.uid,
-      username: targetUser.username || 'Player',
-      avatar: targetUser.avatar || '🎮',
-      playerTag: targetUser.playerTag || generatePlayerTag(targetUser.uid),
-      sentAt: now,
-    };
-
-    await updateDoc(targetRef, {
-      incomingFriendRequests: arrayUnion(incomingPayload)
-    });
-
-    await updateDoc(senderRef, {
-      outgoingFriendRequests: arrayUnion(outgoingPayload)
-    });
+    await Promise.all([
+      setDoc(targetRef, {
+        incomingFriendRequests: arrayUnion(incomingPayload)
+      }, { merge: true }),
+      setDoc(senderRef, {
+        outgoingFriendRequests: arrayUnion(outgoingPayload)
+      }, { merge: true })
+    ]);
 
     return true;
   } catch (e) {
@@ -698,36 +779,48 @@ export const sendFriendRequest = async (sender, targetUser) => {
  */
 export const acceptFriendRequest = async (myUid, requesterUid) => {
   if (!myUid || !requesterUid) return false;
+
+  // 1. Try Backend API
+  try {
+    const httpBase = getBackendHttpUrl();
+    const res = await fetch(`${httpBase}/api/friends/accept`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ myUid, otherUid: requesterUid })
+    });
+    if (res.ok) return true;
+  } catch (err) {
+    console.warn('[Firestore] Backend accept API fallback to client Firestore:', err?.message);
+  }
+
+  // 2. Direct Firestore fallback
   try {
     const myRef = doc(db, COLLECTIONS.USERS, myUid);
     const reqRef = doc(db, COLLECTIONS.USERS, requesterUid);
 
     const [mySnap, reqSnap] = await Promise.all([getDoc(myRef), getDoc(reqRef)]);
-    if (!mySnap.exists() || !reqSnap.exists()) return false;
+    if (!mySnap.exists()) return false;
 
-    const myData = mySnap.data();
-    const reqData = reqSnap.data();
+    const myData = mySnap.data() || {};
+    const reqData = (reqSnap.exists() ? reqSnap.data() : {}) || {};
 
-    // Remove from my incoming requests
     const updatedIncoming = (myData.incomingFriendRequests || []).filter(
       (r) => r.uid !== requesterUid
     );
-
-    // Remove from requester's outgoing requests
     const updatedOutgoing = (reqData.outgoingFriendRequests || []).filter(
       (r) => r.uid !== myUid
     );
 
-    // Add each other as friends
-    await updateDoc(myRef, {
-      incomingFriendRequests: updatedIncoming,
-      friends: arrayUnion(requesterUid)
-    });
-
-    await updateDoc(reqRef, {
-      outgoingFriendRequests: updatedOutgoing,
-      friends: arrayUnion(myUid)
-    });
+    await Promise.all([
+      setDoc(myRef, {
+        incomingFriendRequests: updatedIncoming,
+        friends: arrayUnion(requesterUid)
+      }, { merge: true }),
+      setDoc(reqRef, {
+        outgoingFriendRequests: updatedOutgoing,
+        friends: arrayUnion(myUid)
+      }, { merge: true })
+    ]);
 
     return true;
   } catch (e) {
@@ -741,6 +834,16 @@ export const acceptFriendRequest = async (myUid, requesterUid) => {
  */
 export const declineFriendRequest = async (myUid, requesterUid) => {
   if (!myUid || !requesterUid) return false;
+
+  try {
+    const httpBase = getBackendHttpUrl();
+    fetch(`${httpBase}/api/friends/decline`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ myUid, otherUid: requesterUid })
+    }).catch(() => {});
+  } catch {}
+
   try {
     const myRef = doc(db, COLLECTIONS.USERS, myUid);
     const reqRef = doc(db, COLLECTIONS.USERS, requesterUid);
@@ -752,7 +855,7 @@ export const declineFriendRequest = async (myUid, requesterUid) => {
       const updatedIncoming = (myData.incomingFriendRequests || []).filter(
         (r) => r.uid !== requesterUid
       );
-      await updateDoc(myRef, { incomingFriendRequests: updatedIncoming });
+      await setDoc(myRef, { incomingFriendRequests: updatedIncoming }, { merge: true });
     }
 
     if (reqSnap.exists()) {
@@ -760,7 +863,7 @@ export const declineFriendRequest = async (myUid, requesterUid) => {
       const updatedOutgoing = (reqData.outgoingFriendRequests || []).filter(
         (r) => r.uid !== myUid
       );
-      await updateDoc(reqRef, { outgoingFriendRequests: updatedOutgoing });
+      await setDoc(reqRef, { outgoingFriendRequests: updatedOutgoing }, { merge: true });
     }
 
     return true;
@@ -775,6 +878,16 @@ export const declineFriendRequest = async (myUid, requesterUid) => {
  */
 export const cancelFriendRequest = async (myUid, targetUid) => {
   if (!myUid || !targetUid) return false;
+
+  try {
+    const httpBase = getBackendHttpUrl();
+    fetch(`${httpBase}/api/friends/cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ myUid, otherUid: targetUid })
+    }).catch(() => {});
+  } catch {}
+
   try {
     const myRef = doc(db, COLLECTIONS.USERS, myUid);
     const targetRef = doc(db, COLLECTIONS.USERS, targetUid);
@@ -786,7 +899,7 @@ export const cancelFriendRequest = async (myUid, targetUid) => {
       const updatedOutgoing = (myData.outgoingFriendRequests || []).filter(
         (r) => r.uid !== targetUid
       );
-      await updateDoc(myRef, { outgoingFriendRequests: updatedOutgoing });
+      await setDoc(myRef, { outgoingFriendRequests: updatedOutgoing }, { merge: true });
     }
 
     if (targetSnap.exists()) {
@@ -794,7 +907,7 @@ export const cancelFriendRequest = async (myUid, targetUid) => {
       const updatedIncoming = (targetData.incomingFriendRequests || []).filter(
         (r) => r.uid !== myUid
       );
-      await updateDoc(targetRef, { incomingFriendRequests: updatedIncoming });
+      await setDoc(targetRef, { incomingFriendRequests: updatedIncoming }, { merge: true });
     }
 
     return true;
@@ -806,15 +919,25 @@ export const cancelFriendRequest = async (myUid, targetUid) => {
 
 export const removeFriend = async (currentUid, friendUid) => {
   if (!currentUid || !friendUid) return false;
+
+  try {
+    const httpBase = getBackendHttpUrl();
+    fetch(`${httpBase}/api/friends/remove`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ myUid: currentUid, otherUid: friendUid })
+    }).catch(() => {});
+  } catch {}
+
   try {
     const userRef = doc(db, COLLECTIONS.USERS, currentUid);
-    await updateDoc(userRef, {
+    await setDoc(userRef, {
       friends: arrayRemove(friendUid)
-    });
+    }, { merge: true });
     const friendRef = doc(db, COLLECTIONS.USERS, friendUid);
-    await updateDoc(friendRef, {
+    await setDoc(friendRef, {
       friends: arrayRemove(currentUid)
-    }).catch(() => {});
+    }, { merge: true }).catch(() => {});
     return true;
   } catch (e) {
     console.error('Error removing friend:', e);

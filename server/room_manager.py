@@ -90,8 +90,8 @@ class RoomManager:
         }
         logger.info(f"User registered: {username} ({uid})")
 
-        # Ensure user document has starting coins in Firestore
-        self._ensure_user_coins(uid)
+        # Ensure user document has profile, tag, and starting coins in Firestore
+        self._ensure_user_profile(uid, username, avatar)
 
     async def unregister_user(self, uid: str):
         if uid not in self.connected_users:
@@ -120,22 +120,275 @@ class RoomManager:
             return self.connected_users[uid].get("status", "online")
         return "offline"
 
-    # ── Database Coins & Security ─────────────────────────────────────────────
-    def _ensure_user_coins(self, uid: str):
-        """Ensure the user has an initialized coins field (default 1,000)."""
+    # ── Database User Profiles & Social ────────────────────────────────────────
+    def _ensure_user_profile(self, uid: str, username: str = "Player", avatar: str = "🎮"):
+        """Ensure the user has an initialized coins field, playerTag, and friend lists."""
         if not firebase_initialized or not firestore_db:
             return
         try:
+            clean = "".join(c for c in uid if c.isalnum())[-5:].upper()
+            tag = f"GS-{clean.rjust(5, '8')}"
             doc_ref = firestore_db.collection("users").document(uid)
             doc = doc_ref.get()
+            updates = {
+                "uid": uid,
+                "playerTag": tag,
+                "playerTag_lowercase": tag.lower(),
+            }
+            if username and username != "Player":
+                updates["username"] = username
+                updates["username_lowercase"] = username.lower()
+            if avatar:
+                updates["avatar"] = avatar
+
             if doc.exists:
                 data = doc.to_dict() or {}
                 if "coins" not in data:
-                    doc_ref.set({"coins": INITIAL_USER_COINS}, merge=True)
+                    updates["coins"] = INITIAL_USER_COINS
+                if "friends" not in data:
+                    updates["friends"] = []
+                if "incomingFriendRequests" not in data:
+                    updates["incomingFriendRequests"] = []
+                if "outgoingFriendRequests" not in data:
+                    updates["outgoingFriendRequests"] = []
             else:
-                doc_ref.set({"coins": INITIAL_USER_COINS, "uid": uid}, merge=True)
+                updates["coins"] = INITIAL_USER_COINS
+                updates["friends"] = []
+                updates["incomingFriendRequests"] = []
+                updates["outgoingFriendRequests"] = []
+
+            doc_ref.set(updates, merge=True)
         except Exception as e:
-            logger.warning(f"Error ensuring coins for {uid}: {e}")
+            logger.warning(f"Error ensuring profile for {uid}: {e}")
+
+    def _ensure_user_coins(self, uid: str):
+        self._ensure_user_profile(uid)
+
+    async def send_friend_request(self, sender: dict, target_user: dict) -> bool:
+        if not firebase_initialized or not firestore_db:
+            return False
+        sender_uid = sender.get("uid")
+        target_uid = target_user.get("uid")
+        if not sender_uid or not target_uid or sender_uid == target_uid:
+            return False
+        try:
+            now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            clean_s = "".join(c for c in sender_uid if c.isalnum())[-5:].upper()
+            sender_tag = sender.get("playerTag") or f"GS-{clean_s.rjust(5, '8')}"
+            clean_t = "".join(c for c in target_uid if c.isalnum())[-5:].upper()
+            target_tag = target_user.get("playerTag") or f"GS-{clean_t.rjust(5, '8')}"
+
+            incoming_payload = {
+                "uid": sender_uid,
+                "username": sender.get("username") or "Player",
+                "avatar": sender.get("avatar") or "🎮",
+                "playerTag": sender_tag,
+                "sentAt": now,
+            }
+            outgoing_payload = {
+                "uid": target_uid,
+                "username": target_user.get("username") or "Player",
+                "avatar": target_user.get("avatar") or "🎮",
+                "playerTag": target_tag,
+                "sentAt": now,
+            }
+
+            from firebase_admin import firestore as fa_firestore
+            target_ref = firestore_db.collection("users").document(target_uid)
+            sender_ref = firestore_db.collection("users").document(sender_uid)
+
+            target_ref.set({
+                "incomingFriendRequests": fa_firestore.ArrayUnion([incoming_payload])
+            }, merge=True)
+
+            sender_ref.set({
+                "outgoingFriendRequests": fa_firestore.ArrayUnion([outgoing_payload])
+            }, merge=True)
+
+            if target_uid in self.connected_users:
+                ws = self.connected_users[target_uid]["ws"]
+                await ws.send_json({
+                    "type": "FRIEND_REQUEST_RECEIVED",
+                    "request": incoming_payload
+                })
+
+            return True
+        except Exception as e:
+            logger.error(f"Error sending friend request: {e}")
+            return False
+
+    async def accept_friend_request(self, my_uid: str, requester_uid: str) -> bool:
+        if not firebase_initialized or not firestore_db:
+            return False
+        try:
+            from firebase_admin import firestore as fa_firestore
+            my_ref = firestore_db.collection("users").document(my_uid)
+            req_ref = firestore_db.collection("users").document(requester_uid)
+
+            my_doc = my_ref.get()
+            req_doc = req_ref.get()
+
+            if my_doc.exists:
+                my_data = my_doc.to_dict() or {}
+                updated_incoming = [r for r in my_data.get("incomingFriendRequests", []) if r.get("uid") != requester_uid]
+                my_ref.set({
+                    "incomingFriendRequests": updated_incoming,
+                    "friends": fa_firestore.ArrayUnion([requester_uid])
+                }, merge=True)
+
+            if req_doc.exists:
+                req_data = req_doc.to_dict() or {}
+                updated_outgoing = [r for r in req_data.get("outgoingFriendRequests", []) if r.get("uid") != my_uid]
+                req_ref.set({
+                    "outgoingFriendRequests": updated_outgoing,
+                    "friends": fa_firestore.ArrayUnion([my_uid])
+                }, merge=True)
+
+            if requester_uid in self.connected_users:
+                ws = self.connected_users[requester_uid]["ws"]
+                await ws.send_json({
+                    "type": "FRIEND_REQUEST_ACCEPTED",
+                    "friendUid": my_uid
+                })
+
+            return True
+        except Exception as e:
+            logger.error(f"Error accepting friend request: {e}")
+            return False
+
+    async def decline_friend_request(self, my_uid: str, requester_uid: str) -> bool:
+        if not firebase_initialized or not firestore_db:
+            return False
+        try:
+            my_ref = firestore_db.collection("users").document(my_uid)
+            req_ref = firestore_db.collection("users").document(requester_uid)
+
+            my_doc = my_ref.get()
+            if my_doc.exists:
+                my_data = my_doc.to_dict() or {}
+                updated_incoming = [r for r in my_data.get("incomingFriendRequests", []) if r.get("uid") != requester_uid]
+                my_ref.set({"incomingFriendRequests": updated_incoming}, merge=True)
+
+            req_doc = req_ref.get()
+            if req_doc.exists:
+                req_data = req_doc.to_dict() or {}
+                updated_outgoing = [r for r in req_data.get("outgoingFriendRequests", []) if r.get("uid") != my_uid]
+                req_ref.set({"outgoingFriendRequests": updated_outgoing}, merge=True)
+
+            return True
+        except Exception as e:
+            logger.error(f"Error declining friend request: {e}")
+            return False
+
+    async def cancel_friend_request(self, my_uid: str, target_uid: str) -> bool:
+        if not firebase_initialized or not firestore_db:
+            return False
+        try:
+            my_ref = firestore_db.collection("users").document(my_uid)
+            target_ref = firestore_db.collection("users").document(target_uid)
+
+            my_doc = my_ref.get()
+            if my_doc.exists:
+                my_data = my_doc.to_dict() or {}
+                updated_outgoing = [r for r in my_data.get("outgoingFriendRequests", []) if r.get("uid") != target_uid]
+                my_ref.set({"outgoingFriendRequests": updated_outgoing}, merge=True)
+
+            target_doc = target_ref.get()
+            if target_doc.exists:
+                target_data = target_doc.to_dict() or {}
+                updated_incoming = [r for r in target_data.get("incomingFriendRequests", []) if r.get("uid") != my_uid]
+                target_ref.set({"incomingFriendRequests": updated_incoming}, merge=True)
+
+            return True
+        except Exception as e:
+            logger.error(f"Error canceling friend request: {e}")
+            return False
+
+    async def remove_friend(self, my_uid: str, friend_uid: str) -> bool:
+        if not firebase_initialized or not firestore_db:
+            return False
+        try:
+            from firebase_admin import firestore as fa_firestore
+            my_ref = firestore_db.collection("users").document(my_uid)
+            friend_ref = firestore_db.collection("users").document(friend_uid)
+
+            my_ref.set({"friends": fa_firestore.ArrayRemove([friend_uid])}, merge=True)
+            friend_ref.set({"friends": fa_firestore.ArrayRemove([my_uid])}, merge=True)
+            return True
+        except Exception as e:
+            logger.error(f"Error removing friend: {e}")
+            return False
+
+    def search_users(self, query_str: str, current_uid: str = "") -> list:
+        if not firebase_initialized or not firestore_db:
+            return []
+        raw = query_str.strip()
+        if raw.startsWith("#") if hasattr(raw, "startsWith") else raw.startswith("#"):
+            raw = raw[1:]
+        q_lower = raw.lower()
+        if len(q_lower) < 2:
+            return []
+
+        results = {}
+        try:
+            users_coll = firestore_db.collection("users")
+            docs1 = users_coll.where("playerTag_lowercase", "==", q_lower).limit(5).stream()
+            for d in docs1:
+                if d.id != current_uid:
+                    data = d.to_dict() or {}
+                    results[d.id] = {
+                        "uid": d.id,
+                        "username": data.get("username", "Player"),
+                        "avatar": data.get("avatar", "🎮"),
+                        "playerTag": data.get("playerTag", f"GS-{d.id[-5:].upper()}"),
+                        "level": data.get("level", 1)
+                    }
+
+            docs2 = users_coll.where("playerTag", "==", raw.upper()).limit(5).stream()
+            for d in docs2:
+                if d.id != current_uid and d.id not in results:
+                    data = d.to_dict() or {}
+                    results[d.id] = {
+                        "uid": d.id,
+                        "username": data.get("username", "Player"),
+                        "avatar": data.get("avatar", "🎮"),
+                        "playerTag": data.get("playerTag", f"GS-{d.id[-5:].upper()}"),
+                        "level": data.get("level", 1)
+                    }
+
+            docs3 = users_coll.where("username_lowercase", ">=", q_lower).where("username_lowercase", "<=", q_lower + "\uf8ff").limit(10).stream()
+            for d in docs3:
+                if d.id != current_uid and d.id not in results:
+                    data = d.to_dict() or {}
+                    results[d.id] = {
+                        "uid": d.id,
+                        "username": data.get("username", "Player"),
+                        "avatar": data.get("avatar", "🎮"),
+                        "playerTag": data.get("playerTag", f"GS-{d.id[-5:].upper()}"),
+                        "level": data.get("level", 1)
+                    }
+
+            clean_code = "".join(c for c in raw if c.isalnum()).upper()
+            if len(clean_code) >= 3:
+                all_docs = users_coll.limit(60).stream()
+                for d in all_docs:
+                    if d.id != current_uid and d.id not in results:
+                        uid_clean = "".join(c for c in d.id if c.isalnum())[-5:].upper()
+                        gen_tag = f"GS-{uid_clean.rjust(5, '8')}"
+                        data = d.to_dict() or {}
+                        d_tag = data.get("playerTag", gen_tag)
+                        if clean_code in d_tag.replace("-", "").upper() or clean_code in uid_clean:
+                            results[d.id] = {
+                                "uid": d.id,
+                                "username": data.get("username", "Player"),
+                                "avatar": data.get("avatar", "🎮"),
+                                "playerTag": d_tag,
+                                "level": data.get("level", 1)
+                            }
+        except Exception as e:
+            logger.error(f"Error searching users: {e}")
+
+        return list(results.values())
 
     def get_user_coins(self, uid: str) -> int:
         if not firebase_initialized or not firestore_db:

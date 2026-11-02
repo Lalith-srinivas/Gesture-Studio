@@ -24,7 +24,7 @@ import {
 
 export default function FriendsPage() {
   const navigate = useNavigate();
-  const { currentUser, isGuest } = useAuth();
+  const { currentUser, isGuest, loginAsGuest } = useAuth();
   const {
     playerData,
     friends: friendUids,
@@ -46,12 +46,22 @@ export default function FriendsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [sendingRequestTo, setSendingRequestTo] = useState(null);
+  const [optimisticOutgoing, setOptimisticOutgoing] = useState([]);
   const [copiedId, setCopiedId] = useState(false);
   const [actionFeedback, setActionFeedback] = useState(null);
 
-  const myUid = currentUser?.uid || '';
+  const effectiveUid = currentUser?.uid || playerData?.uid || localStorage.getItem('gesture_studio_last_uid') || '';
+  const myUid = effectiveUid;
   const myUsername = playerData?.username || currentUser?.displayName || 'Player';
   const myAvatar = playerData?.avatar || '🎮';
+
+  // Ensure user is signed in to Firebase Auth so Firestore rules pass
+  useEffect(() => {
+    if (!currentUser && !isGuest && loginAsGuest) {
+      loginAsGuest(myUsername).catch(() => {});
+    }
+  }, [currentUser, isGuest, loginAsGuest, myUsername]);
 
   // Fetch full profiles for friends
   useEffect(() => {
@@ -99,6 +109,12 @@ export default function FriendsPage() {
   };
 
   const handleSendRequest = async (targetUser) => {
+    if (!myUid) {
+      setActionFeedback('Loading player session, please try again in a moment...');
+      setTimeout(() => setActionFeedback(null), 3000);
+      return;
+    }
+    setSendingRequestTo(targetUser.uid);
     const sender = {
       uid: myUid,
       username: myUsername,
@@ -106,9 +122,14 @@ export default function FriendsPage() {
       playerTag: playerTag || 'GS-0000',
     };
     const success = await sendFriendRequest(sender, targetUser);
+    setSendingRequestTo(null);
     if (success) {
+      setOptimisticOutgoing((prev) => [...prev, targetUser.uid]);
       setActionFeedback(`Friend request sent to ${targetUser.username}!`);
-      setTimeout(() => setActionFeedback(null), 3000);
+      setTimeout(() => setActionFeedback(null), 3500);
+    } else {
+      setActionFeedback(`Could not send request. Please check your connection and try again.`);
+      setTimeout(() => setActionFeedback(null), 3500);
     }
   };
 
@@ -397,8 +418,9 @@ export default function FriendsPage() {
 
                 {searchResults.map((user) => {
                   const isFriend = friendUids.includes(user.uid);
-                  const isOutgoingPending = outgoingFriendRequests.some((r) => r.uid === user.uid);
+                  const isOutgoingPending = outgoingFriendRequests.some((r) => r.uid === user.uid) || optimisticOutgoing.includes(user.uid);
                   const isIncomingPending = incomingFriendRequests.some((r) => r.uid === user.uid);
+                  const isSending = sendingRequestTo === user.uid;
 
                   return (
                     <div
@@ -442,9 +464,10 @@ export default function FriendsPage() {
                         ) : (
                           <button
                             onClick={() => handleSendRequest(user)}
-                            className="px-4 py-1.5 bg-neo-yellow hover:bg-yellow-300 border-2 border-black font-mono font-black text-xs uppercase shadow-neo-sm active:translate-y-0.5 cursor-pointer"
+                            disabled={isSending}
+                            className="px-4 py-1.5 bg-neo-yellow hover:bg-yellow-300 border-2 border-black font-mono font-black text-xs uppercase shadow-neo-sm active:translate-y-0.5 cursor-pointer disabled:opacity-50"
                           >
-                            + ADD FRIEND
+                            {isSending ? 'SENDING...' : '+ ADD FRIEND'}
                           </button>
                         )}
                       </div>
