@@ -10,6 +10,7 @@ import SpaceShooter from './pages/SpaceShooter';
 import ProfilePage from './pages/ProfilePage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import AchievementsPage from './pages/AchievementsPage';
+import FriendsPage from './pages/FriendsPage';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Terms from './pages/Terms';
 import GestureCursor from './components/GestureCursor';
@@ -24,6 +25,8 @@ import AutoDailyRewardModal from './components/AutoDailyRewardModal';
 import { AuthProvider } from './context/AuthContext';
 import { PlayerProvider, usePlayer } from './context/PlayerContext';
 import { AdProvider } from './context/AdContext';
+import { MultiplayerProvider } from './context/MultiplayerContext';
+import MatchInviteNotification from './components/multiplayer/MatchInviteNotification';
 
 const GestureAcademy = lazy(() => import('./pages/GestureAcademy'));
 
@@ -158,14 +161,17 @@ export default function App() {
       <PlayerProvider>
         <AdProvider>
           <Router>
-            <ScrollToTop />
-            <CanonicalManager />
-            <ConditionalCursor />
-            <GlobalProgressionModals />
-            <ErrorBoundary>
+            <MultiplayerProvider>
+              <ScrollToTop />
+              <CanonicalManager />
+              <ConditionalCursor />
+              <GlobalProgressionModals />
+              <MatchInviteNotification />
+              <ErrorBoundary>
               <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/friends" element={<FriendsPage />} />
               <Route path="/leaderboard" element={<LeaderboardPage />} />
               <Route path="/achievements" element={<AchievementsPage />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
@@ -234,7 +240,8 @@ export default function App() {
               />
             </Routes>
             </ErrorBoundary>
-            <ConditionalBottomNav />
+              <ConditionalBottomNav />
+            </MultiplayerProvider>
           </Router>
         </AdProvider>
       </PlayerProvider>

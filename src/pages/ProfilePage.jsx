@@ -19,11 +19,13 @@ import { getWeeklyStreakVisualization } from '../services/streakService';
 import { GAME_LABELS } from '../services/gameStatsService';
 import { updateLeaderboardIdentity } from '../services/leaderboardService';
 import { isUsernameAvailable, claimUsername } from '../firebase/firestore';
+import MatchHistorySection from '../components/multiplayer/MatchHistorySection';
 
 const AVATAR_PRESETS = ['🎮', '🏆', '⚡', '🔥', '🎯', '🎨', '🦅', '🌟'];
 
 const TABS = [
   { id: 'profile',      label: '👤 PROFILE' },
+  { id: 'history',      label: '⚔️ MATCHES' },
   { id: 'achievements', label: '🥇 ACHIEVEMENTS' },
   { id: 'settings',     label: '⚙️ SETTINGS' },
 ];
@@ -50,6 +52,7 @@ export default function ProfilePage() {
     dailyRewardClaimed,
     unseenAchievementsCount,
     markAchievementsAsSeen,
+    playerTag,
   } = usePlayer();
   const { resetAll, settings } = useGestureAcademy();
 
@@ -266,6 +269,26 @@ export default function ProfilePage() {
                       </>
                     )}
                   </div>
+
+                  {/* Player Special ID Badge */}
+                  <div className="inline-flex items-center gap-1.5 bg-[#FFFDF5] border border-black px-2 py-0.5 text-xs font-mono font-black mb-2 shadow-xs">
+                    <span className="text-zinc-500 text-[10px]">PLAYER ID:</span>
+                    <span className="text-black">#{playerTag}</span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(playerTag);
+                        alert(`Copied Player ID #${playerTag} to clipboard!`);
+                      }}
+                      className="ml-1 text-[10px] text-zinc-500 hover:text-black hover:underline cursor-pointer"
+                      title="Copy Player ID"
+                    >
+                      📋 COPY
+                    </button>
+                    <Link to="/friends" className="ml-2 text-indigo-600 hover:underline text-[10px]">
+                      👥 FRIENDS →
+                    </Link>
+                  </div>
+
                   <p className="text-xs font-mono text-zinc-500 mb-2 truncate">
                     {isGuest ? '👤 Guest Account — progress may not be saved across devices' : currentUser?.email || ''}
                   </p>
@@ -321,13 +344,14 @@ export default function ProfilePage() {
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <StatCard icon="🪙" label="Match Coins" value={(playerData?.coins ?? 1000).toLocaleString()} bg="bg-neo-yellow" />
               <StatCard icon="🔥" label="Game Streak" value={`${playerData?.currentGameStreak || 0}D`} bg="bg-amber-50" />
               <StatCard icon="🏆" label="Longest Streak" value={`${playerData?.longestGameStreak || 0}D`} bg="bg-amber-50" />
               <StatCard icon="🎮" label="Games Played" value={playerData?.totalGamesPlayed || 0} bg="bg-neo-cyanLight" />
               <StatCard icon="⭐" label="Total Score" value={(playerData?.totalScore || 0).toLocaleString()} bg="bg-neo-cyanLight" />
               <StatCard icon="🥇" label="Achievements" value={`${unlockedCount}/${ACHIEVEMENTS.length}`} bg="bg-[#E0E7FF]" />
-              <StatCard icon="⚡" label="Total XP" value={(playerData?.xp || 0).toLocaleString()} bg="bg-neo-yellow" />
+              <StatCard icon="⚡" label="Total XP" value={(playerData?.xp || 0).toLocaleString()} bg="bg-neo-lime" />
             </div>
 
             {/* Weekly Streak Visual */}
@@ -409,10 +433,22 @@ export default function ProfilePage() {
               </div>
             )}
 
+            {/* Multiplayer Match History Preview */}
+            <MatchHistorySection uid={currentUser?.uid || playerData?.uid} />
+
             {/* ── Sponsored Space ── */}
             <div className="pt-2">
               <AdSlot placement="profile" format="responsive" className="max-w-3xl mx-auto" />
             </div>
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════ */}
+        {/* MATCH HISTORY TAB                                               */}
+        {/* ═══════════════════════════════════════════════════════════════ */}
+        {tab === 'history' && (
+          <div className="space-y-4">
+            <MatchHistorySection uid={currentUser?.uid || playerData?.uid} />
           </div>
         )}
 

@@ -11,9 +11,9 @@ const GAMES = [
     to: '/fruit-ninja',
     id: 'fruit-ninja',
     emoji: '🍉',
-    tag: 'ARCADE SLICE',
+    tag: '⚔️ 1v1 MULTIPLAYER & SOLO',
     title: 'Fruit Ninja',
-    desc: 'Slice juicy airborne fruits in real-time with finger swipes. Avoid bombs and trigger slow-motion combos!',
+    desc: 'Slice juicy airborne fruits in real-time with finger swipes. Avoid bombs, trigger slow-motion combos, or duel live in 1v1 coin wager matches!',
     bg: 'bg-[#FECDD3]',
     accent: 'bg-[#FB7185]',
     badgeBg: 'bg-[#FDA4AF]',
@@ -129,12 +129,13 @@ const GESTURE_GUIDES = [
 ];
 
 export default function Home() {
-  const { playerData, unseenAchievementsCount } = usePlayer();
+  const { playerData, unseenAchievementsCount, incomingFriendRequests } = usePlayer();
   const { isGlobalDone } = useGestureAcademy();
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Academy is globally complete if either the hook says so OR playerData confirms it
   const academyCompleted = isGlobalDone || playerData?.tutorialCompleted === true;
+  const pendingFriendsCount = incomingFriendRequests?.length || 0;
 
   return (
     <div className="w-full min-h-screen bg-neo-dots text-black flex flex-col font-sans selection:bg-neo-yellow selection:text-black overflow-x-hidden">
@@ -200,6 +201,20 @@ export default function Home() {
             {unseenAchievementsCount > 0 && (
               <span className="absolute -top-2.5 -right-2 bg-red-500 text-white border-2 border-black rounded-full min-w-[19px] h-[19px] px-1 flex items-center justify-center font-mono font-black text-[9px] shadow-sm animate-bounce z-20">
                 {unseenAchievementsCount > 99 ? '99+' : unseenAchievementsCount}
+              </span>
+            )}
+          </Link>
+
+          <Link
+            to="/friends"
+            className="relative px-2.5 sm:px-3 py-1 bg-[#86EFAC] hover:bg-[#4ADE80] text-black border-2 border-black font-mono font-black text-xs uppercase flex items-center gap-1.5 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
+            title="Friends & Social"
+          >
+            <span>👥</span>
+            <span className="hidden sm:inline">Friends</span>
+            {pendingFriendsCount > 0 && (
+              <span className="absolute -top-2.5 -right-2 bg-red-500 text-white border-2 border-black rounded-full min-w-[19px] h-[19px] px-1 flex items-center justify-center font-mono font-black text-[9px] shadow-sm animate-bounce z-20">
+                {pendingFriendsCount > 99 ? '99+' : pendingFriendsCount}
               </span>
             )}
           </Link>

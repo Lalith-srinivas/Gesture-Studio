@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { mapHandToScreen } from "../utils/resolution";
 import { useHandTracking } from "../hooks/useHandTracking";
 import { GESTURES } from "../utils/gestureDetector";
@@ -8,6 +8,12 @@ import { usePlayer } from "../hooks/usePlayer";
 import PostGameProgression from "../components/PostGameProgression";
 import AdSlot from "../components/ads/AdSlot";
 import AnimeCam from "../components/AnimeCam";
+import { createPRNG } from "../utils/prng";
+import { useMultiplayer } from "../context/MultiplayerContext";
+import GameModeModal from "../components/multiplayer/GameModeModal";
+import MultiplayerLobbyModal from "../components/multiplayer/MultiplayerLobbyModal";
+import MultiplayerVSHUD from "../components/multiplayer/MultiplayerVSHUD";
+import MultiplayerResultModal from "../components/multiplayer/MultiplayerResultModal";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -63,29 +69,32 @@ function getPlayableBounds(canvasWidth) {
   };
 }
 
-function spawnFruit(canvasWidth) {
-  const isBomb = Math.random() < 0.1;
-  const type = isBomb ? BOMB : FRUIT_TYPES[Math.floor(Math.random() * FRUIT_TYPES.length)];
+function spawnFruit(canvasWidth, prng = null) {
+  const rand = prng ? prng.random : Math.random;
+  const randBetween = (a, b) => a + rand() * (b - a);
+
+  const isBomb = rand() < 0.1;
+  const type = isBomb ? BOMB : FRUIT_TYPES[Math.floor(rand() * FRUIT_TYPES.length)];
   const r = type.radius;
   const { minX, maxX, centerX } = getPlayableBounds(canvasWidth);
 
   // Spawn strictly inside the playable bounds
-  const spawnX = randomBetween(minX + r + 20, maxX - r - 20);
+  const spawnX = randBetween(minX + r + 20, maxX - r - 20);
   // Bias horizontal trajectory towards the center
   const centerBias = (centerX - spawnX) * 0.005;
-  const vx = centerBias + randomBetween(-0.5, 0.5);
+  const vx = centerBias + randBetween(-0.5, 0.5);
 
   return {
-    id: Math.random().toString(36).slice(2),
+    id: 'f_' + Math.floor(rand() * 10000000),
     x: spawnX,
     y: window.innerHeight + r + 10,
     vx,
-    vy: randomBetween(-13.5, -10.5),
+    vy: randBetween(-13.5, -10.5),
     ...type,
     sliced: false,
     missed: false,
     rotation: 0,
-    rotSpeed: randomBetween(-0.08, 0.08),
+    rotSpeed: randBetween(-0.08, 0.08),
     opacity: 1,
   };
 }
@@ -139,6 +148,29 @@ export default function FruitNinja() {
   const [overReason, setOverReason] = useState("");
   const [lastProgressionResult, setLastProgressionResult] = useState(null);
   const sessionRecordedRef = useRef(false);
+
+  // ── Multiplayer Integration ───────────────────────────────────────────────
+  const [searchParams] = useSearchParams();
+  const isModeParam = searchParams.get("mode") === "multiplayer";
+
+  const {
+    matchState,
+    seed,
+    sendScore,
+    submitFinalScore,
+    matchResult,
+    resetState: resetMultiplayerState,
+  } = useMultiplayer();
+
+  const [isMultiplayer, setIsMultiplayer] = useState(isModeParam);
+  const [showModeModal, setShowModeModal] = useState(!isModeParam);
+  const [showLobbyModal, setShowLobbyModal] = useState(isModeParam);
+  const [mpTimeLeft, setMpTimeLeft] = useState(60);
+
+  const prngRef = useRef(null);
+  const mpTimerRef = useRef(null);
+  const isMultiplayerRef = useRef(isMultiplayer);
+  useEffect(() => { isMultiplayerRef.current = isMultiplayer; }, [isMultiplayer]);
 
   // Sync high score from Firestore allGameStats across all devices/origins
   useEffect(() => {
@@ -220,10 +252,17 @@ export default function FruitNinja() {
     if (s.animId) cancelAnimationFrame(s.animId);
     if (s.spawnTimer) clearInterval(s.spawnTimer);
     s.spawnTimer = null;
+    if (mpTimerRef.current) clearInterval(mpTimerRef.current);
     setOverReason(reason);
     setGameState("over");
     setSlowmo(false);
     const final = s.score;
+
+    if (isMultiplayerRef.current) {
+      submitFinalScore(final);
+      return;
+    }
+
     setHighScore(prev => {
       const next = Math.max(prev, final);
       localStorage.setItem("fn_highscore", String(next));
@@ -240,7 +279,7 @@ export default function FruitNinja() {
         if (res) setLastProgressionResult(res);
       });
     }
-  }, [recordGameResult]);
+  }, [recordGameResult, submitFinalScore]);
 
   useEffect(() => { endGameRef.current = endGame; }, [endGame]);
 
@@ -549,11 +588,14 @@ export default function FruitNinja() {
         playSliceSound();
         s.score += f.score;
         setDisplayScore(s.score);
+        if (isMultiplayerRef.current) {
+          sendScore(s.score);
+        }
         const phrase = FRUIT_PHRASES[Math.floor(Math.random() * FRUIT_PHRASES.length)];
         spawnFloatingText(f.x, f.y, phrase, "#64b4ff");
       }
     });
-  }, []);
+  }, [sendScore]);
 
   // ── Pointer events ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -610,14 +652,42 @@ export default function FruitNinja() {
     s.spawnTimer = setInterval(() => {
       if (!s.running) return;
       if (s.fruits.filter(f => !f.sliced).length < MAX_FRUITS) {
-        const count = Math.random() < 0.3 ? 2 : 1;
+        const rand = prngRef.current ? prngRef.current.random : Math.random;
+        const count = rand() < 0.3 ? 2 : 1;
         for (let i = 0; i < count; i++)
-          s.fruits.push(spawnFruit(canvas?.width || window.innerWidth));
+          s.fruits.push(spawnFruit(canvas?.width || window.innerWidth, prngRef.current));
       }
     }, SPAWN_INTERVAL);
 
     s.animId = requestAnimationFrame(tick);
   }, [tick]);
+
+  // Synchronize multiplayer game start and 60-second timer
+  useEffect(() => {
+    if (isMultiplayer && matchState === 'PLAYING' && gameState !== 'running') {
+      setShowLobbyModal(false);
+      if (seed) {
+        prngRef.current = createPRNG(seed);
+      }
+      setMpTimeLeft(60);
+      startGame();
+
+      if (mpTimerRef.current) clearInterval(mpTimerRef.current);
+      mpTimerRef.current = setInterval(() => {
+        setMpTimeLeft((prev) => {
+          if (prev <= 1) {
+            clearInterval(mpTimerRef.current);
+            endGameRef.current?.("time_up");
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (mpTimerRef.current) clearInterval(mpTimerRef.current);
+    };
+  }, [isMultiplayer, matchState, gameState, seed, startGame]);
 
   // ── Cleanup ───────────────────────────────────────────────────────────────
   useEffect(() => () => {
@@ -706,7 +776,15 @@ export default function FruitNinja() {
       </div>
 
       {/* ── HUD ──────────────────────────────────────────────────────────── */}
-      {gameState === "running" && (
+      {isMultiplayer && gameState === "running" ? (
+        <MultiplayerVSHUD
+          timeLeft={mpTimeLeft}
+          myLives={lives}
+          maxLives={MAX_MISSES}
+          myBombs={displayBombs}
+          maxBombs={MAX_BOMBS}
+        />
+      ) : gameState === "running" ? (
         <div className="absolute top-0 left-0 right-0 flex justify-between items-start px-4 sm:px-6 pt-4 pointer-events-none z-10">
 
           {/* Score Box */}
@@ -761,7 +839,7 @@ export default function FruitNinja() {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Bomb flash overlay */}
       {bombFlash && (
@@ -774,8 +852,8 @@ export default function FruitNinja() {
         />
       )}
 
-      {/* ── Start / Game-Over overlay ──────────────────────────────────── */}
-      {(gameState === "idle" || gameState === "over") && (
+      {/* ── Single Player Start / Game-Over overlay ──────────────────── */}
+      {!isMultiplayer && (gameState === "idle" || gameState === "over") && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-30 bg-black/75 p-2 sm:p-4 overflow-y-auto">
           
           <div className="neo-box-xl bg-[#FFFDF5] p-4 sm:p-8 max-w-md w-full text-center flex flex-col items-center max-h-[88vh] overflow-y-auto my-auto overscroll-contain">
@@ -845,6 +923,17 @@ export default function FruitNinja() {
                 {gameState === "idle" ? "▶ START SLICING" : "↺ PLAY AGAIN"}
               </button>
 
+              <button
+                onClick={() => {
+                  setIsMultiplayer(true);
+                  setShowLobbyModal(true);
+                }}
+                className="w-full py-2.5 bg-neo-pink hover:bg-rose-300 text-black border-2 sm:border-3 border-black font-mono font-black text-xs uppercase shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-all flex items-center justify-center gap-1.5"
+              >
+                <span>⚔️</span>
+                <span>SWITCH TO MULTIPLAYER (1v1)</span>
+              </button>
+
               {gameState === "over" && (
                 <button
                   onClick={() => navigate('/')}
@@ -867,6 +956,46 @@ export default function FruitNinja() {
           </div>
         </div>
       )}
+
+      {/* ── Mode Selection Modal (Single Player vs Multiplayer) ─────── */}
+      <GameModeModal
+        isOpen={showModeModal}
+        onClose={() => setShowModeModal(false)}
+        onSelectSinglePlayer={() => {
+          setIsMultiplayer(false);
+          setShowModeModal(false);
+        }}
+        onSelectMultiplayer={() => {
+          setIsMultiplayer(true);
+          setShowModeModal(false);
+          setShowLobbyModal(true);
+        }}
+        gameTitle="Fruit Ninja"
+      />
+
+      {/* ── Multiplayer Lobby Modal (Random / Friends / Stakes) ─────── */}
+      <MultiplayerLobbyModal
+        isOpen={isMultiplayer && showLobbyModal}
+        onClose={() => {
+          setShowLobbyModal(false);
+          setShowModeModal(true);
+          setIsMultiplayer(false);
+          setGameState("idle");
+        }}
+        gameId="fruit-ninja"
+        gameTitle="Fruit Ninja"
+      />
+
+      {/* ── Multiplayer Result Modal ─────────────────────────────────── */}
+      <MultiplayerResultModal
+        isOpen={isMultiplayer && Boolean(matchResult)}
+        onReturnToLobby={() => {
+          resetMultiplayerState();
+          setIsMultiplayer(false);
+          setShowModeModal(true);
+          setGameState("idle");
+        }}
+      />
 
       <style>{`
         @keyframes fnpulse { from { opacity: 1; } to { opacity: 0.45; } }

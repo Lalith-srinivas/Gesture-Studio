@@ -12,7 +12,8 @@ import DailyRewardModal from './DailyRewardModal';
 
 export default function ProfileDropdown() {
   const { currentUser, isGuest, logout } = useAuth();
-  const { playerData, xpInfo, dailyRewardClaimed, unseenAchievementsCount } = usePlayer();
+  const { playerData, xpInfo, dailyRewardClaimed, unseenAchievementsCount, incomingFriendRequests } = usePlayer();
+  const pendingRequestsCount = incomingFriendRequests?.length || 0;
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
@@ -81,6 +82,11 @@ export default function ProfileDropdown() {
               {unseenAchievementsCount > 99 ? '99+' : unseenAchievementsCount}
             </span>
           )}
+          {pendingRequestsCount > 0 && (
+            <span className="bg-neo-red text-white border border-black rounded-full min-w-[17px] h-[17px] px-1 flex items-center justify-center font-mono font-black text-[9px] shadow-sm animate-pulse">
+              {pendingRequestsCount > 99 ? '99+' : pendingRequestsCount}
+            </span>
+          )}
           <span className="text-[10px] text-zinc-400">▾</span>
         </button>
 
@@ -98,8 +104,9 @@ export default function ProfileDropdown() {
             {/* Menu items */}
             {[
               { to: '/profile', icon: '👤', label: 'MY PROFILE' },
+              { to: '/friends', icon: '👥', label: 'FRIENDS & SOCIAL', badge: pendingRequestsCount },
               { to: '/leaderboard', icon: '🏆', label: 'LEADERBOARDS' },
-              { to: '/achievements', icon: '🥇', label: 'ACHIEVEMENTS' },
+              { to: '/achievements', icon: '🥇', label: 'ACHIEVEMENTS', badge: unseenAchievementsCount },
             ].map((item) => (
               <Link
                 key={item.to}
@@ -109,9 +116,9 @@ export default function ProfileDropdown() {
               >
                 <span>{item.icon}</span>
                 <span>{item.label}</span>
-                {item.to === '/achievements' && unseenAchievementsCount > 0 && (
+                {item.badge > 0 && (
                   <span className="ml-auto bg-red-500 text-white border border-black rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center font-mono font-black text-[9px] shadow-sm animate-pulse">
-                    {unseenAchievementsCount > 99 ? '99+' : unseenAchievementsCount}
+                    {item.badge > 99 ? '99+' : item.badge}
                   </span>
                 )}
               </Link>

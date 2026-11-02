@@ -15,6 +15,7 @@ import { recordGameResult as _recordGameResult, recordAcademyCompletion as _reco
 import { canClaimTodayReward, claimDailyReward as _claimDailyReward, getNextClaimDay, getTodayDateString } from '../services/dailyRewardService';
 import { ACHIEVEMENTS } from '../services/achievementService';
 import { updateGlobalLeaderboard, updateGameLeaderboard, purgeOrphanedLeaderboardEntries } from '../services/leaderboardService';
+import { generatePlayerTag } from '../firebase/firestore';
 
 const PlayerContext = createContext(null);
 
@@ -128,6 +129,11 @@ export function PlayerProvider({ children }) {
             totalGamesPlayed: Math.max(data.totalGamesPlayed || 0, cached.totalGamesPlayed || 0),
             currentGameStreak: Math.max(data.currentGameStreak || 0, cached.currentGameStreak || 0),
             longestGameStreak: Math.max(data.longestGameStreak || 0, cached.longestGameStreak || 0),
+            coins: data.coins !== undefined ? data.coins : (cached.coins !== undefined ? cached.coins : 1000),
+            friends: Array.isArray(data.friends) ? data.friends : (Array.isArray(cached.friends) ? cached.friends : []),
+            playerTag: data.playerTag || cached.playerTag || generatePlayerTag(uid),
+            incomingFriendRequests: Array.isArray(data.incomingFriendRequests) ? data.incomingFriendRequests : (Array.isArray(cached.incomingFriendRequests) ? cached.incomingFriendRequests : []),
+            outgoingFriendRequests: Array.isArray(data.outgoingFriendRequests) ? data.outgoingFriendRequests : (Array.isArray(cached.outgoingFriendRequests) ? cached.outgoingFriendRequests : []),
           };
           setPlayerData(merged);
           saveCachedPlayer(uid, merged);
@@ -172,6 +178,8 @@ export function PlayerProvider({ children }) {
             dailyRewardDay: 0,
             lastDailyRewardDate: null,
             achievementsUnlocked: [],
+            coins: 1000,
+            friends: [],
             tutorialCompleted: localStorage.getItem('gesture_academy_global_done') === 'true',
             ...cached,
             ...(userProfile || {}),
@@ -559,6 +567,11 @@ export function PlayerProvider({ children }) {
     unseenAchievementsCount,
     markAchievementsAsSeen,
     loading,
+    coins: playerData?.coins ?? 1000,
+    friends: playerData?.friends || [],
+    playerTag: playerData?.playerTag || generatePlayerTag(effectiveUid),
+    incomingFriendRequests: playerData?.incomingFriendRequests || [],
+    outgoingFriendRequests: playerData?.outgoingFriendRequests || [],
 
     dailyRewardClaimed,
     nextDailyReward,

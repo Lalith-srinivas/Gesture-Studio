@@ -19,7 +19,9 @@ import {
   getDocs,
   serverTimestamp,
   increment,
-  writeBatch
+  writeBatch,
+  arrayUnion,
+  arrayRemove
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -31,7 +33,8 @@ export const COLLECTIONS = {
   ACHIEVEMENTS: 'achievements',
   DAILY_CHALLENGES: 'dailyChallenges',
   WEEKLY_CHALLENGES: 'weeklyChallenges',
-  USER_SETTINGS: 'userSettings'
+  USER_SETTINGS: 'userSettings',
+  MATCH_HISTORY: 'matchHistory'
 };
 
 export const SUPPORTED_GAMES = {
@@ -237,6 +240,23 @@ export const getOrCreateUserProfile = async (user, additionalData = {}) => {
       if (data.isAnonymous && !user.isAnonymous) {
         updates.isAnonymous = false;
       }
+      if (data.coins === undefined) {
+        updates.coins = 1000;
+      }
+      if (!Array.isArray(data.friends)) {
+        updates.friends = [];
+      }
+      const playerTag = data.playerTag || generatePlayerTag(user.uid);
+      if (!data.playerTag) {
+        updates.playerTag = playerTag;
+        updates.playerTag_lowercase = playerTag.toLowerCase();
+      }
+      if (!Array.isArray(data.incomingFriendRequests)) {
+        updates.incomingFriendRequests = [];
+      }
+      if (!Array.isArray(data.outgoingFriendRequests)) {
+        updates.outgoingFriendRequests = [];
+      }
 
       await updateDoc(userRef, updates);
       const merged = { ...data, ...updates };
@@ -248,10 +268,14 @@ export const getOrCreateUserProfile = async (user, additionalData = {}) => {
       const guestHandle = `Guest_${randomSuffix}`;
       const finalUsername = user.displayName || additionalData.username || (user.isAnonymous ? guestHandle : 'Player');
 
+      const playerTag = generatePlayerTag(user.uid);
+
       const newProfile = {
         uid: user.uid,
         username: finalUsername,
         username_lowercase: finalUsername.toLowerCase(),
+        playerTag,
+        playerTag_lowercase: playerTag.toLowerCase(),
         email: user.email || '',
         isAnonymous: Boolean(user.isAnonymous),
         avatar: user.photoURL || '🎮',
@@ -265,6 +289,10 @@ export const getOrCreateUserProfile = async (user, additionalData = {}) => {
         dailyRewardDay: 0,
         lastDailyRewardDate: null,
         achievementsUnlocked: [],
+        friends: [],
+        incomingFriendRequests: [],
+        outgoingFriendRequests: [],
+        coins: 1000,
         gamesPlayedByGame: {},
         gamesPlayed: 0,
         totalGamesPlayed: 0,
@@ -525,5 +553,299 @@ export const unlockAchievement = async (uid, achievementId) => {
     });
   } catch (err) {
     console.warn('[Firestore] Offline: achievement saved locally:', err?.message);
+  }
+};
+
+// --- FRIENDS & SOCIAL OPERATIONS ---
+
+export const generatePlayerTag = (uid) => {
+  if (!uid) return 'GS-0000';
+  const clean = uid.replace(/[^a-zA-Z0-9]/g, '').slice(-5).toUpperCase();
+  return `GS-${clean.padStart(5, '8')}`;
+};
+
+export const getFriendsProfiles = async (friendUids = []) => {
+  if (!Array.isArray(friendUids) || friendUids.length === 0) return [];
+  const profiles = [];
+  try {
+    for (const fUid of friendUids.slice(0, 50)) {
+      const snap = await getDoc(doc(db, COLLECTIONS.USERS, fUid));
+      if (snap.exists()) {
+        const d = snap.data();
+        profiles.push({
+          uid: fUid,
+          username: d.username || 'Player',
+          avatar: d.avatar || '🎮',
+          playerTag: d.playerTag || generatePlayerTag(fUid),
+          coins: d.coins ?? 1000,
+          level: d.level || 1,
+        });
+      }
+    }
+  } catch (e) {
+    console.error('Error fetching friends profiles:', e);
+  }
+  return profiles;
+};
+
+/**
+ * Search users by Nickname OR by Special Player ID (e.g. "GS-8912")
+ */
+export const searchUsersByUsername = async (searchQuery = '', currentUid = null) => {
+  let raw = (searchQuery || '').trim();
+  if (raw.startsWith('#')) raw = raw.slice(1);
+  const queryLower = raw.toLowerCase();
+  if (queryLower.length < 2) return [];
+
+  const resultsMap = new Map();
+
+  try {
+    // 1. Direct lookup by Special Player ID
+    if (queryLower.includes('gs') || queryLower.length >= 4) {
+      const tagQuery = query(
+        collection(db, COLLECTIONS.USERS),
+        where('playerTag_lowercase', '==', queryLower),
+        limit(5)
+      );
+      const tagSnap = await getDocs(tagQuery);
+      tagSnap.forEach((docSnap) => {
+        if (docSnap.id !== currentUid) {
+          const d = docSnap.data();
+          resultsMap.set(docSnap.id, {
+            uid: docSnap.id,
+            username: d.username || 'Player',
+            avatar: d.avatar || '🎮',
+            playerTag: d.playerTag || generatePlayerTag(docSnap.id),
+            level: d.level || 1,
+          });
+        }
+      });
+    }
+
+    // 2. Prefix search by username
+    const nameQuery = query(
+      collection(db, COLLECTIONS.USERS),
+      where('username_lowercase', '>=', queryLower),
+      where('username_lowercase', '<=', queryLower + '\uf8ff'),
+      limit(10)
+    );
+    const nameSnap = await getDocs(nameQuery);
+    nameSnap.forEach((docSnap) => {
+      if (docSnap.id !== currentUid && !resultsMap.has(docSnap.id)) {
+        const d = docSnap.data();
+        resultsMap.set(docSnap.id, {
+          uid: docSnap.id,
+          username: d.username || 'Player',
+          avatar: d.avatar || '🎮',
+          playerTag: d.playerTag || generatePlayerTag(docSnap.id),
+          level: d.level || 1,
+        });
+      }
+    });
+
+    return Array.from(resultsMap.values());
+  } catch (e) {
+    console.error('Error searching users:', e);
+    return [];
+  }
+};
+
+/**
+ * Send a friend request
+ */
+export const sendFriendRequest = async (sender, targetUser) => {
+  if (!sender?.uid || !targetUser?.uid || sender.uid === targetUser.uid) return false;
+
+  try {
+    const senderRef = doc(db, COLLECTIONS.USERS, sender.uid);
+    const targetRef = doc(db, COLLECTIONS.USERS, targetUser.uid);
+
+    const now = new Date().toISOString();
+
+    const incomingPayload = {
+      uid: sender.uid,
+      username: sender.username || 'Player',
+      avatar: sender.avatar || '🎮',
+      playerTag: sender.playerTag || generatePlayerTag(sender.uid),
+      sentAt: now,
+    };
+
+    const outgoingPayload = {
+      uid: targetUser.uid,
+      username: targetUser.username || 'Player',
+      avatar: targetUser.avatar || '🎮',
+      playerTag: targetUser.playerTag || generatePlayerTag(targetUser.uid),
+      sentAt: now,
+    };
+
+    await updateDoc(targetRef, {
+      incomingFriendRequests: arrayUnion(incomingPayload)
+    });
+
+    await updateDoc(senderRef, {
+      outgoingFriendRequests: arrayUnion(outgoingPayload)
+    });
+
+    return true;
+  } catch (e) {
+    console.error('Error sending friend request:', e);
+    return false;
+  }
+};
+
+/**
+ * Accept a friend request
+ */
+export const acceptFriendRequest = async (myUid, requesterUid) => {
+  if (!myUid || !requesterUid) return false;
+  try {
+    const myRef = doc(db, COLLECTIONS.USERS, myUid);
+    const reqRef = doc(db, COLLECTIONS.USERS, requesterUid);
+
+    const [mySnap, reqSnap] = await Promise.all([getDoc(myRef), getDoc(reqRef)]);
+    if (!mySnap.exists() || !reqSnap.exists()) return false;
+
+    const myData = mySnap.data();
+    const reqData = reqSnap.data();
+
+    // Remove from my incoming requests
+    const updatedIncoming = (myData.incomingFriendRequests || []).filter(
+      (r) => r.uid !== requesterUid
+    );
+
+    // Remove from requester's outgoing requests
+    const updatedOutgoing = (reqData.outgoingFriendRequests || []).filter(
+      (r) => r.uid !== myUid
+    );
+
+    // Add each other as friends
+    await updateDoc(myRef, {
+      incomingFriendRequests: updatedIncoming,
+      friends: arrayUnion(requesterUid)
+    });
+
+    await updateDoc(reqRef, {
+      outgoingFriendRequests: updatedOutgoing,
+      friends: arrayUnion(myUid)
+    });
+
+    return true;
+  } catch (e) {
+    console.error('Error accepting friend request:', e);
+    return false;
+  }
+};
+
+/**
+ * Decline a friend request
+ */
+export const declineFriendRequest = async (myUid, requesterUid) => {
+  if (!myUid || !requesterUid) return false;
+  try {
+    const myRef = doc(db, COLLECTIONS.USERS, myUid);
+    const reqRef = doc(db, COLLECTIONS.USERS, requesterUid);
+
+    const [mySnap, reqSnap] = await Promise.all([getDoc(myRef), getDoc(reqRef)]);
+
+    if (mySnap.exists()) {
+      const myData = mySnap.data();
+      const updatedIncoming = (myData.incomingFriendRequests || []).filter(
+        (r) => r.uid !== requesterUid
+      );
+      await updateDoc(myRef, { incomingFriendRequests: updatedIncoming });
+    }
+
+    if (reqSnap.exists()) {
+      const reqData = reqSnap.data();
+      const updatedOutgoing = (reqData.outgoingFriendRequests || []).filter(
+        (r) => r.uid !== myUid
+      );
+      await updateDoc(reqRef, { outgoingFriendRequests: updatedOutgoing });
+    }
+
+    return true;
+  } catch (e) {
+    console.error('Error declining friend request:', e);
+    return false;
+  }
+};
+
+/**
+ * Cancel an outgoing friend request
+ */
+export const cancelFriendRequest = async (myUid, targetUid) => {
+  if (!myUid || !targetUid) return false;
+  try {
+    const myRef = doc(db, COLLECTIONS.USERS, myUid);
+    const targetRef = doc(db, COLLECTIONS.USERS, targetUid);
+
+    const [mySnap, targetSnap] = await Promise.all([getDoc(myRef), getDoc(targetRef)]);
+
+    if (mySnap.exists()) {
+      const myData = mySnap.data();
+      const updatedOutgoing = (myData.outgoingFriendRequests || []).filter(
+        (r) => r.uid !== targetUid
+      );
+      await updateDoc(myRef, { outgoingFriendRequests: updatedOutgoing });
+    }
+
+    if (targetSnap.exists()) {
+      const targetData = targetSnap.data();
+      const updatedIncoming = (targetData.incomingFriendRequests || []).filter(
+        (r) => r.uid !== myUid
+      );
+      await updateDoc(targetRef, { incomingFriendRequests: updatedIncoming });
+    }
+
+    return true;
+  } catch (e) {
+    console.error('Error canceling friend request:', e);
+    return false;
+  }
+};
+
+export const removeFriend = async (currentUid, friendUid) => {
+  if (!currentUid || !friendUid) return false;
+  try {
+    const userRef = doc(db, COLLECTIONS.USERS, currentUid);
+    await updateDoc(userRef, {
+      friends: arrayRemove(friendUid)
+    });
+    const friendRef = doc(db, COLLECTIONS.USERS, friendUid);
+    await updateDoc(friendRef, {
+      friends: arrayRemove(currentUid)
+    }).catch(() => {});
+    return true;
+  } catch (e) {
+    console.error('Error removing friend:', e);
+    return false;
+  }
+};
+
+// --- MULTIPLAYER MATCH HISTORY ---
+
+export const getUserMatchHistory = async (uid, maxItems = 15) => {
+  if (!uid) return [];
+  try {
+    const q = query(
+      collection(db, COLLECTIONS.MATCH_HISTORY),
+      where('playerUids', 'array-contains', uid),
+      limit(maxItems)
+    );
+    const snap = await getDocs(q);
+    const history = [];
+    snap.forEach((d) => {
+      history.push({ id: d.id, ...d.data() });
+    });
+    // Sort descending by timestamp / createdAt
+    history.sort((a, b) => {
+      const timeA = a.timestamp?.toMillis ? a.timestamp.toMillis() : new Date(a.createdAt || 0).getTime();
+      const timeB = b.timestamp?.toMillis ? b.timestamp.toMillis() : new Date(b.createdAt || 0).getTime();
+      return timeB - timeA;
+    });
+    return history;
+  } catch (e) {
+    console.error('Error getting match history:', e);
+    return [];
   }
 };

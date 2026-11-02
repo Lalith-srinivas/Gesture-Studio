@@ -29,3 +29,11 @@ dist-ssr
 # Firebase Service Keys
 serviceAccountKey.json
 *serviceAccount*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
