@@ -5,6 +5,7 @@ import { useGestureAcademy } from '../hooks/useGestureAcademy';
 import AuthModal from '../components/AuthModal';
 import ProfileDropdown from '../components/ProfileDropdown';
 import AdSlot from '../components/ads/AdSlot';
+import { useMusic } from '../context/MusicContext';
 
 const GAMES = [
   {
@@ -131,6 +132,7 @@ const GESTURE_GUIDES = [
 export default function Home() {
   const { playerData, unseenAchievementsCount, incomingFriendRequests } = usePlayer();
   const { isGlobalDone } = useGestureAcademy();
+  const { musicEnabled, toggleMusic } = useMusic();
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Academy is globally complete if either the hook says so OR playerData confirms it
@@ -218,6 +220,18 @@ export default function Home() {
               </span>
             )}
           </Link>
+
+          {/* Quick Music Toggle */}
+          <button
+            onClick={toggleMusic}
+            className={`px-2.5 sm:px-3 py-1 border-2 border-black font-mono font-black text-xs uppercase flex items-center gap-1.5 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform cursor-pointer ${
+              musicEnabled ? 'bg-[#FED7AA] hover:bg-[#FDBA74] text-black' : 'bg-zinc-200 text-zinc-500 border-zinc-400'
+            }`}
+            title={musicEnabled ? 'Background Music: ON (Click to mute)' : 'Background Music: OFF (Click to unmute)'}
+          >
+            <span>{musicEnabled ? '🎵' : '🔇'}</span>
+            <span className="hidden lg:inline">{musicEnabled ? 'MUSIC ON' : 'MUSIC OFF'}</span>
+          </button>
 
           <ProfileDropdown />
         </div>

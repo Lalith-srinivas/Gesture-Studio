@@ -26,6 +26,7 @@ import { AuthProvider } from './context/AuthContext';
 import { PlayerProvider, usePlayer } from './context/PlayerContext';
 import { AdProvider } from './context/AdContext';
 import { MultiplayerProvider } from './context/MultiplayerContext';
+import { MusicProvider } from './context/MusicContext';
 import MatchInviteNotification from './components/multiplayer/MatchInviteNotification';
 
 const GestureAcademy = lazy(() => import('./pages/GestureAcademy'));
@@ -162,13 +163,14 @@ export default function App() {
         <AdProvider>
           <Router>
             <MultiplayerProvider>
-              <ScrollToTop />
-              <CanonicalManager />
-              <ConditionalCursor />
-              <GlobalProgressionModals />
-              <MatchInviteNotification />
-              <ErrorBoundary>
-              <Routes>
+              <MusicProvider>
+                <ScrollToTop />
+                <CanonicalManager />
+                <ConditionalCursor />
+                <GlobalProgressionModals />
+                <MatchInviteNotification />
+                <ErrorBoundary>
+                <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/friends" element={<FriendsPage />} />
@@ -241,6 +243,7 @@ export default function App() {
             </Routes>
             </ErrorBoundary>
               <ConditionalBottomNav />
+              </MusicProvider>
             </MultiplayerProvider>
           </Router>
         </AdProvider>

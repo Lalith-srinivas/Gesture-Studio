@@ -21,6 +21,7 @@ import { updateLeaderboardIdentity } from '../services/leaderboardService';
 import { isUsernameAvailable, claimUsername } from '../firebase/firestore';
 import MatchHistorySection from '../components/multiplayer/MatchHistorySection';
 import { useMultiplayer } from '../context/MultiplayerContext';
+import { useMusic } from '../context/MusicContext';
 
 const AVATAR_PRESETS = ['🎮', '🏆', '⚡', '🔥', '🎯', '🎨', '🦅', '🌟'];
 
@@ -57,6 +58,7 @@ export default function ProfilePage() {
   } = usePlayer();
   const { resetAll, settings } = useGestureAcademy();
   const { showPopup } = useMultiplayer();
+  const { musicEnabled, setMusicEnabled } = useMusic();
 
   useEffect(() => {
     if (tab === 'achievements') {
@@ -605,6 +607,21 @@ export default function ProfilePage() {
                   value={settings.dontShow}
                   onChange={(v) => settings.setDontShow(v)}
                 />
+              </div>
+            </section>
+
+            {/* Audio & Music */}
+            <section className="bg-white border-3 border-black shadow-neo-sm p-5">
+              <h3 className="font-display font-black text-base uppercase mb-4 border-b-2 border-black pb-2">🎵 Audio & Music</h3>
+              <div className="space-y-2.5">
+                <ToggleSetting
+                  label="Background Music (ON / OFF)"
+                  value={musicEnabled}
+                  onChange={(v) => setMusicEnabled(v)}
+                />
+                <p className="font-mono text-[11px] text-zinc-500">
+                  Plays in the background across homepage and games. Automatically reduces volume during active gameplay so slicing and game sound effects remain crystal clear.
+                </p>
               </div>
             </section>
 
