@@ -9,6 +9,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import { useAuth } from '../hooks/useAuth';
 import { usePlayer } from '../hooks/usePlayer';
 import NeoAlertModal from '../components/NeoAlertModal';
+import { playCountdownSound } from '../utils/soundEffects';
 
 const MultiplayerContext = createContext(null);
 
@@ -162,6 +163,7 @@ export function MultiplayerProvider({ children }) {
       }
 
       case 'START_COUNTDOWN': {
+        playCountdownSound();
         setMatchState('COUNTDOWN');
         setSeed(msg.seed);
         setTier(msg.tier);

@@ -3,6 +3,7 @@ import { useMultiplayer } from '../../context/MultiplayerContext';
 import { usePlayer } from '../../hooks/usePlayer';
 import { useAuth } from '../../hooks/useAuth';
 import { getFriendsProfiles, sendFriendRequest, searchUsersByUsername } from '../../firebase/firestore';
+import { playCountdownSound } from '../../utils/soundEffects';
 
 export default function MultiplayerLobbyModal({ isOpen, onClose, gameId = "fruit-ninja", gameTitle = "Fruit Ninja" }) {
   const {
@@ -37,6 +38,23 @@ export default function MultiplayerLobbyModal({ isOpen, onClose, gameId = "fruit
   const [confirmedReady, setConfirmedReady] = useState(false);
   const [selectedTierLocal, setSelectedTierLocal] = useState(null);
   const [invitingUid, setInvitingUid] = useState(null);
+  const [countdownSec, setCountdownSec] = useState(3);
+
+  // Synchronized 3-2-1-GO countdown and audio playback
+  useEffect(() => {
+    if (matchState === 'COUNTDOWN') {
+      playCountdownSound();
+      setCountdownSec(3);
+      const t1 = setTimeout(() => setCountdownSec(2), 1000);
+      const t2 = setTimeout(() => setCountdownSec(1), 2000);
+      const t3 = setTimeout(() => setCountdownSec('GO!'), 2900);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+      };
+    }
+  }, [matchState]);
 
   const friendsUids = playerData?.friends || [];
   const myUid = currentUser?.uid || '';
@@ -485,12 +503,14 @@ export default function MultiplayerLobbyModal({ isOpen, onClose, gameId = "fruit
             <div className="font-mono text-xs font-black uppercase text-zinc-500 mb-2">
               SYNCHRONIZING SEED & ARENA...
             </div>
-            <div className="w-28 h-28 bg-neo-yellow border-4 border-black shadow-neo-lg rounded-full flex items-center justify-center mx-auto mb-4 animate-ping">
-              <span className="font-display font-black text-6xl text-black">GO</span>
+            <div className="w-28 h-28 bg-neo-yellow border-4 border-black shadow-neo-lg rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+              <span className="font-display font-black text-6xl text-black">
+                {countdownSec}
+              </span>
             </div>
             <h3 className="font-display font-black text-3xl uppercase">MATCH STARTING!</h3>
             <p className="font-mono text-xs text-zinc-700 mt-2">
-              Entry fee locked. Slicing starts in 3 seconds!
+              Entry fee locked. Slicing starts in {countdownSec === 'GO!' ? '1' : countdownSec} second{countdownSec === 1 ? '' : 's'}!
             </p>
           </div>
         )}

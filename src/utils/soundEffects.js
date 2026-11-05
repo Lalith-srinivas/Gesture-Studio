@@ -1,4 +1,4 @@
-﻿// Web Audio API Sound Effects Synthesizer
+// Web Audio API Sound Effects Synthesizer
 let audioCtx = null;
 
 function getAudioContext() {
@@ -306,4 +306,36 @@ export function playFailSound() {
 
   osc.start(now);
   osc.stop(now + 0.5);
+}
+
+// ── MULTIPLAYER MATCH COUNTDOWN SOUND ──
+let countdownAudio = null;
+
+export function playCountdownSound() {
+  try {
+    resumeAudio();
+    if (!countdownAudio) {
+      countdownAudio = new Audio('/make_more_sound-321-go-8-bit-video-game-sound-version-1-145007.mp3');
+      countdownAudio.volume = 0.85;
+    } else {
+      countdownAudio.currentTime = 0;
+    }
+    const playPromise = countdownAudio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch((err) => {
+        console.warn('Countdown sound play was prevented or blocked by browser:', err);
+      });
+    }
+  } catch (err) {
+    console.warn('Error playing countdown sound:', err);
+  }
+}
+
+export function stopCountdownSound() {
+  try {
+    if (countdownAudio) {
+      countdownAudio.pause();
+      countdownAudio.currentTime = 0;
+    }
+  } catch {}
 }
