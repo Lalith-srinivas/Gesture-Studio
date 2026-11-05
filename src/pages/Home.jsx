@@ -179,7 +179,7 @@ export default function Home() {
         <div className="flex items-center gap-2 shrink-0 ml-3">
           <Link
             to="/gesture-academy"
-            className="px-2.5 sm:px-3 py-1 bg-[#818CF8] hover:bg-[#6366F1] text-white border-2 border-black font-mono font-black text-xs uppercase flex items-center gap-1.5 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
+            className="hidden md:flex px-2.5 sm:px-3 py-1 bg-[#818CF8] hover:bg-[#6366F1] text-white border-2 border-black font-mono font-black text-xs uppercase items-center gap-1.5 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
           >
             <span>🎓</span>
             <span className="hidden sm:inline">Academy</span>
@@ -187,7 +187,7 @@ export default function Home() {
 
           <Link
             to="/leaderboard"
-            className="px-2.5 sm:px-3 py-1 bg-neo-yellow hover:bg-yellow-400 text-black border-2 border-black font-mono font-black text-xs uppercase flex items-center gap-1.5 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
+            className="hidden md:flex px-2.5 sm:px-3 py-1 bg-neo-yellow hover:bg-yellow-400 text-black border-2 border-black font-mono font-black text-xs uppercase items-center gap-1.5 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
           >
             <span>🏆</span>
             <span className="hidden sm:inline">Leaderboard</span>
@@ -209,7 +209,7 @@ export default function Home() {
 
           <Link
             to="/friends"
-            className="relative px-2.5 sm:px-3 py-1 bg-[#86EFAC] hover:bg-[#4ADE80] text-black border-2 border-black font-mono font-black text-xs uppercase flex items-center gap-1.5 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
+            className="hidden md:flex relative px-2.5 sm:px-3 py-1 bg-[#86EFAC] hover:bg-[#4ADE80] text-black border-2 border-black font-mono font-black text-xs uppercase items-center gap-1.5 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
             title="Friends & Social"
           >
             <span>👥</span>
