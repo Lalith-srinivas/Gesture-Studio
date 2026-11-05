@@ -14,6 +14,7 @@ import GameModeModal from "../components/multiplayer/GameModeModal";
 import MultiplayerLobbyModal from "../components/multiplayer/MultiplayerLobbyModal";
 import MultiplayerVSHUD from "../components/multiplayer/MultiplayerVSHUD";
 import MultiplayerResultModal from "../components/multiplayer/MultiplayerResultModal";
+import { useTrackSoloGame } from "../hooks/useTrackSoloGame";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -171,6 +172,9 @@ export default function FruitNinja() {
   const mpTimerRef = useRef(null);
   const isMultiplayerRef = useRef(isMultiplayer);
   useEffect(() => { isMultiplayerRef.current = isMultiplayer; }, [isMultiplayer]);
+
+  // Track active solo gameplay in presence engine (blocks incoming match invites while slicing)
+  useTrackSoloGame('Fruit Ninja', !isMultiplayer && gameState === 'running');
 
   // Automatically open lobby & hide mode selection whenever invited or in multiplayer
   useEffect(() => {

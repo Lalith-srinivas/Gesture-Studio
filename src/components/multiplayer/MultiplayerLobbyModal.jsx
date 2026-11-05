@@ -102,6 +102,7 @@ export default function MultiplayerLobbyModal({ isOpen, onClose, gameId = "fruit
   };
 
   const handleInviteFriend = (friendUid) => {
+    if (friendsStatus[friendUid]?.isPlaying) return;
     setInvitingUid(friendUid);
     sendFriendInvite(friendUid, gameId);
     setTimeout(() => setInvitingUid(null), 3000);
@@ -253,7 +254,10 @@ export default function MultiplayerLobbyModal({ isOpen, onClose, gameId = "fruit
                     <span className="font-mono text-[10px] font-black uppercase text-zinc-600">
                       Your Friends ({friendsList.length})
                     </span>
-                    <span className="font-mono text-[9px] text-zinc-400">🟢 Online Indicator</span>
+                    <span className="font-mono text-[9px] text-zinc-500 flex items-center gap-2">
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> Online</span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> Playing</span>
+                    </span>
                   </div>
 
                   {loadingFriends ? (
@@ -266,7 +270,12 @@ export default function MultiplayerLobbyModal({ isOpen, onClose, gameId = "fruit
                     </div>
                   ) : (
                     friendsList.map((friend) => {
-                      const isOnline = Boolean(friendsStatus[friend.uid]?.online);
+                      const fStatus = friendsStatus[friend.uid];
+                      const isOnline = Boolean(fStatus?.online);
+                      const isPlaying = Boolean(fStatus?.isPlaying);
+                      const gameName = fStatus?.gameName;
+                      const activity = fStatus?.activity || (isPlaying ? (gameName ? `Playing ${gameName}` : 'In a Game') : (isOnline ? 'Online now' : 'Offline'));
+
                       return (
                         <div
                           key={friend.uid}
@@ -277,9 +286,13 @@ export default function MultiplayerLobbyModal({ isOpen, onClose, gameId = "fruit
                               <span className="text-2xl">{friend.avatar}</span>
                               <span
                                 className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border border-black ${
-                                  isOnline ? 'bg-emerald-500' : 'bg-zinc-400'
+                                  isPlaying
+                                    ? 'bg-amber-400 animate-pulse'
+                                    : isOnline
+                                    ? 'bg-emerald-500'
+                                    : 'bg-zinc-400'
                                 }`}
-                                title={isOnline ? 'Online' : 'Offline'}
+                                title={isPlaying ? `Playing: ${activity}` : isOnline ? 'Online' : 'Offline'}
                               />
                             </div>
                             <div>
@@ -292,21 +305,30 @@ export default function MultiplayerLobbyModal({ isOpen, onClose, gameId = "fruit
                                 </span>
                               </div>
                               <p className="font-mono text-[10px] text-zinc-500">
-                                {isOnline ? '🟢 Online now' : '⚫ Offline'}
+                                {isPlaying ? (
+                                  <span className="text-amber-700 font-bold">🎮 {activity}</span>
+                                ) : isOnline ? (
+                                  '🟢 Online now'
+                                ) : (
+                                  '⚫ Offline'
+                                )}
                               </p>
                             </div>
                           </div>
 
                           <button
                             onClick={() => handleInviteFriend(friend.uid)}
-                            disabled={!isOnline || invitingUid === friend.uid}
-                            className={`px-3 py-1 font-mono font-black text-xs uppercase border-2 border-black transition-all ${
-                              isOnline
-                                ? 'bg-neo-lime hover:bg-lime-300 shadow-neo-sm cursor-pointer'
+                            disabled={!isOnline || isPlaying || invitingUid === friend.uid}
+                            className={`px-3 py-1 font-mono font-black text-xs uppercase border-2 transition-all ${
+                              isPlaying
+                                ? 'bg-amber-100 text-amber-800 border-amber-600 cursor-not-allowed opacity-90'
+                                : isOnline
+                                ? 'bg-neo-lime hover:bg-lime-300 border-black shadow-neo-sm cursor-pointer'
                                 : 'bg-zinc-200 text-zinc-400 border-zinc-400 cursor-not-allowed'
                             }`}
+                            title={isPlaying ? 'Player is currently in a game' : isOnline ? 'Send 1v1 Invite' : 'Player offline'}
                           >
-                            {invitingUid === friend.uid ? 'INVITED! ✉️' : 'INVITE ⚔️'}
+                            {isPlaying ? 'PLAYING 🎮' : invitingUid === friend.uid ? 'INVITED! ✉️' : 'INVITE ⚔️'}
                           </button>
                         </div>
                       );

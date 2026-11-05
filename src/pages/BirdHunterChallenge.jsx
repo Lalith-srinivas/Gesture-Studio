@@ -6,6 +6,7 @@ import { mapHandToScreen } from '../utils/resolution';
 import { usePlayer } from '../hooks/usePlayer';
 import PostGameProgression from '../components/PostGameProgression';
 import AdSlot from '../components/ads/AdSlot';
+import { useTrackSoloGame } from '../hooks/useTrackSoloGame';
 
 // --- UTILS & CONSTANTS ---
 const BIRD_TYPES = ['NORMAL', 'GOLDEN', 'FAST', 'TINY', 'GIANT', 'GHOST'];
@@ -73,6 +74,7 @@ export default function BirdHunterChallenge() {
   const handOverlayRef = useRef(null);
 
   const [gameState, setGameState] = useState('MENU'); // MENU, PLAYING, PAUSED, GAMEOVER
+  useTrackSoloGame('Bird Hunter', gameState === 'PLAYING');
   const [orientation, setOrientation] = useState('landscape');
   const [activeGesture, setActiveGesture] = useState(GESTURES.NONE);
   const [handTracked, setHandTracked] = useState(false);

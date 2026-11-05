@@ -6,6 +6,7 @@ import { mapHandToScreen } from '../utils/resolution';
 import { usePlayer } from '../hooks/usePlayer';
 import PostGameProgression from '../components/PostGameProgression';
 import AdSlot from '../components/ads/AdSlot';
+import { useTrackSoloGame } from '../hooks/useTrackSoloGame';
 
 /**
  * ArcheryChallenge.jsx
@@ -116,6 +117,7 @@ export default function ArcheryChallenge() {
   const [combo, setCombo] = useState(0);
   const [consecutiveMisses, setConsecutiveMisses] = useState(0);
   const [gameState, setGameState] = useState('MENU'); // MENU, PLAYING, PAUSED, GAMEOVER
+  useTrackSoloGame('Archery', gameState === 'PLAYING');
   const [isMuted, setIsMuted] = useState(false);
   const [activePowerup, setActivePowerup] = useState(null);
   const [powerupTimeLeft, setPowerupTimeLeft] = useState(0);

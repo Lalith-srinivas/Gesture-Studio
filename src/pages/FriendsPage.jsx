@@ -162,6 +162,15 @@ export default function FriendsPage() {
   };
 
   const handleChallengeFriend = (friendUid) => {
+    const fStatus = friendsStatus[friendUid];
+    if (fStatus?.isPlaying) {
+      setNeoAlert({
+        title: 'FRIEND IS PLAYING',
+        message: 'This friend is currently playing a game. Invites are locked until their match finishes.',
+        confirmText: 'GOT IT'
+      });
+      return;
+    }
     sendFriendInvite(friendUid, 'fruit-ninja');
     navigate('/fruit-ninja?mode=multiplayer');
   };
@@ -317,7 +326,11 @@ export default function FriendsPage() {
               </div>
             ) : (
               friendsList.map((friend) => {
-                const isOnline = Boolean(friendsStatus[friend.uid]?.online);
+                const fStatus = friendsStatus[friend.uid];
+                const isOnline = Boolean(fStatus?.online);
+                const isPlaying = Boolean(fStatus?.isPlaying);
+                const gameName = fStatus?.gameName;
+                const activity = fStatus?.activity || (isPlaying ? (gameName ? `Playing ${gameName}` : 'In a Game') : (isOnline ? 'Online' : 'Offline'));
 
                 return (
                   <div
@@ -329,9 +342,13 @@ export default function FriendsPage() {
                         <span className="text-3xl sm:text-4xl">{friend.avatar}</span>
                         <span
                           className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-black ${
-                            isOnline ? 'bg-emerald-500' : 'bg-zinc-400'
+                            isPlaying
+                              ? 'bg-amber-400 animate-pulse'
+                              : isOnline
+                              ? 'bg-emerald-500'
+                              : 'bg-zinc-400'
                           }`}
-                          title={isOnline ? 'Online now' : 'Offline'}
+                          title={isPlaying ? `Playing: ${activity}` : isOnline ? 'Online now' : 'Offline'}
                         />
                       </div>
 
@@ -345,7 +362,15 @@ export default function FriendsPage() {
                           </span>
                         </div>
                         <div className="flex items-center gap-2 text-[10px] font-mono text-zinc-500">
-                          <span>{isOnline ? '🟢 Online' : '⚫ Offline'}</span>
+                          <span>
+                            {isPlaying ? (
+                              <span className="text-amber-700 font-bold">🎮 {activity}</span>
+                            ) : isOnline ? (
+                              '🟢 Online'
+                            ) : (
+                              '⚫ Offline'
+                            )}
+                          </span>
                           <span>·</span>
                           <span>Lv {friend.level}</span>
                           <span>·</span>
@@ -358,16 +383,18 @@ export default function FriendsPage() {
                     <div className="flex items-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-200">
                       <button
                         onClick={() => handleChallengeFriend(friend.uid)}
-                        disabled={!isOnline}
+                        disabled={!isOnline || isPlaying}
                         className={`flex-1 sm:flex-none px-3.5 py-1.5 font-mono font-black text-xs uppercase border-2 border-black shadow-neo-sm transition-all flex items-center justify-center gap-1.5 ${
-                          isOnline
+                          isPlaying
+                            ? 'bg-amber-100 text-amber-800 border-amber-600 cursor-not-allowed opacity-90'
+                            : isOnline
                             ? 'bg-neo-red text-white hover:bg-rose-600 cursor-pointer active:translate-y-0.5'
                             : 'bg-zinc-200 text-zinc-400 border-zinc-400 cursor-not-allowed'
                         }`}
-                        title={isOnline ? 'Challenge friend to 1v1 match' : 'Friend is currently offline'}
+                        title={isPlaying ? 'Friend is currently playing a game' : isOnline ? 'Challenge friend to 1v1 match' : 'Friend is currently offline'}
                       >
-                        <span>⚔️</span>
-                        <span>1v1 CHALLENGE</span>
+                        <span>{isPlaying ? '🎮' : '⚔️'}</span>
+                        <span>{isPlaying ? 'PLAYING 🎮' : '1v1 CHALLENGE'}</span>
                       </button>
 
                       <button

@@ -19,6 +19,7 @@ import { useHandTracking } from "../hooks/useHandTracking";
 import { GESTURES } from "../utils/gestureDetector";
 import { playPinchSound, playFailSound, resumeAudio } from "../utils/soundEffects";
 import { usePlayer } from "../hooks/usePlayer";
+import { useTrackSoloGame } from "../hooks/useTrackSoloGame";
 import PostGameProgression from "../components/PostGameProgression";
 import AdSlot from "../components/ads/AdSlot";
 import AnimeCam from "../components/AnimeCam";
@@ -79,6 +80,7 @@ export default function FlappyBird({ onReady }) {
   const lastPinchRef = useRef(0);
   const lastGestureRef = useRef(false);
   const [uiState, setUiState] = useState("idle"); // idle | playing | dead
+  useTrackSoloGame("Flappy Bird", uiState === "playing");
   const [currentGesture, setCurrentGesture] = useState(GESTURES.NONE);
   const { recordGameResult, allGameStats } = usePlayer();
   const [lastProgressionResult, setLastProgressionResult] = useState(null);

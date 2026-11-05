@@ -54,10 +54,7 @@ def get_tiers():
 def get_friends_status(req: FriendStatusRequest):
     status_map = {}
     for uid in req.friendUids:
-        status_map[uid] = {
-            "online": room_manager.is_user_online(uid),
-            "status": room_manager.get_user_status(uid)
-        }
+        status_map[uid] = room_manager.get_user_status_info(uid)
     return {"friends": status_map}
 
 @app.get("/api/friends/search")
@@ -188,16 +185,18 @@ async def websocket_endpoint(
             elif msg_type == "CHECK_FRIENDS_STATUS":
                 friend_uids = data.get("friendUids", [])
                 status_map = {
-                    f_uid: {
-                        "online": room_manager.is_user_online(f_uid),
-                        "status": room_manager.get_user_status(f_uid)
-                    }
+                    f_uid: room_manager.get_user_status_info(f_uid)
                     for f_uid in friend_uids
                 }
                 await websocket.send_json({
                     "type": "FRIENDS_STATUS",
                     "friends": status_map
                 })
+
+            elif msg_type == "SET_STATUS":
+                status = data.get("status", "idle")
+                game_name = data.get("gameName", "")
+                room_manager.set_user_status(uid, status, game_name)
 
             elif msg_type == "SEND_FRIEND_REQUEST":
                 sender = data.get("sender", {})

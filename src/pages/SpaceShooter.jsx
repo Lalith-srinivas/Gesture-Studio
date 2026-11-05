@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useHandTracking } from "../hooks/useHandTracking";
 import { GESTURES } from "../utils/gestureDetector";
 import { usePlayer } from "../hooks/usePlayer";
+import { useTrackSoloGame } from "../hooks/useTrackSoloGame";
 import PostGameProgression from "../components/PostGameProgression";
 import InGameGestureGuide from "../components/InGameGestureGuide";
 import AdSlot from "../components/ads/AdSlot";
@@ -159,6 +160,7 @@ export default function SpaceShooter({ gesturePosition = null, onGameComplete = 
 
   // ---- React (UI-facing) state -----------------------------------
   const [gameState, setGameState] = useState("start"); // start | playing | paused | gameover
+  useTrackSoloGame("Space Shooter", gameState === "playing");
   const gameStateRef = useRef("start");
   const [controlMode, setControlMode] = useState("gesture"); // gesture | touch | keyboard
   const [soundOn, setSoundOn] = useState(true);

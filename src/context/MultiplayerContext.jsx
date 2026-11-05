@@ -334,6 +334,10 @@ export function MultiplayerProvider({ children }) {
     }
   }, [sendWs]);
 
+  const setPlayerActivity = useCallback((status, gameName = '') => {
+    sendWs({ type: 'SET_STATUS', status, gameName });
+  }, [sendWs]);
+
   const dismissInvite = useCallback(() => {
     setIncomingInvite(null);
   }, []);
@@ -387,6 +391,7 @@ export function MultiplayerProvider({ children }) {
     sendFriendInvite,
     respondToInvite,
     checkFriendsStatus,
+    setPlayerActivity,
     dismissInvite,
     resetState,
   };

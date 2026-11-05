@@ -11,6 +11,7 @@ import {
   resumeAudio
 } from '../utils/soundEffects';
 import { usePlayer } from '../hooks/usePlayer';
+import { useTrackSoloGame } from '../hooks/useTrackSoloGame';
 import PostGameProgression from '../components/PostGameProgression';
 import AdSlot from '../components/ads/AdSlot';
 import AnimeCam from '../components/AnimeCam';
@@ -329,6 +330,8 @@ export default function TrafficRiderGame() {
   const handStateRef = useRef({ detected: false, gesture: GESTURES.NONE });
 
   const [activeGesture, setActiveGesture] = useState(GESTURES.NONE);
+  const [isPlaying, setIsPlaying] = useState(false);
+  useTrackSoloGame('Crazy Road', isPlaying);
   const { recordGameResult, allGameStats } = usePlayer();
   const [highScore, setHighScore] = useState(() => {
     const remote = allGameStats?.['hill-climb']?.bestScore || 0;
@@ -398,6 +401,7 @@ export default function TrafficRiderGame() {
   }, []);
 
   const endGame = useCallback(() => {
+    setIsPlaying(false);
     playCrashSound();
     stopCarEngineSound();
     const gs = gsRef.current;
@@ -596,6 +600,7 @@ export default function TrafficRiderGame() {
     setLastProgressionResult(null);
     gsRef.current = createGameState();
     gsRef.current.running = true;
+    setIsPlaying(true);
     if (overlayRef.current) overlayRef.current.style.display = 'none';
     rafRef.current = requestAnimationFrame(gameLoop);
   }, [gameLoop]);

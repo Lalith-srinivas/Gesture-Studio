@@ -120,6 +120,43 @@ class RoomManager:
             return self.connected_users[uid].get("status", "online")
         return "offline"
 
+    def get_user_status_info(self, uid: str) -> dict:
+        if uid not in self.connected_users:
+            return {
+                "online": False,
+                "status": "offline",
+                "isPlaying": False,
+                "activity": "Offline",
+                "gameName": ""
+            }
+
+        u = self.connected_users[uid]
+        raw_status = u.get("status", "idle")
+        game_name = u.get("game_name", "")
+
+        is_playing = raw_status in ("playing_solo", "in_game", "in_lobby", "queueing", "playing")
+
+        activity = "Online now"
+        if raw_status in ("playing_solo", "in_game", "playing"):
+            activity = f"Playing {game_name}" if game_name else "In a game"
+        elif raw_status == "queueing":
+            activity = "Searching for match"
+        elif raw_status == "in_lobby":
+            activity = "In match lobby"
+
+        return {
+            "online": True,
+            "status": raw_status,
+            "isPlaying": is_playing,
+            "activity": activity,
+            "gameName": game_name
+        }
+
+    def set_user_status(self, uid: str, status: str, game_name: str = ""):
+        if uid in self.connected_users:
+            self.connected_users[uid]["status"] = status
+            self.connected_users[uid]["game_name"] = game_name
+
     # ── Database User Profiles & Social ────────────────────────────────────────
     def _ensure_user_profile(self, uid: str, username: str = "Player", avatar: str = "🎮"):
         """Ensure the user has an initialized coins field, playerTag, and friend lists."""
@@ -975,10 +1012,19 @@ class RoomManager:
 
     # ── Friend Invites ────────────────────────────────────────────────────────
     async def send_friend_invite(self, from_uid: str, to_uid: str, game_id: str):
-        if to_uid not in self.connected_users:
+        target_info = self.get_user_status_info(to_uid)
+        if not target_info.get("online"):
             await self.send_to_user(from_uid, {
                 "type": "INVITE_FAILED",
                 "message": "Friend is currently offline."
+            })
+            return
+
+        if target_info.get("isPlaying"):
+            activity = target_info.get("activity") or "in a game"
+            await self.send_to_user(from_uid, {
+                "type": "INVITE_FAILED",
+                "message": f"Friend is currently {activity.lower()}. Cannot send invites while playing."
             })
             return
 
