@@ -125,3 +125,4 @@ export default function NeoAlertModal({ popup, onClose }) {
     </div>
   );
 }
+
