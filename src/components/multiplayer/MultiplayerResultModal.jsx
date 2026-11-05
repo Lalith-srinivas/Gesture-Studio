@@ -45,8 +45,15 @@ export default function MultiplayerResultModal({ isOpen, onReturnToLobby }) {
         {/* Banner */}
         <div className="mb-4">
           {isWinner ? (
-            <div className="inline-block px-4 py-1.5 bg-neo-lime border-3 border-black shadow-neo font-display font-black text-2xl uppercase tracking-wider text-black rotate-1">
-              🏆 VICTORY!
+            <div>
+              <div className="inline-block px-4 py-1.5 bg-neo-lime border-3 border-black shadow-neo font-display font-black text-2xl uppercase tracking-wider text-black rotate-1">
+                🏆 VICTORY!
+              </div>
+              {matchResult.forfeit && (
+                <div className="block mt-2 font-mono font-black text-xs uppercase bg-[#FFE142] border-2 border-black py-1 px-2 text-black shadow-neo-sm">
+                  ⚡ OPPONENT FORFEIT (LEFT THE MATCH)
+                </div>
+              )}
             </div>
           ) : isDraw ? (
             <div className="inline-block px-4 py-1.5 bg-neo-yellow border-3 border-black shadow-neo font-display font-black text-2xl uppercase tracking-wider text-black">
@@ -70,7 +77,9 @@ export default function MultiplayerResultModal({ isOpen, onReturnToLobby }) {
             <span className="text-xs font-mono font-bold text-zinc-600">COINS</span>
           </div>
           <p className="font-mono text-[11px] text-zinc-600 mt-1">
-            {isWinner
+            {matchResult.forfeit && isWinner
+              ? 'Opponent exited the match and did not return. You were awarded the full match pool victory!'
+              : isWinner
               ? 'Congratulations! You claimed the full winner match pool.'
               : isDraw
               ? 'Scores were equal! Both player entry stakes have been refunded.'
@@ -112,14 +121,20 @@ export default function MultiplayerResultModal({ isOpen, onReturnToLobby }) {
         <div className="flex flex-col gap-2.5">
           <button
             onClick={handlePlayAgain}
-            disabled={rematchRequested}
+            disabled={rematchRequested || matchResult.forfeit}
             className={`w-full py-3.5 font-mono font-black text-sm uppercase tracking-wider border-3 border-black shadow-neo transition-all ${
-              rematchRequested
+              matchResult.forfeit
+                ? 'bg-zinc-200 text-zinc-400 border-zinc-400 cursor-not-allowed shadow-none'
+                : rematchRequested
                 ? 'bg-zinc-200 text-zinc-600 cursor-not-allowed'
                 : 'bg-neo-lime hover:bg-lime-300 cursor-pointer active:translate-y-0.5'
             }`}
           >
-            {rematchRequested ? 'WAITING FOR OPPONENT... ⏳' : '↺ PLAY AGAIN (REMATCH)'}
+            {matchResult.forfeit
+              ? 'OPPONENT EXITED MATCH ✕'
+              : rematchRequested
+              ? 'WAITING FOR OPPONENT... ⏳'
+              : '↺ PLAY AGAIN (REMATCH)'}
           </button>
 
           <button

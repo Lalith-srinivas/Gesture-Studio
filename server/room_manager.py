@@ -77,6 +77,8 @@ class RoomManager:
         self.queues: Dict[str, List[str]] = {}
         # Pending friend invitations: inviteId -> dict
         self.pending_invites: Dict[str, Dict[str, Any]] = {}
+        # Mid-match disconnect grace period timers: roomId -> asyncio.Task
+        self.disconnect_timers: Dict[str, asyncio.Task] = {}
 
     # ── User Connections & Presence ───────────────────────────────────────────
     async def register_user(self, uid: str, ws: WebSocket, username: str, avatar: str):
@@ -93,12 +95,56 @@ class RoomManager:
         # Ensure user document has profile, tag, and starting coins in Firestore
         self._ensure_user_profile(uid, username, avatar)
 
+        # Check if user reconnected to an active match room with a running 5s grace period
+        for r_id, r in list(self.rooms.items()):
+            grace = r.get("disconnect_grace")
+            if grace and grace.get("exiting_uid") == uid and not r.get("settled"):
+                logger.info(f"User {uid} reconnected to room {r_id} within 5s grace period!")
+                # Cancel the 5-second countdown timer
+                timer = self.disconnect_timers.pop(r_id, None)
+                if timer and not timer.done():
+                    timer.cancel()
+                other_uid = grace.get("other_uid")
+                r.pop("disconnect_grace", None)
+                self.connected_users[uid]["current_room"] = r_id
+                self.connected_users[uid]["status"] = "in_game"
+
+                # Notify remaining opponent that player reconnected
+                await self.send_to_user(other_uid, {
+                    "type": "OPPONENT_RECONNECTED",
+                    "roomId": r_id,
+                    "reconnectedUid": uid,
+                    "message": "Opponent reconnected! Match continues!"
+                })
+
+                # Send match rejoined payload to reconnected player
+                opp_info = self.connected_users.get(other_uid, {})
+                await self.send_to_user(uid, {
+                    "type": "MATCH_REJOINED",
+                    "roomId": r_id,
+                    "gameId": r.get("game_id", "fruit-ninja"),
+                    "seed": r.get("seed"),
+                    "tier": r.get("tier", "bronze"),
+                    "pool": r.get("total_pool", 400),
+                    "opponent": {
+                        "uid": other_uid,
+                        "username": opp_info.get("username", "Opponent"),
+                        "avatar": opp_info.get("avatar", "🎮")
+                    }
+                })
+                break
+
     async def unregister_user(self, uid: str):
         if uid not in self.connected_users:
             return
 
         user_info = self.connected_users[uid]
         current_room_id = user_info.get("current_room")
+        if not current_room_id:
+            for r_id, r in self.rooms.items():
+                if (r.get("player1", {}).get("uid") == uid or r.get("player2", {}).get("uid") == uid) and not r.get("settled"):
+                    current_room_id = r_id
+                    break
 
         # Remove from matchmaking queues
         for game_id, queue in self.queues.items():
@@ -814,13 +860,19 @@ class RoomManager:
         else:
             await self.settle_match(room_id)
 
-    async def settle_match(self, room_id: str, default_winner_uid: Optional[str] = None):
+    async def settle_match(self, room_id: str, default_winner_uid: Optional[str] = None, forfeit_uid: Optional[str] = None):
         room = self.rooms.get(room_id)
         if not room or room["settled"]:
             return
 
         room["settled"] = True
         room["state"] = "FINISHED"
+
+        # Cancel any active disconnect timer for this room
+        timer = self.disconnect_timers.pop(room_id, None)
+        if timer and not timer.done():
+            timer.cancel()
+        room.pop("disconnect_grace", None)
 
         p1 = room["player1"]
         p2 = room["player2"]
@@ -857,6 +909,9 @@ class RoomManager:
             "type": "MATCH_RESULT",
             "roomId": room_id,
             "winnerId": winner_uid,
+            "forfeit": forfeit_uid is not None,
+            "forfeitUid": forfeit_uid,
+            "reason": "OPPONENT_LEFT" if forfeit_uid else ("SCORE" if not default_winner_uid else "GAME_OVER"),
             "player1": {"uid": p1["uid"], "username": p1["username"], "avatar": p1["avatar"], "score": score1},
             "player2": {"uid": p2["uid"], "username": p2["username"], "avatar": p2["avatar"], "score": score2},
             "coinsWon": coins_won,
@@ -864,9 +919,85 @@ class RoomManager:
             "pool": pool
         })
 
+    async def start_disconnect_grace_period(self, room_id: str, exiting_uid: str, other_uid: str):
+        room = self.rooms.get(room_id)
+        if not room or room.get("settled") or room.get("state") != "PLAYING":
+            return
+
+        # If grace period already active for this room:
+        if room.get("disconnect_grace"):
+            # If the other player also disconnects/leaves
+            if room["disconnect_grace"].get("exiting_uid") != exiting_uid:
+                logger.info(f"Both players disconnected from room {room_id}. Settling as draw.")
+                timer = self.disconnect_timers.pop(room_id, None)
+                if timer and not timer.done():
+                    timer.cancel()
+                await self.settle_match(room_id, default_winner_uid="DRAW")
+            return
+
+        room["disconnect_grace"] = {
+            "exiting_uid": exiting_uid,
+            "other_uid": other_uid,
+            "start_time": time.time(),
+            "duration": 5
+        }
+
+        logger.info(f"Started 5s disconnect grace timer for player {exiting_uid} in room {room_id}")
+
+        # Notify remaining player with grace countdown
+        await self.send_to_user(other_uid, {
+            "type": "OPPONENT_DISCONNECTED_GRACE",
+            "roomId": room_id,
+            "opponentUid": exiting_uid,
+            "secondsRemaining": 5,
+            "message": "Opponent disconnected or left. Waiting 5s for them to return..."
+        })
+
+        # Cancel any previous timer
+        if room_id in self.disconnect_timers:
+            t = self.disconnect_timers.pop(room_id)
+            if not t.done():
+                t.cancel()
+
+        self.disconnect_timers[room_id] = asyncio.create_task(
+            self._grace_period_countdown(room_id, exiting_uid, other_uid)
+        )
+
+    async def _grace_period_countdown(self, room_id: str, exiting_uid: str, other_uid: str):
+        try:
+            for s in range(5, 0, -1):
+                await asyncio.sleep(1)
+                room = self.rooms.get(room_id)
+                if not room or room.get("settled") or room.get("state") != "PLAYING":
+                    return
+                grace = room.get("disconnect_grace")
+                if not grace or grace.get("exiting_uid") != exiting_uid:
+                    # Player reconnected and grace was cancelled
+                    return
+
+                # Send tick update to the remaining player
+                await self.send_to_user(other_uid, {
+                    "type": "OPPONENT_DISCONNECTED_TICK",
+                    "roomId": room_id,
+                    "secondsRemaining": s - 1
+                })
+
+            # 5s passed without returning!
+            room = self.rooms.get(room_id)
+            if not room or room.get("settled") or room.get("state") != "PLAYING":
+                return
+
+            logger.info(f"5s grace period expired for {exiting_uid} in room {room_id}. Declaring {other_uid} winner by forfeit!")
+            room.pop("disconnect_grace", None)
+            await self.settle_match(room_id, default_winner_uid=other_uid, forfeit_uid=exiting_uid)
+        except asyncio.CancelledError:
+            logger.info(f"Grace countdown cancelled for room {room_id}")
+        finally:
+            self.disconnect_timers.pop(room_id, None)
+
     async def handle_player_disconnect(self, room_id: str, disconnected_uid: str):
         room = self.rooms.get(room_id)
-        if not room or room["settled"]:
+        if not room or room.get("settled"):
             return
 
         logger.info(f"Player {disconnected_uid} disconnected from room {room_id} in state {room['state']}")
@@ -878,7 +1009,7 @@ class RoomManager:
         # If disconnected before match start (MATCH_FOUND, TIER_SELECTION, COUNTDOWN)
         if room["state"] in ("MATCH_FOUND", "TIER_SELECTION", "COUNTDOWN"):
             # Refund deducted coins if any
-            if room["coins_deducted"]:
+            if room.get("coins_deducted"):
                 self.refund_coins(p1_uid, room["entry_fee"])
                 self.refund_coins(p2_uid, room["entry_fee"])
                 room["coins_deducted"] = False
@@ -889,8 +1020,8 @@ class RoomManager:
             })
             del self.rooms[room_id]
         elif room["state"] == "PLAYING":
-            # Settle match awarding victory to the remaining player
-            await self.settle_match(room_id, default_winner_uid=other_uid)
+            # Wait 5 seconds for them to return before declaring remaining player winner
+            await self.start_disconnect_grace_period(room_id, disconnected_uid, other_uid)
 
     async def play_again_request(self, room_id: str, uid: str):
         room = self.rooms.get(room_id)
@@ -1001,6 +1132,11 @@ class RoomManager:
         p1_uid = room["player1"]["uid"]
         p2_uid = room["player2"]["uid"]
         other_uid = p2_uid if uid == p1_uid else p1_uid
+
+        if room["state"] == "PLAYING" and not room.get("settled"):
+            logger.info(f"Player {uid} left room {room_id} mid-match! Starting 5s grace timer.")
+            await self.start_disconnect_grace_period(room_id, uid, other_uid)
+            return
 
         # Notify the other player that opponent left
         await self.send_to_user(other_uid, {

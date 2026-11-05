@@ -41,6 +41,7 @@ export function MultiplayerProvider({ children }) {
   const [errorMessage, setErrorMessage] = useState(null);
   const [rematchRequested, setRematchRequested] = useState(false);
   const [opponentWantsRematch, setOpponentWantsRematch] = useState(false);
+  const [opponentGraceTimer, setOpponentGraceTimer] = useState(null); // { active: boolean, secondsRemaining: number, message: string }
   const [popup, setPopup] = useState(null);
 
   const showPopup = useCallback((opts) => {
@@ -190,13 +191,55 @@ export function MultiplayerProvider({ children }) {
         break;
       }
 
+      case 'OPPONENT_DISCONNECTED_GRACE': {
+        setOpponentGraceTimer({
+          active: true,
+          secondsRemaining: msg.secondsRemaining ?? 5,
+          message: msg.message || 'Opponent disconnected. Waiting 5s for return...'
+        });
+        break;
+      }
+
+      case 'OPPONENT_DISCONNECTED_TICK': {
+        setOpponentGraceTimer((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            secondsRemaining: msg.secondsRemaining ?? 0
+          };
+        });
+        break;
+      }
+
+      case 'OPPONENT_RECONNECTED': {
+        setOpponentGraceTimer(null);
+        showPopup({
+          title: 'Opponent Reconnected',
+          message: msg.message || 'Opponent reconnected! Match continues!',
+          type: 'info'
+        });
+        break;
+      }
+
+      case 'MATCH_REJOINED': {
+        setCurrentRoom(msg.roomId);
+        if (msg.seed) setSeed(msg.seed);
+        if (msg.tier) setTier(msg.tier);
+        if (msg.pool) setTotalPool(msg.pool);
+        if (msg.opponent) setOpponent(msg.opponent);
+        setMatchState('PLAYING');
+        break;
+      }
+
       case 'MATCH_RESULT': {
+        setOpponentGraceTimer(null);
         setMatchState('FINISHED');
         setMatchResult(msg);
         break;
       }
 
       case 'OPPONENT_DISCONNECTED': {
+        setOpponentGraceTimer(null);
         showPopup({
           title: 'Opponent Disconnected',
           message: msg.message || 'Your opponent disconnected. Any entry coins have been refunded.',
@@ -209,12 +252,20 @@ export function MultiplayerProvider({ children }) {
       case 'OPPONENT_LEFT': {
         setOpponentWantsRematch(false);
         setRematchRequested(false);
-        showPopup({
-          title: 'Opponent Left',
-          message: msg.message || 'Opponent returned to lobby.',
-          type: 'info'
+        // Only reset immediately if we are not in an active match
+        // (mid-match exits are handled by grace timer / forfeit)
+        setMatchState((currentMatchState) => {
+          if (currentMatchState !== 'PLAYING') {
+            showPopup({
+              title: 'Opponent Left',
+              message: msg.message || 'Opponent returned to lobby.',
+              type: 'info'
+            });
+            resetState();
+            return 'IDLE';
+          }
+          return currentMatchState;
         });
-        resetState();
         break;
       }
 
@@ -342,6 +393,16 @@ export function MultiplayerProvider({ children }) {
     setIncomingInvite(null);
   }, []);
 
+  const leaveRoom = useCallback((explicitRoomId = null) => {
+    const targetRoomId = explicitRoomId || currentRoom;
+    if (targetRoomId) {
+      sendWs({
+        type: 'LEAVE_ROOM',
+        roomId: targetRoomId
+      });
+    }
+  }, [currentRoom, sendWs]);
+
   const resetState = useCallback(() => {
     setMatchState('IDLE');
     setCurrentRoom(null);
@@ -353,6 +414,7 @@ export function MultiplayerProvider({ children }) {
     setMatchResult(null);
     setRematchRequested(false);
     setOpponentWantsRematch(false);
+    setOpponentGraceTimer(null);
   }, []);
 
   const value = {
@@ -376,6 +438,7 @@ export function MultiplayerProvider({ children }) {
     errorMessage,
     rematchRequested,
     opponentWantsRematch,
+    opponentGraceTimer,
     coins,
     popup,
 
@@ -383,6 +446,7 @@ export function MultiplayerProvider({ children }) {
     closePopup,
     joinQueue,
     leaveQueue,
+    leaveRoom,
     confirmMatch,
     selectTier,
     sendScore,

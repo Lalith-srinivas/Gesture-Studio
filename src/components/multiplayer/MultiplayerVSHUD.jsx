@@ -10,7 +10,7 @@ export default function MultiplayerVSHUD({
   myBombs = 0,
   maxBombs = 3,
 }) {
-  const { opponent, myScore, opponentScore, totalPool, tier } = useMultiplayer();
+  const { opponent, myScore, opponentScore, totalPool, tier, opponentGraceTimer } = useMultiplayer();
   const { currentUser } = useAuth();
   const { playerData } = usePlayer();
 
@@ -99,6 +99,22 @@ export default function MultiplayerVSHUD({
           <span>SYNC LIVE</span>
         </div>
       </div>
+
+      {/* ── Mid-Match Opponent Exit Grace Timer ── */}
+      {opponentGraceTimer?.active && (
+        <div className="fixed top-20 sm:top-24 left-1/2 -translate-x-1/2 z-50 pointer-events-auto bg-[#FFE142] border-3 sm:border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] p-3 sm:p-4 text-center max-w-sm w-[90%] animate-bounce">
+          <div className="font-mono font-black text-xs sm:text-sm uppercase text-black flex items-center justify-center gap-1.5">
+            <span>⚠️</span>
+            <span>OPPONENT EXITED / DISCONNECTED</span>
+          </div>
+          <p className="font-mono text-[11px] text-zinc-800 mt-1 leading-tight">
+            Waiting 5s for them to return... Victory declared in:
+          </p>
+          <div className="font-display font-black text-3xl sm:text-4xl text-neo-red mt-1">
+            {opponentGraceTimer.secondsRemaining}s
+          </div>
+        </div>
+      )}
 
     </div>
   );

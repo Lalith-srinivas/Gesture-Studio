@@ -160,6 +160,7 @@ export default function FruitNinja() {
     sendScore,
     submitFinalScore,
     matchResult,
+    leaveRoom,
     resetState: resetMultiplayerState,
   } = useMultiplayer();
 
@@ -792,7 +793,12 @@ export default function FruitNinja() {
 
       {/* Back Button */}
       <button
-        onClick={() => navigate("/")}
+        onClick={() => {
+          if (isMultiplayer && matchState === 'PLAYING') {
+            leaveRoom();
+          }
+          navigate("/");
+        }}
         className="absolute top-4 left-4 z-50 neo-btn-white px-3.5 py-2 text-xs font-mono font-black uppercase flex items-center gap-2 pointer-events-auto"
       >
         <span>←</span> HOME
