@@ -130,7 +130,7 @@ const GESTURE_GUIDES = [
 ];
 
 export default function Home() {
-  const { playerData, unseenAchievementsCount, incomingFriendRequests } = usePlayer();
+  const { playerData, unseenAchievementsCount, incomingFriendRequests, coins } = usePlayer();
   const { isGlobalDone } = useGestureAcademy();
   const { musicEnabled, toggleMusic } = useMusic();
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -219,6 +219,17 @@ export default function Home() {
                 {pendingFriendsCount > 99 ? '99+' : pendingFriendsCount}
               </span>
             )}
+          </Link>
+
+          {/* Player Coin Balance */}
+          <Link
+            to="/friends"
+            className="px-2.5 sm:px-3 py-1 bg-[#FEF08A] hover:bg-yellow-300 text-black border-2 border-black font-mono font-black text-xs uppercase flex items-center gap-1.5 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
+            title="Your Coins (Click to view Friends & Social)"
+          >
+            <span>🪙</span>
+            <span>{coins?.toLocaleString() ?? 1000}</span>
+            <span className="hidden sm:inline text-[10px] text-zinc-700">COINS</span>
           </Link>
 
           {/* Quick Music Toggle */}

@@ -989,3 +989,141 @@ export const getUserMatchHistory = async (uid, maxItems = 15) => {
     return [];
   }
 };
+
+// ── DAILY FRIEND COIN REQUESTS (400 COINS / DAY BONUS) ──
+
+/**
+ * Send daily friend coin request for 400 coins.
+ * Limit: 1 request session per day.
+ * Friends who accept will NOT lose any coins (0 deducted).
+ */
+export const sendDailyCoinRequests = async (senderUser, targetFriendUids = [], amount = 400) => {
+  if (!senderUser?.uid || !Array.isArray(targetFriendUids) || targetFriendUids.length === 0) {
+    return { success: false, error: 'Invalid parameters' };
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Try backend first
+  try {
+    const httpBase = getBackendHttpUrl();
+    await fetch(`${httpBase}/api/friends/coins/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sender: {
+          uid: senderUser.uid,
+          username: senderUser.username || 'Player',
+          avatar: senderUser.avatar || '🎮',
+          playerTag: senderUser.playerTag || 'GS-0000'
+        },
+        targetFriendUids,
+        amount,
+        dateStr: today
+      })
+    }).catch(() => {});
+  } catch {}
+
+  // Client Firestore direct write (ensures it always succeeds)
+  try {
+    const senderRef = doc(db, COLLECTIONS.USERS, senderUser.uid);
+    await setDoc(senderRef, {
+      lastCoinRequestDate: today,
+      lastCoinRequestTimestamp: Date.now()
+    }, { merge: true });
+
+    // Add to each selected friend's incomingCoinRequests
+    for (const friendUid of targetFriendUids) {
+      const friendRef = doc(db, COLLECTIONS.USERS, friendUid);
+      const reqId = `cr_${senderUser.uid}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      await setDoc(friendRef, {
+        incomingCoinRequests: arrayUnion({
+          id: reqId,
+          fromUid: senderUser.uid,
+          fromUsername: senderUser.username || 'Player',
+          fromAvatar: senderUser.avatar || '🎮',
+          fromPlayerTag: senderUser.playerTag || 'GS-0000',
+          amount,
+          createdAt: Date.now(),
+          dateStr: today
+        })
+      }, { merge: true }).catch(() => {});
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('Error sending daily coin requests:', err);
+    return { success: false, error: err.message };
+  }
+};
+
+/**
+ * Accept a friend's daily coin request.
+ * Crucial rule: The friend accepting this does NOT lose any coins (0 deducted).
+ * The requester receives the bonus coins directly!
+ */
+export const acceptCoinRequest = async (myUid, request) => {
+  if (!myUid || !request?.fromUid) return false;
+
+  const amount = request.amount || 400;
+
+  // Try backend first
+  try {
+    const httpBase = getBackendHttpUrl();
+    await fetch(`${httpBase}/api/friends/coins/accept`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        myUid,
+        fromUid: request.fromUid,
+        requestId: request.id,
+        amount
+      })
+    }).catch(() => {});
+  } catch {}
+
+  // Client Firestore direct write
+  try {
+    const myRef = doc(db, COLLECTIONS.USERS, myUid);
+    const mySnap = await getDoc(myRef);
+    if (mySnap.exists()) {
+      const d = mySnap.data();
+      const updatedIncoming = (d.incomingCoinRequests || []).filter(
+        (r) => r.id !== request.id && r.fromUid !== request.fromUid
+      );
+      await setDoc(myRef, { incomingCoinRequests: updatedIncoming }, { merge: true });
+    }
+
+    // Award bonus coins to requester (Friend who accepts loses 0 coins!)
+    const requesterRef = doc(db, COLLECTIONS.USERS, request.fromUid);
+    await setDoc(requesterRef, {
+      coins: increment(amount)
+    }, { merge: true });
+
+    return true;
+  } catch (err) {
+    console.error('Error accepting coin request:', err);
+    return false;
+  }
+};
+
+/**
+ * Decline a friend's coin request without sending coins.
+ */
+export const declineCoinRequest = async (myUid, requestId) => {
+  if (!myUid || !requestId) return false;
+
+  try {
+    const myRef = doc(db, COLLECTIONS.USERS, myUid);
+    const mySnap = await getDoc(myRef);
+    if (mySnap.exists()) {
+      const d = mySnap.data();
+      const updatedIncoming = (d.incomingCoinRequests || []).filter((r) => r.id !== requestId);
+      await setDoc(myRef, { incomingCoinRequests: updatedIncoming }, { merge: true });
+    }
+    return true;
+  } catch (err) {
+    console.error('Error declining coin request:', err);
+    return false;
+  }
+};

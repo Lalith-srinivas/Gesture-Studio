@@ -33,6 +33,22 @@ class FriendActionPayload(BaseModel):
     myUid: str
     otherUid: str
 
+class FriendCoinRequestPayload(BaseModel):
+    sender: dict
+    targetFriendUids: List[str]
+    amount: int = 400
+    dateStr: str
+
+class FriendCoinAcceptPayload(BaseModel):
+    myUid: str
+    fromUid: str
+    requestId: str
+    amount: int = 400
+
+class FriendCoinDeclinePayload(BaseModel):
+    myUid: str
+    requestId: str
+
 @app.get("/")
 def read_root():
     return {
@@ -89,6 +105,21 @@ async def cancel_friend_request_endpoint(req: FriendActionPayload):
 @app.post("/api/friends/remove")
 async def remove_friend_endpoint(req: FriendActionPayload):
     success = await room_manager.remove_friend(req.myUid, req.otherUid)
+    return {"status": "ok", "success": success}
+
+@app.post("/api/friends/coins/request")
+async def send_coins_request_endpoint(req: FriendCoinRequestPayload):
+    success = await room_manager.send_coin_requests(req.sender, req.targetFriendUids, req.amount, req.dateStr)
+    return {"status": "ok", "success": success}
+
+@app.post("/api/friends/coins/accept")
+async def accept_coins_request_endpoint(req: FriendCoinAcceptPayload):
+    success = await room_manager.accept_coin_request(req.myUid, req.fromUid, req.requestId, req.amount)
+    return {"status": "ok", "success": success}
+
+@app.post("/api/friends/coins/decline")
+async def decline_coins_request_endpoint(req: FriendCoinDeclinePayload):
+    success = await room_manager.decline_coin_request(req.myUid, req.requestId)
     return {"status": "ok", "success": success}
 
 @app.websocket("/ws")

@@ -405,6 +405,81 @@ class RoomManager:
             logger.error(f"Error removing friend: {e}")
             return False
 
+    async def send_coin_requests(self, sender: dict, target_friend_uids: List[str], amount: int, date_str: str) -> bool:
+        if not firebase_initialized or not firestore_db:
+            return True
+        sender_uid = sender.get("uid")
+        if not sender_uid or not target_friend_uids:
+            return False
+        try:
+            from firebase_admin import firestore as fa_firestore
+            sender_ref = firestore_db.collection("users").document(sender_uid)
+            sender_ref.set({
+                "lastCoinRequestDate": date_str,
+                "lastCoinRequestTimestamp": int(time.time() * 1000)
+            }, merge=True)
+
+            for f_uid in target_friend_uids:
+                friend_ref = firestore_db.collection("users").document(f_uid)
+                req_id = f"cr_{sender_uid}_{int(time.time()*1000)}_{random.randint(100, 999)}"
+                payload = {
+                    "id": req_id,
+                    "fromUid": sender_uid,
+                    "fromUsername": sender.get("username", "Player"),
+                    "fromAvatar": sender.get("avatar", "🎮"),
+                    "fromPlayerTag": sender.get("playerTag", "GS-0000"),
+                    "amount": amount,
+                    "createdAt": int(time.time() * 1000),
+                    "dateStr": date_str
+                }
+                friend_ref.set({
+                    "incomingCoinRequests": fa_firestore.ArrayUnion([payload])
+                }, merge=True)
+            return True
+        except Exception as e:
+            logger.error(f"Error sending coin requests: {e}")
+            return False
+
+    async def accept_coin_request(self, my_uid: str, from_uid: str, request_id: str, amount: int = 400) -> bool:
+        if not firebase_initialized or not firestore_db:
+            return True
+        try:
+            from firebase_admin import firestore as fa_firestore
+            my_ref = firestore_db.collection("users").document(my_uid)
+            my_doc = my_ref.get()
+            if my_doc.exists:
+                data = my_doc.to_dict() or {}
+                incoming = data.get("incomingCoinRequests", [])
+                updated = [r for r in incoming if r.get("id") != request_id and r.get("fromUid") != from_uid]
+                my_ref.update({"incomingCoinRequests": updated})
+
+            # Award bonus coins to requester without deducting from the accepting friend
+            requester_ref = firestore_db.collection("users").document(from_uid)
+            requester_ref.set({
+                "coins": fa_firestore.Increment(amount)
+            }, merge=True)
+            logger.info(f"Granted {amount} coins bonus to {from_uid} from friend {my_uid}")
+            return True
+        except Exception as e:
+            logger.error(f"Error accepting coin request: {e}")
+            return False
+
+    async def decline_coin_request(self, my_uid: str, request_id: str) -> bool:
+        if not firebase_initialized or not firestore_db:
+            return True
+        try:
+            my_ref = firestore_db.collection("users").document(my_uid)
+            my_doc = my_ref.get()
+            if my_doc.exists:
+                data = my_doc.to_dict() or {}
+                incoming = data.get("incomingCoinRequests", [])
+                updated = [r for r in incoming if r.get("id") != request_id]
+                my_ref.update({"incomingCoinRequests": updated})
+            return True
+        except Exception as e:
+            logger.error(f"Error declining coin request: {e}")
+            return False
+
     def search_users(self, query_str: str, current_uid: str = "") -> list:
         if not firebase_initialized or not firestore_db:
             return []

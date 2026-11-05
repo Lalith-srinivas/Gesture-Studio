@@ -134,6 +134,8 @@ export function PlayerProvider({ children }) {
             playerTag: data.playerTag || cached.playerTag || generatePlayerTag(uid),
             incomingFriendRequests: Array.isArray(data.incomingFriendRequests) ? data.incomingFriendRequests : (Array.isArray(cached.incomingFriendRequests) ? cached.incomingFriendRequests : []),
             outgoingFriendRequests: Array.isArray(data.outgoingFriendRequests) ? data.outgoingFriendRequests : (Array.isArray(cached.outgoingFriendRequests) ? cached.outgoingFriendRequests : []),
+            incomingCoinRequests: Array.isArray(data.incomingCoinRequests) ? data.incomingCoinRequests : (Array.isArray(cached.incomingCoinRequests) ? cached.incomingCoinRequests : []),
+            lastCoinRequestDate: data.lastCoinRequestDate || cached.lastCoinRequestDate || null,
           };
           setPlayerData(merged);
           saveCachedPlayer(uid, merged);
@@ -596,6 +598,8 @@ export function PlayerProvider({ children }) {
     playerTag: playerData?.playerTag || generatePlayerTag(effectiveUid),
     incomingFriendRequests: playerData?.incomingFriendRequests || [],
     outgoingFriendRequests: playerData?.outgoingFriendRequests || [],
+    incomingCoinRequests: playerData?.incomingCoinRequests || [],
+    lastCoinRequestDate: playerData?.lastCoinRequestDate || null,
 
     dailyRewardClaimed,
     nextDailyReward,

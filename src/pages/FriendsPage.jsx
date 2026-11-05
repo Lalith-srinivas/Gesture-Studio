@@ -19,8 +19,12 @@ import {
   acceptFriendRequest,
   declineFriendRequest,
   cancelFriendRequest,
-  removeFriend
+  removeFriend,
+  sendDailyCoinRequests,
+  acceptCoinRequest,
+  declineCoinRequest
 } from '../firebase/firestore';
+import FriendCoinRequestModal from '../components/FriendCoinRequestModal';
 
 export default function FriendsPage() {
   const navigate = useNavigate();
@@ -31,6 +35,8 @@ export default function FriendsPage() {
     playerTag,
     incomingFriendRequests,
     outgoingFriendRequests,
+    incomingCoinRequests,
+    lastCoinRequestDate,
     coins
   } = usePlayer();
 
@@ -51,6 +57,8 @@ export default function FriendsPage() {
   const [optimisticOutgoing, setOptimisticOutgoing] = useState([]);
   const [copiedId, setCopiedId] = useState(false);
   const [actionFeedback, setActionFeedback] = useState(null);
+  const [showCoinModal, setShowCoinModal] = useState(false);
+  const [isSendingCoinReq, setIsSendingCoinReq] = useState(false);
 
   const effectiveUid = currentUser?.uid || playerData?.uid || localStorage.getItem('gesture_studio_last_uid') || '';
   const myUid = effectiveUid;
@@ -175,7 +183,43 @@ export default function FriendsPage() {
     navigate('/fruit-ninja?mode=multiplayer');
   };
 
-  const pendingCount = incomingFriendRequests.length;
+  const todayDate = new Date().toISOString().slice(0, 10);
+  const hasRequestedCoinsToday = (playerData?.lastCoinRequestDate || lastCoinRequestDate) === todayDate;
+
+  const handleSendDailyCoinRequests = async (selectedFriendUids) => {
+    setIsSendingCoinReq(true);
+    const sender = {
+      uid: myUid,
+      username: myUsername,
+      avatar: myAvatar,
+      playerTag: playerTag || 'GS-0000',
+    };
+    const result = await sendDailyCoinRequests(sender, selectedFriendUids, 400);
+    setIsSendingCoinReq(false);
+    setShowCoinModal(false);
+    if (result.success) {
+      setActionFeedback(`✓ 400 Coin bonus request sent to ${selectedFriendUids.length} friend${selectedFriendUids.length === 1 ? '' : 's'}!`);
+      setTimeout(() => setActionFeedback(null), 4000);
+    } else {
+      setActionFeedback('Failed to send coin requests. Please try again.');
+      setTimeout(() => setActionFeedback(null), 4000);
+    }
+  };
+
+  const handleAcceptCoinRequest = async (request) => {
+    const success = await acceptCoinRequest(myUid, request);
+    if (success) {
+      setActionFeedback(`✓ Sent 400 bonus coins to ${request.fromUsername}! (0 coins deducted from your balance)`);
+      setTimeout(() => setActionFeedback(null), 4000);
+    }
+  };
+
+  const handleDeclineCoinRequest = async (requestId) => {
+    await declineCoinRequest(myUid, requestId);
+  };
+
+  const coinRequestsList = incomingCoinRequests || [];
+  const pendingCount = incomingFriendRequests.length + coinRequestsList.length;
 
   return (
     <div className="w-full min-h-screen bg-neo-dots text-black font-sans pb-24 md:pb-12">
@@ -306,6 +350,42 @@ export default function FriendsPage() {
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {activeTab === 'friends' && (
           <div className="space-y-3">
+            {/* ── Daily Friend Coin Bonus Action Card ── */}
+            {friendsList.length > 0 && (
+              <div className="bg-gradient-to-r from-amber-50 to-yellow-100 border-2 sm:border-3 border-black p-3.5 sm:p-4 shadow-neo-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-full bg-neo-yellow border-2 border-black flex items-center justify-center text-2xl shrink-0 shadow-xs">
+                    🪙
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-display font-black text-sm uppercase text-black">
+                        Daily Friend Coin Bonus
+                      </h4>
+                      <span className="font-mono text-[9px] font-black bg-neo-lime border border-black px-1.5 py-0.5 text-black">
+                        +400 COINS
+                      </span>
+                    </div>
+                    <p className="font-mono text-[11px] text-zinc-600 mt-0.5 leading-snug">
+                      Request 400 bonus coins once per day from your friends! Friends lose 0 coins when accepting.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowCoinModal(true)}
+                  disabled={hasRequestedCoinsToday}
+                  className={`w-full sm:w-auto px-4 py-2 border-2 border-black font-mono font-black text-xs uppercase shadow-neo-sm transition-all text-center whitespace-nowrap ${
+                    hasRequestedCoinsToday
+                      ? 'bg-zinc-200 text-zinc-500 border-zinc-400 cursor-not-allowed shadow-none'
+                      : 'bg-neo-yellow hover:bg-yellow-300 text-black cursor-pointer active:translate-y-0.5'
+                  }`}
+                >
+                  {hasRequestedCoinsToday ? '✓ REQUESTED TODAY' : '🎁 REQUEST 400 COINS'}
+                </button>
+              </div>
+            )}
+
             {loadingFriends ? (
               <div className="bg-white border-3 border-black shadow-neo-sm p-8 text-center font-mono text-xs text-zinc-500">
                 Loading friends list...
@@ -532,6 +612,68 @@ export default function FriendsPage() {
         {activeTab === 'requests' && (
           <div className="space-y-6">
             
+            {/* ── Incoming Coin Bonus Requests ── */}
+            {coinRequestsList.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-2 px-1">
+                  <span className="font-mono text-xs font-black uppercase text-black flex items-center gap-1.5">
+                    <span>🎁 INCOMING COIN BONUS REQUESTS</span>
+                    <span className="bg-neo-yellow border border-black text-black px-1.5 py-0.2 rounded-full text-[10px]">
+                      {coinRequestsList.length}
+                    </span>
+                  </span>
+                  <span className="font-mono text-[10px] text-emerald-700 font-bold">
+                    Free Bonus · You pay 0 coins!
+                  </span>
+                </div>
+
+                <div className="space-y-2 mb-6">
+                  {coinRequestsList.map((req) => (
+                    <div
+                      key={req.id || req.fromUid}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-gradient-to-r from-amber-50 to-white border-2 sm:border-3 border-black shadow-neo-sm"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-3xl">{req.fromAvatar || '🎮'}</span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-display font-black text-sm uppercase text-black">
+                              {req.fromUsername}
+                            </h4>
+                            <span className="font-mono text-[10px] font-bold bg-zinc-100 border border-black px-1.5 text-zinc-700">
+                              #{req.fromPlayerTag || 'GS-0000'}
+                            </span>
+                          </div>
+                          <p className="font-mono text-[10px] text-zinc-600">
+                            Requested a <span className="font-black text-black">400 Coin</span> Daily Friendship Bonus
+                          </p>
+                          <span className="inline-block mt-0.5 font-mono text-[9px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-400 px-1">
+                            ✓ FREE FOR YOU · 0 COINS DEDUCTED
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-200">
+                        <button
+                          onClick={() => handleAcceptCoinRequest(req)}
+                          className="flex-1 sm:flex-none px-3.5 py-1.5 bg-neo-lime hover:bg-lime-300 border-2 border-black font-mono font-black text-xs uppercase shadow-neo-sm cursor-pointer"
+                        >
+                          🎁 SEND 400 🪙 BONUS
+                        </button>
+                        <button
+                          onClick={() => handleDeclineCoinRequest(req.id)}
+                          className="px-2.5 py-1.5 bg-zinc-100 hover:bg-zinc-200 border-2 border-black font-mono font-black text-xs uppercase shadow-neo-sm cursor-pointer"
+                          title="Decline request"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Incoming Requests */}
             <div>
               <div className="flex items-center justify-between mb-2 px-1">
@@ -652,6 +794,17 @@ export default function FriendsPage() {
         )}
 
       </div>
+
+      {/* ── Daily Friend Coin Request Modal ── */}
+      <FriendCoinRequestModal
+        isOpen={showCoinModal}
+        onClose={() => setShowCoinModal(false)}
+        friendsList={friendsList}
+        friendsStatus={friendsStatus}
+        onSendRequests={handleSendDailyCoinRequests}
+        isSending={isSendingCoinReq}
+        hasRequestedToday={hasRequestedCoinsToday}
+      />
     </div>
   );
 }
