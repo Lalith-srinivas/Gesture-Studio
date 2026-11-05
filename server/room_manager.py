@@ -1083,16 +1083,24 @@ class RoomManager:
 
         # If disconnected before match start (MATCH_FOUND, TIER_SELECTION, COUNTDOWN)
         if room["state"] in ("MATCH_FOUND", "TIER_SELECTION", "COUNTDOWN"):
+            leaving_player = room["player1"] if disconnected_uid == p1_uid else room["player2"]
+            leaving_name = leaving_player.get("username", "Friend")
+
             # Refund deducted coins if any
             if room.get("coins_deducted"):
-                self.refund_coins(p1_uid, room["entry_fee"])
-                self.refund_coins(p2_uid, room["entry_fee"])
+                entry_fee = room.get("entry_fee", 0)
+                if entry_fee > 0:
+                    self.refund_coins(p1_uid, entry_fee)
+                    self.refund_coins(p2_uid, entry_fee)
                 room["coins_deducted"] = False
 
             await self.send_to_user(other_uid, {
-                "type": "OPPONENT_DISCONNECTED",
-                "message": "Your opponent disconnected. Any entry coins have been refunded."
+                "type": "OPPONENT_LEFT",
+                "message": f"{leaving_name} left the lobby.",
+                "opponentName": leaving_name
             })
+            if other_uid in self.connected_users and self.connected_users[other_uid].get("current_room") == room_id:
+                self.connected_users[other_uid]["current_room"] = None
             del self.rooms[room_id]
         elif room["state"] == "PLAYING":
             # Wait 5 seconds for them to return before declaring remaining player winner
@@ -1213,11 +1221,40 @@ class RoomManager:
             await self.start_disconnect_grace_period(room_id, uid, other_uid)
             return
 
+        leaving_player = room["player1"] if uid == p1_uid else room["player2"]
+        leaving_name = leaving_player.get("username", "Friend")
+
+        # If in pre-game lobby states (MATCH_FOUND, TIER_SELECTION, COUNTDOWN)
+        if room["state"] in ("MATCH_FOUND", "TIER_SELECTION", "COUNTDOWN"):
+            if room.get("coins_deducted"):
+                entry_fee = room.get("entry_fee", 0)
+                if entry_fee > 0:
+                    self.refund_coins(p1_uid, entry_fee)
+                    self.refund_coins(p2_uid, entry_fee)
+                room["coins_deducted"] = False
+
+            await self.send_to_user(other_uid, {
+                "type": "OPPONENT_LEFT",
+                "message": f"{leaving_name} left the lobby.",
+                "opponentName": leaving_name
+            })
+            if uid in self.connected_users and self.connected_users[uid].get("current_room") == room_id:
+                self.connected_users[uid]["current_room"] = None
+            if other_uid in self.connected_users and self.connected_users[other_uid].get("current_room") == room_id:
+                self.connected_users[other_uid]["current_room"] = None
+            del self.rooms[room_id]
+            return
+
         # Notify the other player that opponent left
         await self.send_to_user(other_uid, {
             "type": "OPPONENT_LEFT",
-            "message": "Opponent returned to lobby."
+            "message": f"{leaving_name} left the lobby.",
+            "opponentName": leaving_name
         })
+        if uid in self.connected_users and self.connected_users[uid].get("current_room") == room_id:
+            self.connected_users[uid]["current_room"] = None
+        if other_uid in self.connected_users and self.connected_users[other_uid].get("current_room") == room_id:
+            self.connected_users[other_uid]["current_room"] = None
         if room["state"] in ("FINISHED", "IDLE", "MATCH_FOUND"):
             del self.rooms[room_id]
 

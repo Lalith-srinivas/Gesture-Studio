@@ -10,6 +10,7 @@ export default function MultiplayerResultModal({ isOpen, onReturnToLobby }) {
     rematchRequested,
     opponentWantsRematch,
     resetState,
+    leaveRoom,
   } = useMultiplayer();
 
   const { currentUser } = useAuth();
@@ -34,6 +35,7 @@ export default function MultiplayerResultModal({ isOpen, onReturnToLobby }) {
   };
 
   const handleExit = () => {
+    leaveRoom();
     resetState();
     onReturnToLobby?.();
   };

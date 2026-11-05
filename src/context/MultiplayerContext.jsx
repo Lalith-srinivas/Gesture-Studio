@@ -258,9 +258,10 @@ export function MultiplayerProvider({ children }) {
         // (mid-match exits are handled by grace timer / forfeit)
         setMatchState((currentMatchState) => {
           if (currentMatchState !== 'PLAYING') {
+            const friendName = msg.opponentName || 'Friend';
             showPopup({
-              title: 'Opponent Left',
-              message: msg.message || 'Opponent returned to lobby.',
+              title: 'Friend Left Lobby',
+              message: msg.message || `${friendName} left the lobby.`,
               type: 'info'
             });
             resetState();
@@ -411,6 +412,10 @@ export function MultiplayerProvider({ children }) {
     setOpponent(null);
     setSeed(null);
     setTier(null);
+    setEntryFee(0);
+    setTotalPool(0);
+    setP1Tier(null);
+    setP2Tier(null);
     setMyScore(0);
     setOpponentScore(0);
     setMatchResult(null);

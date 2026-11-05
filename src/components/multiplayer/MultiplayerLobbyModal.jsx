@@ -19,6 +19,7 @@ export default function MultiplayerLobbyModal({ isOpen, onClose, gameId = "fruit
     friendsStatus,
     joinQueue,
     leaveQueue,
+    leaveRoom,
     confirmMatch,
     selectTier,
     sendFriendInvite,
@@ -96,6 +97,10 @@ export default function MultiplayerLobbyModal({ isOpen, onClose, gameId = "fruit
     if (matchState === 'TIER_SELECTION') {
       setSelectedTierLocal(null);
     }
+    if (matchState === 'IDLE') {
+      setConfirmedReady(false);
+      setSelectedTierLocal(null);
+    }
   }, [matchState]);
 
   const handleSearchUsers = async (e) => {
@@ -139,6 +144,8 @@ export default function MultiplayerLobbyModal({ isOpen, onClose, gameId = "fruit
   const handleClose = () => {
     if (matchState === 'SEARCHING') {
       leaveQueue();
+    } else if (currentRoom || matchState !== 'IDLE') {
+      leaveRoom();
     }
     resetState();
     onClose();
@@ -421,6 +428,13 @@ export default function MultiplayerLobbyModal({ isOpen, onClose, gameId = "fruit
             >
               {confirmedReady ? '✓ READY! WAITING FOR OPPONENT...' : 'CONFIRM & READY ⚔️'}
             </button>
+
+            <button
+              onClick={handleClose}
+              className="mt-3 w-full py-2 bg-white hover:bg-zinc-100 border-2 border-black font-mono font-black text-xs uppercase shadow-neo-sm cursor-pointer"
+            >
+              ✕ LEAVE LOBBY
+            </button>
           </div>
         )}
 
@@ -494,6 +508,13 @@ export default function MultiplayerLobbyModal({ isOpen, onClose, gameId = "fruit
                 ⏳ Waiting for opponent to confirm the same match stake...
               </div>
             )}
+
+            <button
+              onClick={handleClose}
+              className="mt-3 w-full py-2 bg-white hover:bg-zinc-100 border-2 border-black font-mono font-black text-xs uppercase shadow-neo-sm cursor-pointer"
+            >
+              ✕ LEAVE LOBBY
+            </button>
           </div>
         )}
 
