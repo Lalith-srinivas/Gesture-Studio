@@ -168,6 +168,11 @@ async def websocket_endpoint(
                 if room_id:
                     await room_manager.play_again_request(room_id, uid)
 
+            elif msg_type == "LEAVE_ROOM":
+                room_id = data.get("roomId")
+                if room_id:
+                    await room_manager.leave_room(room_id, uid)
+
             elif msg_type == "SEND_INVITE":
                 to_uid = data.get("toUid")
                 game_id = data.get("gameId", "fruit-ninja")

@@ -135,9 +135,12 @@ class RoomManager:
                 "playerTag": tag,
                 "playerTag_lowercase": tag.lower(),
             }
-            if username and username != "Player":
-                updates["username"] = username
-                updates["username_lowercase"] = username.lower()
+            if username and username not in ("Player", "Guest Player", "guest_temp"):
+                existing_username = (doc.to_dict() or {}).get("username") if doc.exists else None
+                # Do not overwrite an existing custom username with a generic Guest_XXXX name
+                if not (existing_username and not existing_username.startswith("Guest_") and username.startswith("Guest_")):
+                    updates["username"] = username
+                    updates["username_lowercase"] = username.lower()
             if avatar:
                 updates["avatar"] = avatar
 
@@ -871,30 +874,104 @@ class RoomManager:
 
         # If both agreed to play again
         if room["player1"]["play_again"] and room["player2"]["play_again"]:
-            # Reset room to tier selection with a new random seed
-            room["seed"] = random.randint(1, 2147483647)
-            room["state"] = "TIER_SELECTION"
-            room["coins_deducted"] = False
-            room["settled"] = False
-            room["player1"]["score"] = 0
-            room["player2"]["score"] = 0
-            room["player1"]["finished"] = False
-            room["player2"]["finished"] = False
-            room["player1"]["tier_selected"] = None
-            room["player2"]["tier_selected"] = None
-            room["player1"]["play_again"] = False
-            room["player2"]["play_again"] = False
+            p1_uid = room["player1"]["uid"]
+            p2_uid = room["player2"]["uid"]
+            p1_coins = self.get_user_coins(p1_uid)
+            p2_coins = self.get_user_coins(p2_uid)
 
-            p1_coins = self.get_user_coins(room["player1"]["uid"])
-            p2_coins = self.get_user_coins(room["player2"]["uid"])
+            # Determine rematch tier: prefer current tier, else fallback to bronze
+            chosen_tier = room.get("tier", "bronze")
+            if chosen_tier not in MATCH_TIERS:
+                chosen_tier = "bronze"
 
-            await self.broadcast_to_room(room_id, {
-                "type": "MOVE_TO_TIER_SELECTION",
-                "roomId": room_id,
-                "tiers": MATCH_TIERS,
-                "player1Coins": p1_coins,
-                "player2Coins": p2_coins
-            })
+            entry_fee = MATCH_TIERS[chosen_tier]["entry"]
+            total_pool = MATCH_TIERS[chosen_tier]["pool"]
+
+            # If players cannot afford the previous tier, fall back to bronze (200)
+            if (p1_coins < entry_fee or p2_coins < entry_fee) and chosen_tier != "bronze":
+                chosen_tier = "bronze"
+                entry_fee = MATCH_TIERS["bronze"]["entry"]
+                total_pool = MATCH_TIERS["bronze"]["pool"]
+
+            # If both can afford the rematch entry fee, start countdown immediately
+            if p1_coins >= entry_fee and p2_coins >= entry_fee:
+                deducted = self.deduct_coins_atomic(p1_uid, p2_uid, entry_fee)
+                if not deducted:
+                    await self.broadcast_to_room(room_id, {
+                        "type": "ERROR",
+                        "message": "Coins transaction failed. Please return to lobby."
+                    })
+                    return
+
+                room["seed"] = random.randint(1, 2147483647)
+                room["state"] = "COUNTDOWN"
+                room["tier"] = chosen_tier
+                room["entry_fee"] = entry_fee
+                room["total_pool"] = total_pool
+                room["coins_deducted"] = True
+                room["settled"] = False
+                room["player1"]["score"] = 0
+                room["player2"]["score"] = 0
+                room["player1"]["finished"] = False
+                room["player2"]["finished"] = False
+                room["player1"]["tier_selected"] = chosen_tier
+                room["player2"]["tier_selected"] = chosen_tier
+                room["player1"]["play_again"] = False
+                room["player2"]["play_again"] = False
+
+                # Broadcast START_COUNTDOWN directly to both clients
+                await self.broadcast_to_room(room_id, {
+                    "type": "START_COUNTDOWN",
+                    "roomId": room_id,
+                    "seed": room["seed"],
+                    "tier": room["tier"],
+                    "entryFee": room["entry_fee"],
+                    "totalPool": room["total_pool"],
+                    "countdownSeconds": 3,
+                    "gameDuration": 60
+                })
+
+                # Background task to start game after countdown
+                asyncio.create_task(self._run_countdown_and_start(room_id))
+            else:
+                # If neither has enough coins for bronze, move to tier selection
+                room["seed"] = random.randint(1, 2147483647)
+                room["state"] = "TIER_SELECTION"
+                room["coins_deducted"] = False
+                room["settled"] = False
+                room["player1"]["score"] = 0
+                room["player2"]["score"] = 0
+                room["player1"]["finished"] = False
+                room["player2"]["finished"] = False
+                room["player1"]["tier_selected"] = None
+                room["player2"]["tier_selected"] = None
+                room["player1"]["play_again"] = False
+                room["player2"]["play_again"] = False
+
+                await self.broadcast_to_room(room_id, {
+                    "type": "MOVE_TO_TIER_SELECTION",
+                    "roomId": room_id,
+                    "tiers": MATCH_TIERS,
+                    "player1Coins": p1_coins,
+                    "player2Coins": p2_coins,
+                    "message": "One or both players have insufficient coins. Please choose stakes."
+                })
+
+    async def leave_room(self, room_id: str, uid: str):
+        room = self.rooms.get(room_id)
+        if not room:
+            return
+        p1_uid = room["player1"]["uid"]
+        p2_uid = room["player2"]["uid"]
+        other_uid = p2_uid if uid == p1_uid else p1_uid
+
+        # Notify the other player that opponent left
+        await self.send_to_user(other_uid, {
+            "type": "OPPONENT_LEFT",
+            "message": "Opponent returned to lobby."
+        })
+        if room["state"] in ("FINISHED", "IDLE", "MATCH_FOUND"):
+            del self.rooms[room_id]
 
     # ── Friend Invites ────────────────────────────────────────────────────────
     async def send_friend_invite(self, from_uid: str, to_uid: str, game_id: str):

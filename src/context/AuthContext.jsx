@@ -41,13 +41,13 @@ export function AuthProvider({ children }) {
   }, []);
 
   // Fetch or sync user profile whenever Firebase auth state updates
-  const syncProfile = useCallback(async (user) => {
+  const syncProfile = useCallback(async (user, additionalData = {}) => {
     if (!user) {
       setUserProfile(null);
       return;
     }
     try {
-      const profile = await getOrCreateUserProfile(user);
+      const profile = await getOrCreateUserProfile(user, additionalData);
       setUserProfile(profile);
     } catch (err) {
       console.warn('[AuthProvider] Profile load issue:', err);
@@ -111,11 +111,36 @@ export function AuthProvider({ children }) {
     if (result.error) {
       setAuthError(result.error);
     } else if (result.user) {
+      const uid = result.user.uid;
       let finalName = (customUsername || '').trim();
+
+      // If no custom username was explicitly passed, preserve any existing name already set
+      if (!finalName) {
+        if (result.user.displayName && result.user.displayName !== 'Player' && !result.user.displayName.startsWith('Guest_')) {
+          finalName = result.user.displayName;
+        } else if (userProfile?.username && userProfile.username !== 'Player' && !userProfile.username.startsWith('Guest_')) {
+          finalName = userProfile.username;
+        } else {
+          // Check cached player data in localStorage
+          try {
+            const raw = localStorage.getItem(`gesture_studio_user_${uid}`) || localStorage.getItem('gesture_studio_player_cache');
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              const cName = parsed?.username || (parsed?.[uid]?.username);
+              if (cName && cName !== 'Player' && !cName.startsWith('Guest_')) {
+                finalName = cName;
+              }
+            }
+          } catch {}
+        }
+      }
+
+      // Only generate a random Guest_XXXX fallback if user has no established name
       if (!finalName) {
         const randomSuffix = Math.floor(1000 + Math.random() * 9000);
         finalName = `Guest_${randomSuffix}`;
       }
+
       await updateUserProfile(result.user.uid, {
         username: finalName,
         isAnonymous: true,
@@ -124,7 +149,7 @@ export function AuthProvider({ children }) {
       try {
         localStorage.setItem('gesture_studio_last_uid', result.user.uid);
       } catch { /* silent */ }
-      await syncProfile(result.user);
+      await syncProfile(result.user, { username: finalName });
     }
     return result;
   };

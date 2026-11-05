@@ -178,7 +178,9 @@ export default function FruitNinja() {
     if (isMp) {
       setIsMultiplayer(true);
       setShowModeModal(false);
-      setShowLobbyModal(true);
+      if (matchState !== 'PLAYING' && matchState !== 'FINISHED') {
+        setShowLobbyModal(true);
+      }
     }
   }, [isModeParam, matchState]);
 

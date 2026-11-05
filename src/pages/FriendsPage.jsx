@@ -59,7 +59,8 @@ export default function FriendsPage() {
   // Ensure user is signed in to Firebase Auth so Firestore rules pass
   useEffect(() => {
     if (!currentUser && !isGuest && loginAsGuest) {
-      loginAsGuest(myUsername).catch(() => {});
+      const preferredName = (myUsername && myUsername !== 'Player' && !myUsername.startsWith('Guest_')) ? myUsername : '';
+      loginAsGuest(preferredName).catch(() => {});
     }
   }, [currentUser, isGuest, loginAsGuest, myUsername]);
 

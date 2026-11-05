@@ -126,6 +126,7 @@ export function MultiplayerProvider({ children }) {
         setOpponentScore(0);
         setRematchRequested(false);
         setOpponentWantsRematch(false);
+        setMatchResult(null);
         break;
       }
 
@@ -133,6 +134,9 @@ export function MultiplayerProvider({ children }) {
         setMatchState('TIER_SELECTION');
         setP1Tier(null);
         setP2Tier(null);
+        setRematchRequested(false);
+        setOpponentWantsRematch(false);
+        setMatchResult(null);
         break;
       }
 
@@ -148,6 +152,9 @@ export function MultiplayerProvider({ children }) {
         setTier(msg.tier);
         setEntryFee(msg.entryFee);
         setTotalPool(msg.totalPool);
+        setRematchRequested(false);
+        setOpponentWantsRematch(false);
+        setMatchResult(null);
         break;
       }
 
@@ -155,6 +162,9 @@ export function MultiplayerProvider({ children }) {
         setMatchState('PLAYING');
         setMyScore(0);
         setOpponentScore(0);
+        setRematchRequested(false);
+        setOpponentWantsRematch(false);
+        setMatchResult(null);
         break;
       }
 
@@ -174,6 +184,14 @@ export function MultiplayerProvider({ children }) {
 
       case 'OPPONENT_DISCONNECTED': {
         alert(msg.message || 'Your opponent disconnected.');
+        resetState();
+        break;
+      }
+
+      case 'OPPONENT_LEFT': {
+        setOpponentWantsRematch(false);
+        setRematchRequested(false);
+        alert(msg.message || 'Opponent returned to lobby.');
         resetState();
         break;
       }

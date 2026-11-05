@@ -365,7 +365,7 @@ export const updateUserProfile = async (uid, updates) => {
     claimUsername(updates.username, uid).catch(() => {});
   }
   try {
-    await updateDoc(userRef, enrichedUpdates);
+    await setDoc(userRef, enrichedUpdates, { merge: true });
     const cached = getLocalCache(`user_${uid}`, {});
     cacheLocally(`user_${uid}`, { ...cached, ...enrichedUpdates });
   } catch (err) {
@@ -572,9 +572,26 @@ export const getFriendsProfiles = async (friendUids = []) => {
       const snap = await getDoc(doc(db, COLLECTIONS.USERS, fUid));
       if (snap.exists()) {
         const d = snap.data();
+        let friendName = d.username || 'Player';
+
+        // Resilient fallback: if friend document still shows a generic Guest_XXXX or Player,
+        // check if they claimed a custom nickname in the usernames registry
+        if (!friendName || friendName === 'Player' || friendName.startsWith('Guest_')) {
+          try {
+            const uQuery = query(collection(db, COLLECTIONS.USERNAMES), where('uid', '==', fUid), limit(1));
+            const uSnap = await getDocs(uQuery);
+            if (!uSnap.empty) {
+              const claimed = uSnap.docs[0].data();
+              if (claimed?.username && !claimed.username.startsWith('Guest_')) {
+                friendName = claimed.username;
+              }
+            }
+          } catch {}
+        }
+
         profiles.push({
           uid: fUid,
-          username: d.username || 'Player',
+          username: friendName,
           avatar: d.avatar || '🎮',
           playerTag: d.playerTag || generatePlayerTag(fUid),
           coins: d.coins ?? 1000,

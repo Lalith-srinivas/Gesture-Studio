@@ -9,6 +9,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { usePlayer } from '../hooks/usePlayer';
 import { doc, updateDoc, setDoc } from 'firebase/firestore';
+import { updateProfile } from 'firebase/auth';
 import { db } from '../firebase/firebase';
 import { updateLeaderboardIdentity } from '../services/leaderboardService';
 import { isUsernameAvailable, claimUsername } from '../firebase/firestore';
@@ -170,6 +171,10 @@ export default function WelcomeModal() {
       // 2. Authenticate as guest ONLY NOW
       const res = await loginAsGuest(chosenName);
       const currentUid = res?.user?.uid;
+
+      if (res?.user) {
+        await updateProfile(res.user, { displayName: chosenName }).catch(() => {});
+      }
 
       if (currentUid) {
         // Persist chosen nickname and lowercase index
