@@ -37,7 +37,8 @@ export default function FriendsPage() {
   const {
     friendsStatus,
     checkFriendsStatus,
-    sendFriendInvite
+    sendFriendInvite,
+    showPopup,
   } = useMultiplayer();
 
   const [activeTab, setActiveTab] = useState('friends'); // 'friends' | 'add' | 'requests'
@@ -149,9 +150,15 @@ export default function FriendsPage() {
   };
 
   const handleRemoveFriend = async (friendUid, friendName) => {
-    if (window.confirm(`Are you sure you want to remove ${friendName} from your friends?`)) {
-      await removeFriend(myUid, friendUid);
-    }
+    showPopup({
+      title: 'Remove Friend',
+      message: `Are you sure you want to remove ${friendName} from your friends list?`,
+      type: 'confirm',
+      confirmText: 'Remove',
+      onConfirm: async () => {
+        await removeFriend(myUid, friendUid);
+      }
+    });
   };
 
   const handleChallengeFriend = (friendUid) => {

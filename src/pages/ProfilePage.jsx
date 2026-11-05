@@ -20,6 +20,7 @@ import { GAME_LABELS } from '../services/gameStatsService';
 import { updateLeaderboardIdentity } from '../services/leaderboardService';
 import { isUsernameAvailable, claimUsername } from '../firebase/firestore';
 import MatchHistorySection from '../components/multiplayer/MatchHistorySection';
+import { useMultiplayer } from '../context/MultiplayerContext';
 
 const AVATAR_PRESETS = ['🎮', '🏆', '⚡', '🔥', '🎯', '🎨', '🦅', '🌟'];
 
@@ -55,6 +56,7 @@ export default function ProfilePage() {
     playerTag,
   } = usePlayer();
   const { resetAll, settings } = useGestureAcademy();
+  const { showPopup } = useMultiplayer();
 
   useEffect(() => {
     if (tab === 'achievements') {
@@ -140,7 +142,11 @@ export default function ProfilePage() {
 
   const handleResetTutorial = () => {
     resetAll();
-    alert('Tutorial progress has been reset. You will see the Gesture Academy again on next game launch.');
+    showPopup({
+      title: 'Academy Reset',
+      message: 'Tutorial progress has been reset. You will see the Gesture Academy again on next game launch.',
+      type: 'success'
+    });
   };
 
   const handleLogout = async () => { await logout(); navigate('/'); };
@@ -277,7 +283,11 @@ export default function ProfilePage() {
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(playerTag);
-                        alert(`Copied Player ID #${playerTag} to clipboard!`);
+                        showPopup({
+                          title: 'ID Copied',
+                          message: `Player ID #${playerTag} copied to clipboard!`,
+                          type: 'success'
+                        });
                       }}
                       className="ml-1 text-[10px] text-zinc-500 hover:text-black hover:underline cursor-pointer"
                       title="Copy Player ID"

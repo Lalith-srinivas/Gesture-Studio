@@ -8,6 +8,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { usePlayer } from '../hooks/usePlayer';
+import NeoAlertModal from '../components/NeoAlertModal';
 
 const MultiplayerContext = createContext(null);
 
@@ -40,6 +41,19 @@ export function MultiplayerProvider({ children }) {
   const [errorMessage, setErrorMessage] = useState(null);
   const [rematchRequested, setRematchRequested] = useState(false);
   const [opponentWantsRematch, setOpponentWantsRematch] = useState(false);
+  const [popup, setPopup] = useState(null);
+
+  const showPopup = useCallback((opts) => {
+    if (typeof opts === 'string') {
+      setPopup({ message: opts, title: 'Notice', type: 'info' });
+    } else {
+      setPopup(opts);
+    }
+  }, []);
+
+  const closePopup = useCallback(() => {
+    setPopup(null);
+  }, []);
 
   const wsRef = useRef(null);
   const pingIntervalRef = useRef(null);
@@ -183,7 +197,11 @@ export function MultiplayerProvider({ children }) {
       }
 
       case 'OPPONENT_DISCONNECTED': {
-        alert(msg.message || 'Your opponent disconnected.');
+        showPopup({
+          title: 'Opponent Disconnected',
+          message: msg.message || 'Your opponent disconnected. Any entry coins have been refunded.',
+          type: 'warning'
+        });
         resetState();
         break;
       }
@@ -191,7 +209,11 @@ export function MultiplayerProvider({ children }) {
       case 'OPPONENT_LEFT': {
         setOpponentWantsRematch(false);
         setRematchRequested(false);
-        alert(msg.message || 'Opponent returned to lobby.');
+        showPopup({
+          title: 'Opponent Left',
+          message: msg.message || 'Opponent returned to lobby.',
+          type: 'info'
+        });
         resetState();
         break;
       }
@@ -207,13 +229,21 @@ export function MultiplayerProvider({ children }) {
       }
 
       case 'INVITE_REJECTED': {
-        alert(msg.message || 'Invitation was rejected.');
+        showPopup({
+          title: 'Invitation Declined',
+          message: msg.message || 'Invitation was rejected.',
+          type: 'info'
+        });
         setMatchState('IDLE');
         break;
       }
 
       case 'INVITE_FAILED': {
-        alert(msg.message || 'Could not send invitation.');
+        showPopup({
+          title: 'Invite Failed',
+          message: msg.message || 'Could not send invitation. Friend may be offline.',
+          type: 'warning'
+        });
         break;
       }
 
@@ -224,7 +254,11 @@ export function MultiplayerProvider({ children }) {
 
       case 'ERROR': {
         setErrorMessage(msg.message);
-        alert(msg.message);
+        showPopup({
+          title: 'Match Notice',
+          message: msg.message || 'An error occurred during the match.',
+          type: 'error'
+        });
         break;
       }
 
@@ -339,7 +373,10 @@ export function MultiplayerProvider({ children }) {
     rematchRequested,
     opponentWantsRematch,
     coins,
+    popup,
 
+    showPopup,
+    closePopup,
     joinQueue,
     leaveQueue,
     confirmMatch,
@@ -357,6 +394,7 @@ export function MultiplayerProvider({ children }) {
   return (
     <MultiplayerContext.Provider value={value}>
       {children}
+      <NeoAlertModal popup={popup} onClose={closePopup} />
     </MultiplayerContext.Provider>
   );
 }

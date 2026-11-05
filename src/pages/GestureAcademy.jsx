@@ -5,6 +5,7 @@ import { useHandTracking } from '../hooks/useHandTracking';
 import { GESTURES } from '../utils/gestureDetector';
 import { useGestureAcademy } from '../hooks/useGestureAcademy';
 import { usePlayer } from '../hooks/usePlayer';
+import { useMultiplayer } from '../context/MultiplayerContext';
 import CrazyRoadTutorial from '../components/academy/CrazyRoadTutorial';
 import FlappyBirdTutorial from '../components/academy/FlappyBirdTutorial';
 import ArcheryTutorial from '../components/academy/ArcheryTutorial';
@@ -223,6 +224,7 @@ const GAME_LESSON_IDS = {
 
 export default function GestureAcademy() {
   const navigate = useNavigate();
+  const { showPopup } = useMultiplayer();
   const [searchParams] = useSearchParams();
   const targetGameKey = searchParams.get('game');
   const targetGame = targetGameKey ? GAME_MAP[targetGameKey] : null;
@@ -1012,7 +1014,11 @@ export default function GestureAcademy() {
                   onClick={() => {
                     sounds.playClick();
                     resetAll();
-                    alert('Tutorial progress has been reset for all games.');
+                    showPopup({
+                      title: 'Academy Reset',
+                      message: 'Tutorial progress has been reset for all games.',
+                      type: 'success'
+                    });
                     setShowSettingsModal(false);
                   }}
                   className="w-full py-2.5 bg-red-100 hover:bg-red-200 border-2 border-black font-display font-black text-xs uppercase text-red-700 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
