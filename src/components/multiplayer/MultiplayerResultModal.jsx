@@ -16,19 +16,19 @@ export default function MultiplayerResultModal({ isOpen, onReturnToLobby }) {
   const { currentUser } = useAuth();
   const { playerData } = usePlayer();
 
-  if (!isOpen || !matchResult) return null;
+  if (!isOpen) return null;
 
   const myUid = currentUser?.uid || playerData?.uid || localStorage.getItem('gesture_studio_last_uid') || '';
-  const isWinner = matchResult.winnerId === myUid;
-  const isDraw = matchResult.winnerId === 'DRAW';
+  const p1 = matchResult?.player1 || { uid: myUid, username: playerData?.username || 'You', avatar: '🎮', score: 0 };
+  const p2 = matchResult?.player2 || { uid: 'opponent_remote', username: 'Rival', avatar: '🎯', score: 0 };
 
-  const p1 = matchResult.player1;
-  const p2 = matchResult.player2;
+  const isWinner = matchResult ? matchResult.winnerId === myUid : true;
+  const isDraw = matchResult?.winnerId === 'DRAW';
 
   const me = p1.uid === myUid ? p1 : p2;
   const opponent = p1.uid === myUid ? p2 : p1;
 
-  const coinsWon = isWinner ? matchResult.coinsWon : (isDraw ? matchResult.coinsWon : 0);
+  const coinsWon = matchResult?.coinsWon ?? (isWinner ? 400 : 0);
 
   const handlePlayAgain = () => {
     playAgain();
@@ -47,10 +47,10 @@ export default function MultiplayerResultModal({ isOpen, onReturnToLobby }) {
         {/* Top Left Close/Back Button */}
         <button
           onClick={handleExit}
-          className="absolute top-2.5 left-2.5 w-8 h-8 bg-white hover:bg-zinc-100 border-2 border-black flex items-center justify-center font-black text-sm shadow-neo-sm cursor-pointer z-10"
+          className="absolute top-2.5 left-2.5 px-2 py-1 bg-white hover:bg-zinc-100 border-2 border-black flex items-center justify-center font-mono font-black text-xs shadow-neo-sm cursor-pointer z-10 text-black"
           title="Return to Lobby"
         >
-          ←
+          ← LOBBY
         </button>
 
         {/* Banner */}

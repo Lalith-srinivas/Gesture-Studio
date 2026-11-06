@@ -1,21 +1,23 @@
 /**
- * DualHandDetector — Real-time MediaPipe Dual-Hand Gesture Recognition
+ * DualHandDetector — Robust MediaPipe Dual-Hand Gesture Recognition
  * ────────────────────────────────────────────────────────────────────────────
- * Left Hand:
- *   ✋ Open Palm (Neutral / Stop)
- *   Move Left / Move Right (Horizontal position)
- *   Quick Upward Motion (Jump)
- *   👍 Thumbs Up (Special Ability)
- *   ✌️ Victory Sign (Switch Arrow Type)
- *   ✊ Closed Fist (Melee Attack)
- *
- * Right Hand:
- *   🤏 Pinch (thumb + index) -> Draw bowstring
- *   Release pinch -> Shoot arrow
- *   Move Up / Down -> Adjust aiming angle
+ * Full Gesture Table:
+ * | Gesture                      | Game Action              | Hand       |
+ * | Open Palm ✋                 | Neutral / Stop           | Left       |
+ * | Move Left                    | Move character left      | Left       |
+ * | Move Right                   | Move character right     | Left       |
+ * | Quick upward hand movement   | Jump                     | Left       |
+ * | Pinch (thumb + index)        | Draw bowstring           | Right      |
+ * | Release pinch                | Shoot arrow              | Right      |
+ * | Move right hand up/down      | Adjust aiming angle      | Right      |
+ * | Thumbs Up 👍                 | Activate special ability | Left       |
+ * | Victory Sign ✌️              | Switch arrow type        | Left       |
+ * | Closed Fist ✊               | Melee attack             | Left       |
+ * ────────────────────────────────────────────────────────────────────────────
  */
 
 function dist(a, b) {
+  if (!a || !b) return 1.0;
   const dx = a.x - b.x;
   const dy = a.y - b.y;
   return Math.hypot(dx, dy);
@@ -23,29 +25,33 @@ function dist(a, b) {
 
 function isFingerExtended(lm, tipIdx, pipIdx) {
   const wrist = lm[0];
-  return dist(wrist, lm[tipIdx]) > dist(wrist, lm[pipIdx]) * 1.12;
+  return dist(wrist, lm[tipIdx]) > dist(wrist, lm[pipIdx]) * 1.08;
 }
 
 export class DualHandDetector {
   constructor() {
     this.prevLeftWristY = null;
     this.prevRightWristY = null;
+    this.prevWristY = null;
+    this.wasDrawing = false;
     this.wasRightPinching = false;
     this.victoryCooldown = 0;
     this.specialCooldown = 0;
     this.jumpCooldown = 0;
+    this.meleeCooldown = 0;
   }
 
   /**
-   * Process landmarks for both hands
+   * Process landmarks for hands
    * @param {Array} multiHandLandmarks - array of 1 or 2 hand landmark arrays
    * @param {boolean} facingRight - player facing direction
+   * @param {Array} [multiHandedness] - optional MediaPipe handedness array
    */
-  process(multiHandLandmarks, facingRight = true) {
+  process(multiHandLandmarks, facingRight = true, multiHandedness = null) {
     const result = {
       // Left Hand outputs
       leftHandDetected: false,
-      leftGesture: 'NONE',
+      leftGesture: 'Open Palm ✋',
       moveX: 0,
       jump: false,
       specialAbility: false,
@@ -56,47 +62,91 @@ export class DualHandDetector {
       rightHandDetected: false,
       isDrawing: false,
       attackRelease: false,
-      aimAngle: facingRight ? -0.15 : Math.PI + 0.15,
+      aimAngle: facingRight ? -0.2 : Math.PI + 0.2,
       rightHandY: 0.5,
       pinchDistance: 1.0,
     };
 
+    if (this.victoryCooldown > 0) this.victoryCooldown--;
+    if (this.specialCooldown > 0) this.specialCooldown--;
+    if (this.jumpCooldown > 0) this.jumpCooldown--;
+    if (this.meleeCooldown > 0) this.meleeCooldown--;
+
     if (!multiHandLandmarks || multiHandLandmarks.length === 0) {
       this.prevLeftWristY = null;
       this.prevRightWristY = null;
-      if (this.wasRightPinching) {
+      this.prevWristY = null;
+      if (this.wasDrawing || this.wasRightPinching) {
         result.attackRelease = true;
+        this.wasDrawing = false;
         this.wasRightPinching = false;
       }
       return result;
     }
 
-    if (this.victoryCooldown > 0) this.victoryCooldown--;
-    if (this.specialCooldown > 0) this.specialCooldown--;
-    if (this.jumpCooldown > 0) this.jumpCooldown--;
-
-    // Distinguish Left and Right hands.
-    // In mirrored webcam view, the hand with smaller X is on the user's left side.
+    // Identify Left vs Right Hand
     let leftLm = null;
     let rightLm = null;
 
-    if (multiHandLandmarks.length === 1) {
-      const lm = multiHandLandmarks[0];
-      // If hand is on left half of screen, treat as Left Hand; else Right Hand
-      if (lm[0].x < 0.5) {
-        leftLm = lm;
+    if (multiHandLandmarks.length >= 2) {
+      // Two hands detected
+      // Check multiHandedness if available
+      if (multiHandedness && multiHandedness.length >= 2) {
+        // MediaPipe in selfie camera: label 'Right' is user's physical LEFT hand.
+        const h0 = multiHandedness[0]?.label;
+        if (h0 === 'Right') {
+          leftLm = multiHandLandmarks[0];
+          rightLm = multiHandLandmarks[1];
+        } else {
+          leftLm = multiHandLandmarks[1];
+          rightLm = multiHandLandmarks[0];
+        }
       } else {
-        rightLm = lm;
+        // Fallback: sort by X in mirrored camera view (smaller X = user's Left Hand)
+        const sorted = [...multiHandLandmarks].sort((a, b) => a[0].x - b[0].x);
+        leftLm = sorted[0];
+        rightLm = sorted[1];
       }
     } else {
-      // Two hands: sort by X
-      const sorted = [...multiHandLandmarks].sort((a, b) => a[0].x - b[0].x);
-      leftLm = sorted[0];
-      rightLm = sorted[1];
+      // Exactly 1 hand detected
+      const lm = multiHandLandmarks[0];
+      const h0 = multiHandedness?.[0]?.label;
+
+      if (h0 === 'Right') {
+        leftLm = lm;
+      } else if (h0 === 'Left') {
+        rightLm = lm;
+      } else {
+        // By position: left half = Left Hand, right half = Right Hand
+        if (lm[0].x < 0.5) {
+          leftLm = lm;
+        } else {
+          rightLm = lm;
+        }
+      }
+
+      // Single-hand versatility: If only 1 hand is visible, also detect pinch & release on it
+      const pDist = dist(lm[4], lm[8]);
+      if (pDist < 0.085) {
+        result.rightHandDetected = true;
+        result.isDrawing = true;
+        this.wasDrawing = true;
+        this.wasRightPinching = true;
+
+        // Aim angle from vertical position
+        const handY = (lm[4].y + lm[8].y) * 0.5;
+        const clampedY = Math.max(0.15, Math.min(0.75, handY));
+        const factor = (clampedY - 0.45) / 0.3;
+        result.aimAngle = facingRight ? factor * 0.65 : Math.PI - factor * 0.65;
+      } else if (this.wasDrawing || this.wasRightPinching) {
+        result.attackRelease = true;
+        this.wasDrawing = false;
+        this.wasRightPinching = false;
+      }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // 1. LEFT HAND PROCESSING (Movement, Jump, Special, Switch Arrow, Melee)
+    // 1. LEFT HAND: Open Palm, Move Left/Right, Jump, Thumbs Up, Victory, Fist
     // ─────────────────────────────────────────────────────────────────────────
     if (leftLm) {
       result.leftHandDetected = true;
@@ -108,53 +158,59 @@ export class DualHandDetector {
       const extCount = [indexExt, middleExt, ringExt, pinkyExt].filter(Boolean).length;
 
       // Thumb upwards check for Thumbs Up 👍
-      const thumbUp = leftLm[4].y < leftLm[3].y && leftLm[3].y < leftLm[2].y && leftLm[4].y < leftLm[8].y;
+      const thumbUp = leftLm[4].y < leftLm[3].y && leftLm[3].y < leftLm[2].y && leftLm[4].y < leftLm[8].y - 0.04;
 
-      // A. Thumbs Up 👍: Thumb up, 4 other fingers closed
-      if (thumbUp && extCount === 0) {
-        result.leftGesture = 'THUMBS_UP';
+      // A. Thumbs Up 👍 -> Activate special ability
+      if (thumbUp && extCount <= 1) {
+        result.leftGesture = 'Thumbs Up 👍';
         if (this.specialCooldown === 0) {
           result.specialAbility = true;
-          this.specialCooldown = 30; // 0.5s cooldown
+          this.specialCooldown = 25;
         }
       }
-      // B. Victory Sign ✌️: Index + Middle up, Ring + Pinky closed
+      // B. Victory Sign ✌️ -> Switch arrow type
       else if (indexExt && middleExt && !ringExt && !pinkyExt) {
-        result.leftGesture = 'VICTORY';
+        result.leftGesture = 'Victory Sign ✌️';
         if (this.victoryCooldown === 0) {
           result.switchArrow = true;
-          this.victoryCooldown = 25; // debounce arrow toggle
+          this.victoryCooldown = 20;
         }
       }
-      // C. Closed Fist ✊: All fingers curled
+      // C. Closed Fist ✊ -> Melee attack
       else if (extCount === 0) {
-        result.leftGesture = 'FIST';
-        result.meleeAttack = true;
+        result.leftGesture = 'Closed Fist ✊';
+        if (this.meleeCooldown === 0) {
+          result.meleeAttack = true;
+          this.meleeCooldown = 15;
+        }
       }
-      // D. Open Palm ✋ / Neutral / Move Left / Move Right
+      // D. Open Palm ✋ & Horizontal Movement (Move Left / Move Right / Neutral)
       else {
-        result.leftGesture = 'OPEN_PALM';
-
-        // Horizontal Movement based on Hand X relative to left-side zone (center ~0.26)
+        // Horizontal Movement based on Hand X position
+        // In mirrored view: leftZoneCenter ~ 0.28
         const leftZoneCenterX = 0.28;
         const deltaX = wrist.x - leftZoneCenterX;
 
-        if (deltaX < -0.065) {
+        if (deltaX < -0.055) {
           result.moveX = -1; // Move Left
-        } else if (deltaX > 0.065) {
+          result.leftGesture = 'Move Left 👈';
+        } else if (deltaX > 0.055) {
           result.moveX = 1; // Move Right
+          result.leftGesture = 'Move Right 👉';
         } else {
           result.moveX = 0; // Neutral / Stop
+          result.leftGesture = 'Open Palm ✋';
         }
       }
 
-      // Upward motion detection for Jump
+      // Quick Upward Hand Movement -> Jump
       if (this.prevLeftWristY !== null) {
         const dy = wrist.y - this.prevLeftWristY;
-        // Fast upward flick or held in high jump zone (y < 0.28)
-        if ((dy < -0.055 || wrist.y < 0.26) && this.jumpCooldown === 0) {
+        // Fast upward movement or raised high above threshold
+        if ((dy < -0.045 || wrist.y < 0.25) && this.jumpCooldown === 0) {
           result.jump = true;
-          this.jumpCooldown = 20;
+          this.jumpCooldown = 18;
+          result.leftGesture = 'Jump ⏫';
         }
       }
       this.prevLeftWristY = wrist.y;
@@ -163,53 +219,53 @@ export class DualHandDetector {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // 2. RIGHT HAND PROCESSING (Aim Angle, Pinch Draw, Release Shoot)
+    // 2. RIGHT HAND: Pinch (Draw Bowstring), Release (Shoot), Up/Down (Aim Angle)
     // ─────────────────────────────────────────────────────────────────────────
     if (rightLm) {
       result.rightHandDetected = true;
       const thumbTip = rightLm[4];
       const indexTip = rightLm[8];
-      const wrist = rightLm[0];
 
-      // Pinch check (Thumb tip to Index tip distance)
+      // Pinch Distance (Thumb Tip to Index Tip)
       const pDist = dist(thumbTip, indexTip);
       result.pinchDistance = pDist;
-      const isPinching = pDist < 0.082;
+      const isPinching = pDist < 0.088;
 
       if (isPinching) {
         result.isDrawing = true;
         this.wasRightPinching = true;
+        this.wasDrawing = true;
       } else {
-        if (this.wasRightPinching) {
+        if (this.wasRightPinching || this.wasDrawing) {
           // Exactly released pinch -> Shoot arrow!
           result.attackRelease = true;
           this.wasRightPinching = false;
+          this.wasDrawing = false;
         }
         result.isDrawing = false;
       }
 
-      // Vertical Aiming Angle (Up/Down)
-      // Mirror-friendly Y mapping: hand higher up (smaller y) raises angle into sky
+      // Aiming Angle (Up/Down Hand Position)
       const handY = (thumbTip.y + indexTip.y) * 0.5;
       result.rightHandY = handY;
 
-      // Normalize Y from [0.15 (high) .. 0.75 (low)] -> tilt [-0.75 rad .. +0.4 rad]
+      // Normalization: hand higher (y ~ 0.15) aims upward, lower (y ~ 0.75) aims downward
       const clampedY = Math.max(0.15, Math.min(0.75, handY));
-      const factor = (clampedY - 0.45) / 0.3; // -1 (high up) to +1 (low)
+      const factor = (clampedY - 0.45) / 0.3; // -1 to +1
 
       if (facingRight) {
-        result.aimAngle = factor * 0.65; // negative points up-right, positive points down-right
+        result.aimAngle = factor * 0.7; // negative points up-right, positive points down-right
       } else {
-        result.aimAngle = Math.PI - (factor * 0.65); // points up-left or down-left
+        result.aimAngle = Math.PI - (factor * 0.7); // points up-left or down-left
       }
     } else {
-      if (this.wasRightPinching) {
+      if (this.wasRightPinching && !leftLm) {
         result.attackRelease = true;
         this.wasRightPinching = false;
+        this.wasDrawing = false;
       }
     }
 
     return result;
   }
 }
-

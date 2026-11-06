@@ -365,133 +365,155 @@ export default function StickmanShowdown() {
   // ── 7. MediaPipe Dual-Hand Webcam Tracking Setup ───────────────────────────
   useEffect(() => {
     if (!cameraEnabled || !videoRef.current) return;
-    if (typeof window.Hands !== 'function' || typeof window.Camera !== 'function') {
-      console.warn('[StickmanShowdown] MediaPipe not loaded yet.');
-      return;
-    }
+    let cameraInstance = null;
+    let handsInstance = null;
+    let isCancelled = false;
+    let retryTimer = null;
 
-    cameraActiveRef.current = true;
+    function initCamera() {
+      if (isCancelled) return;
 
-    const hands = new window.Hands({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`,
-    });
+      if (typeof window.Hands !== 'function' || typeof window.Camera !== 'function') {
+        retryTimer = setTimeout(initCamera, 200);
+        return;
+      }
 
-    hands.setOptions({
-      maxNumHands: 2, // Dual-hand tracking!
-      modelComplexity: 0,
-      minDetectionConfidence: 0.55,
-      minTrackingConfidence: 0.55,
-    });
+      if (!videoRef.current) {
+        retryTimer = setTimeout(initCamera, 200);
+        return;
+      }
 
-    hands.onResults((results) => {
-      if (!cameraActiveRef.current) return;
-      setCameraReady(true);
+      try {
+        cameraActiveRef.current = true;
 
-      const pipCanvas = pipCanvasRef.current;
-      const video = videoRef.current;
+        const hands = new window.Hands({
+          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`,
+        });
 
-      // Draw skeleton to PIP window
-      if (pipCanvas && video) {
-        if (pipCanvas.width !== video.videoWidth || pipCanvas.height !== video.videoHeight) {
-          pipCanvas.width = video.videoWidth || 320;
-          pipCanvas.height = video.videoHeight || 240;
-        }
-        const ctx = pipCanvas.getContext('2d');
-        ctx.clearRect(0, 0, pipCanvas.width, pipCanvas.height);
+        hands.setOptions({
+          maxNumHands: 2, // Dual-hand tracking!
+          modelComplexity: 0,
+          minDetectionConfidence: 0.55,
+          minTrackingConfidence: 0.55,
+        });
 
-        // Draw camera frame with mirror
-        ctx.save();
-        ctx.scale(-1, 1);
-        ctx.drawImage(video, -pipCanvas.width, 0, pipCanvas.width, pipCanvas.height);
-        ctx.restore();
+        hands.onResults((results) => {
+          if (isCancelled || !cameraActiveRef.current) return;
+          setCameraReady(true);
 
-        // Draw landmarks
-        if (results.multiHandLandmarks) {
-          ctx.save();
-          ctx.scale(-1, 1);
-          ctx.translate(-pipCanvas.width, 0);
+          const pipCanvas = pipCanvasRef.current;
+          const video = videoRef.current;
 
-          for (const lms of results.multiHandLandmarks) {
-            ctx.fillStyle = '#38bdf8';
-            ctx.strokeStyle = '#facc15';
-            ctx.lineWidth = 2;
-            for (let i = 0; i < lms.length; i++) {
-              ctx.beginPath();
-              ctx.arc(lms[i].x * pipCanvas.width, lms[i].y * pipCanvas.height, 3, 0, Math.PI * 2);
-              ctx.fill();
+          // Draw skeleton to PIP window
+          if (pipCanvas && video) {
+            if (pipCanvas.width !== video.videoWidth || pipCanvas.height !== video.videoHeight) {
+              pipCanvas.width = video.videoWidth || 320;
+              pipCanvas.height = video.videoHeight || 240;
+            }
+            const ctx = pipCanvas.getContext('2d');
+            ctx.clearRect(0, 0, pipCanvas.width, pipCanvas.height);
+
+            // Draw camera frame with mirror
+            ctx.save();
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, -pipCanvas.width, 0, pipCanvas.width, pipCanvas.height);
+            ctx.restore();
+
+            // Draw landmarks
+            if (results.multiHandLandmarks) {
+              ctx.save();
+              ctx.scale(-1, 1);
+              ctx.translate(-pipCanvas.width, 0);
+
+              for (const lms of results.multiHandLandmarks) {
+                ctx.fillStyle = '#38bdf8';
+                ctx.strokeStyle = '#facc15';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < lms.length; i++) {
+                  ctx.beginPath();
+                  ctx.arc(lms[i].x * pipCanvas.width, lms[i].y * pipCanvas.height, 3, 0, Math.PI * 2);
+                  ctx.fill();
+                }
+              }
+              ctx.restore();
             }
           }
-          ctx.restore();
-        }
-      }
 
-      // Process Dual-Hand Gestures
-      const playerFacing = engineRef.current.player?.facingRight ?? true;
-      const gestures = dualHandDetectorRef.current.process(results.multiHandLandmarks, playerFacing);
+          // Process Dual-Hand Gestures
+          const playerFacing = engineRef.current.player?.facingRight ?? true;
+          const gestures = dualHandDetectorRef.current.process(
+            results.multiHandLandmarks,
+            playerFacing,
+            results.multiHandedness
+          );
 
-      if (inputRef.current) {
-        inputRef.current.setGestureState({
-          moveX: gestures.moveX,
-          jump: gestures.jump,
-          aimAngle: gestures.aimAngle,
-          isDrawing: gestures.isDrawing,
-          attackRelease: gestures.attackRelease,
-          meleeAttack: gestures.meleeAttack,
-          specialAbility: gestures.specialAbility,
-          switchArrow: gestures.switchArrow,
+          if (inputRef.current) {
+            inputRef.current.setGestureState({
+              moveX: gestures.moveX,
+              jump: gestures.jump,
+              aimAngle: gestures.aimAngle,
+              isDrawing: gestures.isDrawing,
+              attackRelease: gestures.attackRelease,
+              meleeAttack: gestures.meleeAttack,
+              specialAbility: gestures.specialAbility,
+              switchArrow: gestures.switchArrow,
+            });
+          }
+
+          // Update gesture badges for visual feedback
+          if (gestures.leftHandDetected) {
+            setLeftGestureStatus(gestures.leftGesture);
+          } else {
+            setLeftGestureStatus('Left Hand: Searching...');
+          }
+
+          if (gestures.rightHandDetected) {
+            setRightGestureStatus(gestures.isDrawing ? '🤏 Drawing Bow!' : '📐 Aiming');
+          } else {
+            setRightGestureStatus('Right Hand: Searching...');
+          }
+
+          // Cycle arrow if victory sign detected
+          if (gestures.switchArrow) {
+            setCurrentArrowIdx((prev) => (prev + 1) % ARROW_TYPES.length);
+            stickmanAudio.playCoin();
+          }
         });
+
+        handsRef.current = hands;
+        handsInstance = hands;
+
+        const camera = new window.Camera(videoRef.current, {
+          onFrame: async () => {
+            if (isCancelled || !cameraActiveRef.current || !videoRef.current || !handsRef.current) return;
+            try {
+              await handsRef.current.send({ image: videoRef.current });
+            } catch (e) {}
+          },
+          width: 480,
+          height: 360,
+        });
+
+        camera.start().catch((err) => {
+          console.warn('[StickmanShowdown] Camera start failed:', err);
+          setCameraReady(false);
+        });
+
+        cameraRef.current = camera;
+        cameraInstance = camera;
+      } catch (err) {
+        console.warn('[StickmanShowdown] MediaPipe initialization error:', err);
       }
+    }
 
-      // Update gesture badges for visual feedback
-      if (gestures.leftHandDetected) {
-        if (gestures.leftGesture === 'THUMBS_UP') setLeftGestureStatus('👍 Special Power!');
-        else if (gestures.leftGesture === 'VICTORY') setLeftGestureStatus('✌️ Switch Arrow');
-        else if (gestures.leftGesture === 'FIST') setLeftGestureStatus('✊ Melee Attack');
-        else if (gestures.moveX < 0) setLeftGestureStatus('⬅️ Move Left');
-        else if (gestures.moveX > 0) setLeftGestureStatus('➡️ Move Right');
-        else setLeftGestureStatus('✋ Open Palm (Stop)');
-      } else {
-        setLeftGestureStatus('Left Hand: Searching...');
-      }
-
-      if (gestures.rightHandDetected) {
-        if (gestures.isDrawing) setLeftGestureStatus((prev) => prev); // keep
-        setRightGestureStatus(gestures.isDrawing ? '🤏 Drawing Bow!' : '📐 Aiming');
-      } else {
-        setRightGestureStatus('Right Hand: Searching...');
-      }
-
-      // Cycle arrow if victory sign detected
-      if (gestures.switchArrow) {
-        setCurrentArrowIdx((prev) => (prev + 1) % ARROW_TYPES.length);
-        stickmanAudio.playCoin();
-      }
-    });
-
-    handsRef.current = hands;
-
-    const camera = new window.Camera(videoRef.current, {
-      onFrame: async () => {
-        if (!cameraActiveRef.current || !videoRef.current || !handsRef.current) return;
-        try {
-          await handsRef.current.send({ image: videoRef.current });
-        } catch (e) {}
-      },
-      width: 480,
-      height: 360,
-    });
-
-    camera.start().catch((err) => {
-      console.warn('[StickmanShowdown] Camera start failed:', err);
-      setCameraReady(false);
-    });
-
-    cameraRef.current = camera;
+    initCamera();
 
     return () => {
+      isCancelled = true;
       cameraActiveRef.current = false;
-      try { cameraRef.current?.stop(); } catch (e) {}
-      try { handsRef.current?.close(); } catch (e) {}
+      if (retryTimer) clearTimeout(retryTimer);
+      try { cameraInstance?.stop(); } catch (e) {}
+      try { handsInstance?.close(); } catch (e) {}
     };
   }, [cameraEnabled]);
 
@@ -515,6 +537,13 @@ export default function StickmanShowdown() {
       opp.hp = opponentExtra.hp;
       eng.oppHp = opponentExtra.hp;
       setOppHp(opponentExtra.hp);
+      if (opponentExtra.hp <= 0 && engineRef.current.running) {
+        finishMatch('opponent_eliminated');
+      }
+    }
+
+    if (opponentExtra.finished && engineRef.current.running) {
+      finishMatch('opponent_eliminated');
     }
 
     if (opponentExtra.arrowShot && opponentExtra.arrowShot.id !== lastProcessedOpponentArrowIdRef.current) {
@@ -838,6 +867,7 @@ export default function StickmanShowdown() {
         isDrawing: p.isDrawing,
         drawPower: Number(p.drawPower.toFixed(2)),
         hp: p.hp,
+        finished: matchFinishedRef.current,
         arrowShot: eng.pendingArrowShot,
       };
       eng.pendingArrowShot = null;
@@ -939,10 +969,10 @@ export default function StickmanShowdown() {
       {/* ── Fixed Top-Left Back Arrow Button (ALWAYS VISIBLE & ACCESSIBLE) ── */}
       <button
         onClick={handleGoBack}
-        className="fixed top-2 sm:top-3 left-2 sm:left-3 z-50 px-2.5 sm:px-3 py-1.5 bg-[#FFFDF5] hover:bg-neo-yellow text-black border-2 sm:border-3 border-black font-mono font-black text-xs sm:text-sm uppercase flex items-center gap-1.5 shadow-neo active:translate-x-0.5 active:translate-y-0.5 cursor-pointer pointer-events-auto transition-transform"
+        className="fixed top-2 sm:top-3 left-2 sm:left-3 z-[100] px-3 py-1.5 sm:px-3.5 sm:py-2 bg-[#FFFDF5] hover:bg-neo-yellow text-black border-2 sm:border-3 border-black font-mono font-black text-xs sm:text-sm uppercase flex items-center gap-1.5 shadow-neo active:translate-x-0.5 active:translate-y-0.5 cursor-pointer pointer-events-auto transition-transform"
         title="Go back to Home"
       >
-        <span className="text-sm font-black">←</span>
+        <span className="text-base font-black">←</span>
         <span>BACK</span>
       </button>
 
@@ -991,6 +1021,27 @@ export default function StickmanShowdown() {
           setShowLobbyModal(true);
         }}
       />
+
+      {/* ── Match Completed Fullscreen Controls Banner (Always Accessible on Mobile) ── */}
+      {matchState === 'FINISHED' && (
+        <div className="fixed bottom-3 left-3 right-3 z-50 flex items-center justify-center gap-3 pointer-events-auto select-none">
+          <button
+            onClick={() => {
+              resetMultiplayerState();
+              setShowLobbyModal(true);
+            }}
+            className="px-5 py-2.5 bg-neo-yellow hover:bg-yellow-300 text-black border-3 border-black font-display font-black text-xs sm:text-sm uppercase shadow-neo cursor-pointer"
+          >
+            ← RETURN TO LOBBY
+          </button>
+          <button
+            onClick={handleGoBack}
+            className="px-5 py-2.5 bg-white hover:bg-zinc-100 text-black border-3 border-black font-mono font-black text-xs sm:text-sm uppercase shadow-neo cursor-pointer"
+          >
+            🏠 EXIT TO HOME
+          </button>
+        </div>
+      )}
 
       {/* ── Active Game Arena (Centered Landscape Canvas) ───────────────── */}
       <div

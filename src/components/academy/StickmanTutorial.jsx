@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useGestureAcademy } from '../../hooks/useGestureAcademy';
 import { usePlayer } from '../../hooks/usePlayer';
 import { DualHandDetector } from '../../games/stickman/DualHandDetector';
-import AnimeCam from '../AnimeCam';
 
 // ── Web Audio Synthesizer for Stickman Tutorial ─────────────────────────────
 class StickmanAudio {
@@ -97,37 +96,37 @@ const STAGES = [
     title: 'Left Hand: Open Palm & Movement',
     hand: 'Left Hand',
     badge: 'LEFT HAND · MOVEMENT',
-    instruction: 'Move hand left/right to walk. Open Palm ✋ to stop.',
+    instruction: 'Move left hand left/right to walk. Open Palm ✋ in center to stop.',
     gestures: [
       { name: 'Open Palm ✋', desc: 'Neutral / Stop' },
       { name: 'Move Left 👈', desc: 'Move character left' },
       { name: 'Move Right 👉', desc: 'Move character right' },
     ],
-    task: 'Reach the glowing waypoint on the right platform!',
+    task: 'Move right to reach the glowing waypoint, then stop with Open Palm ✋!',
   },
   {
     id: 'stage-jump',
-    title: 'Left Hand: Upward Jump',
+    title: 'Left Hand: Quick Upward Jump',
     hand: 'Left Hand',
     badge: 'LEFT HAND · JUMP',
     instruction: 'Flick your left hand quickly upward ⏫ to leap onto the upper platform.',
     gestures: [
-      { name: 'Quick Upward Movement ⏫', desc: 'Jump onto platforms' },
+      { name: 'Quick Upward Hand Movement ⏫', desc: 'Jump onto platforms' },
     ],
-    task: 'Leap onto the elevated sky platform!',
+    task: 'Leap onto the elevated floating sky platform!',
   },
   {
     id: 'stage-archery',
     title: 'Right Hand: Bow Aim & Shoot',
     hand: 'Right Hand',
     badge: 'RIGHT HAND · ARCHERY',
-    instruction: 'Raise/lower right hand to aim. Pinch 🤏 to draw bowstring, release pinch to shoot.',
+    instruction: 'Raise/lower right hand to adjust aim angle. Pinch 🤏 to draw bowstring, release pinch to shoot.',
     gestures: [
-      { name: 'Hand Up / Down ↕️', desc: 'Adjust aiming angle' },
+      { name: 'Move Hand Up / Down ↕️', desc: 'Adjust aiming angle' },
       { name: 'Pinch (Thumb + Index) 🤏', desc: 'Draw bowstring' },
       { name: 'Release Pinch ✋', desc: 'Shoot arrow' },
     ],
-    task: 'Hit the target dummy with your arrow!',
+    task: 'Aim and release an arrow to hit the target dummy!',
   },
   {
     id: 'stage-tactics',
@@ -140,14 +139,14 @@ const STAGES = [
       { name: 'Thumbs Up 👍', desc: 'Activate special ability' },
       { name: 'Closed Fist ✊', desc: 'Melee attack' },
     ],
-    task: 'Perform Victory Sign ✌️ or Thumbs Up 👍 to empower your warrior!',
+    task: 'Show Victory Sign ✌️ to switch arrows or Thumbs Up 👍 for special ability!',
   },
   {
     id: 'stage-mastery',
-    title: 'Mastery: 1v1 Practice Duel',
+    title: 'Mastery: Full Dual-Hand Duel',
     hand: 'Dual Hands',
     badge: 'DUAL HAND COMBAT',
-    instruction: 'Combine Left Hand (Move/Jump) and Right Hand (Aim/Shoot) to defeat the practice opponent.',
+    instruction: 'Combine Left Hand (Move/Jump) and Right Hand (Aim/Shoot) to defeat the training opponent.',
     gestures: [
       { name: 'Left Hand ✋', desc: 'Move, Jump & Powers' },
       { name: 'Right Hand 🏹', desc: 'Aim, Draw & Shoot' },
@@ -160,17 +159,22 @@ export default function StickmanTutorial() {
   const navigate = useNavigate();
   const canvasRef = useRef(null);
   const videoRef = useRef(null);
+  const pipCanvasRef = useRef(null);
   const [stageIdx, setStageIdx] = useState(0);
   const [completed, setCompleted] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
   const [leftGesture, setLeftGesture] = useState('Open Palm ✋');
   const [rightGesture, setRightGesture] = useState('Aiming');
+  const [currentArrow, setCurrentArrow] = useState('Standard Arrow');
+  const [specialActive, setSpecialActive] = useState(false);
   const [feedback, setFeedback] = useState('');
 
   const { completeGame } = useGestureAcademy('stickman');
   const { recordGameResult } = usePlayer();
 
   const currentStage = STAGES[stageIdx] || STAGES[0];
+  const detectorRef = useRef(new DualHandDetector());
 
   // Game Engine Simulation State
   const simRef = useRef({
@@ -181,44 +185,161 @@ export default function StickmanTutorial() {
     groundY: 358,
     arrows: [],
     particles: [],
-    detector: null,
   });
 
-  // Setup Dual Hand Detector if camera is available
+  // MediaPipe Vision AI Hands & Camera Loader
   useEffect(() => {
-    let detector = null;
-    let cancelled = false;
+    let cameraInstance = null;
+    let handsInstance = null;
+    let isCancelled = false;
+    let retryTimer = null;
 
-    async function initDetector() {
+    function initMediaPipe() {
+      if (isCancelled) return;
+
+      if (typeof window.Hands !== 'function' || typeof window.Camera !== 'function') {
+        retryTimer = setTimeout(initMediaPipe, 250);
+        return;
+      }
+
+      if (!videoRef.current) {
+        retryTimer = setTimeout(initMediaPipe, 200);
+        return;
+      }
+
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: 320, height: 240, facingMode: 'user' },
+        const hands = new window.Hands({
+          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`,
         });
-        if (cancelled) {
-          stream.getTracks().forEach((t) => t.stop());
-          return;
-        }
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
-        }
-        detector = new DualHandDetector();
-        await detector.initialize();
-        simRef.current.detector = detector;
-        setCameraActive(true);
+
+        hands.setOptions({
+          maxNumHands: 2, // Dual hand tracking!
+          modelComplexity: 0,
+          minDetectionConfidence: 0.55,
+          minTrackingConfidence: 0.55,
+        });
+
+        hands.onResults((results) => {
+          if (isCancelled) return;
+          setCameraReady(true);
+          setCameraActive(true);
+
+          // Draw skeleton on PIP preview canvas
+          const pip = pipCanvasRef.current;
+          const vid = videoRef.current;
+          if (pip && vid && vid.videoWidth) {
+            if (pip.width !== vid.videoWidth) {
+              pip.width = vid.videoWidth;
+              pip.height = vid.videoHeight;
+            }
+            const pCtx = pip.getContext('2d');
+            pCtx.save();
+            pCtx.scale(-1, 1);
+            pCtx.drawImage(vid, -pip.width, 0, pip.width, pip.height);
+            pCtx.restore();
+
+            // Draw skeleton dots
+            if (results.multiHandLandmarks) {
+              pCtx.save();
+              pCtx.scale(-1, 1);
+              pCtx.translate(-pip.width, 0);
+              for (const lm of results.multiHandLandmarks) {
+                pCtx.fillStyle = '#38bdf8';
+                for (let i = 0; i < lm.length; i++) {
+                  pCtx.beginPath();
+                  pCtx.arc(lm[i].x * pip.width, lm[i].y * pip.height, 3, 0, Math.PI * 2);
+                  pCtx.fill();
+                }
+              }
+              pCtx.restore();
+            }
+          }
+
+          // Process Dual-Hand Gestures
+          const p = simRef.current.player;
+          const gestures = detectorRef.current.process(results.multiHandLandmarks, p.facingRight, results.multiHandedness);
+
+          if (gestures.leftHandDetected) {
+            setLeftGesture(gestures.leftGesture);
+
+            // Apply movement
+            p.vx = gestures.moveX * 4.5;
+            if (gestures.moveX !== 0) p.facingRight = gestures.moveX > 0;
+
+            // Apply Jump
+            if (gestures.jump && p.isGrounded) {
+              p.vy = -12;
+              p.isGrounded = false;
+            }
+
+            // Tactics
+            if (gestures.specialAbility) {
+              setSpecialActive(true);
+              audio.playSuccess();
+              setTimeout(() => setSpecialActive(false), 2000);
+            }
+            if (gestures.switchArrow) {
+              const types = ['Standard Arrow 🏹', 'Fire Arrow 🔥', 'Ice Arrow ❄️', 'Explosive Arrow 💣'];
+              setCurrentArrow((prev) => {
+                const nextIdx = (types.indexOf(prev) + 1) % types.length;
+                return types[nextIdx];
+              });
+              audio.playBowDraw();
+            }
+          }
+
+          if (gestures.rightHandDetected) {
+            setRightGesture(gestures.isDrawing ? '🤏 Drawing Bow!' : '📐 Aiming');
+            p.aimAngle = gestures.aimAngle;
+
+            if (gestures.isDrawing) {
+              p.isDrawing = true;
+              p.drawPower = Math.min(1.0, p.drawPower + 0.035);
+            } else if (gestures.attackRelease && p.isDrawing) {
+              // Shoot arrow
+              audio.playShoot();
+              simRef.current.arrows.push({
+                x: p.x + (p.facingRight ? 24 : -12),
+                y: p.y + 24,
+                vx: Math.cos(p.aimAngle) * (14 + p.drawPower * 14),
+                vy: Math.sin(p.aimAngle) * (14 + p.drawPower * 14),
+                active: true,
+              });
+              p.isDrawing = false;
+              p.drawPower = 0;
+            }
+          }
+        });
+
+        handsInstance = hands;
+
+        const camera = new window.Camera(videoRef.current, {
+          onFrame: async () => {
+            if (isCancelled || !videoRef.current || !handsInstance) return;
+            try {
+              await handsInstance.send({ image: videoRef.current });
+            } catch {}
+          },
+          width: 480,
+          height: 360,
+        });
+
+        camera.start().catch((err) => {
+          console.warn('[StickmanTutorial] Camera start failed:', err);
+        });
+        cameraInstance = camera;
       } catch (err) {
-        console.warn('Stickman Academy: Camera unavailable, using keyboard/touch simulation fallback', err);
+        console.warn('[StickmanTutorial] MediaPipe setup error:', err);
       }
     }
 
-    initDetector();
+    initMediaPipe();
 
     return () => {
-      cancelled = true;
-      if (detector) detector.destroy();
-      if (videoRef.current && videoRef.current.srcObject) {
-        videoRef.current.srcObject.getTracks().forEach((t) => t.stop());
-      }
+      isCancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      try { cameraInstance?.stop(); } catch {}
+      try { handsInstance?.close(); } catch {}
     };
   }, []);
 
@@ -234,50 +355,7 @@ export default function StickmanTutorial() {
       const p = sim.player;
       const target = sim.target;
 
-      // 1. Process Vision AI Dual-Hand Tracking
-      if (sim.detector && videoRef.current && videoRef.current.readyState >= 2) {
-        const state = sim.detector.processFrame(videoRef.current);
-        if (state) {
-          if (state.leftGesture) setLeftGesture(state.leftGesture);
-          if (state.rightGesture) setRightGesture(state.rightGesture);
-
-          // Apply left hand movements
-          p.vx = state.moveX * 4;
-          if (state.moveX !== 0) p.facingRight = state.moveX > 0;
-          if (state.jump && p.isGrounded) {
-            p.vy = -11;
-            p.isGrounded = false;
-          }
-
-          // Apply right hand aiming & bow draw
-          p.aimAngle = state.aimAngle;
-          if (state.isDrawing) {
-            p.isDrawing = true;
-            p.drawPower = Math.min(1.0, p.drawPower + 0.03);
-          } else if (state.attackRelease && p.isDrawing) {
-            // Shoot arrow
-            audio.playShoot();
-            sim.arrows.push({
-              x: p.x + (p.facingRight ? 24 : -12),
-              y: p.y + 24,
-              vx: Math.cos(p.aimAngle) * (14 + p.drawPower * 14),
-              vy: Math.sin(p.aimAngle) * (14 + p.drawPower * 14),
-              active: true,
-            });
-            p.isDrawing = false;
-            p.drawPower = 0;
-          }
-
-          // Special gestures check
-          if (state.specialAbility || state.victorySign) {
-            if (stageIdx === 3) {
-              advanceStage('Tactics Verified! Excellent execution.');
-            }
-          }
-        }
-      }
-
-      // 2. Physics Update
+      // Physics Update
       p.x += p.vx;
       p.y += p.vy;
       p.vy += 0.55; // gravity
@@ -320,7 +398,7 @@ export default function StickmanTutorial() {
         a.vy += 0.22; // arrow gravity
 
         // Check Target Dummy Hit
-        if (target.active && Math.abs(a.x - target.x) < 30 && Math.abs(a.y - (target.y + 25)) < 40) {
+        if (target.active && Math.abs(a.x - target.x) < 32 && Math.abs(a.y - (target.y + 25)) < 40) {
           audio.playHit();
           target.hp -= 35;
           a.active = false;
@@ -338,19 +416,19 @@ export default function StickmanTutorial() {
         }
       }
 
-      // 3. Render Canvas
+      // Render Scene
       ctx.fillStyle = '#040914';
       ctx.fillRect(0, 0, 960, 540);
 
-      // Night sky stars
+      // Stars
       ctx.fillStyle = '#FFFFFF';
-      for (let s = 0; s < 30; s++) {
+      for (let s = 0; s < 35; s++) {
         const sx = ((s * 97) % 960);
         const sy = ((s * 53) % 220);
         ctx.fillRect(sx, sy, 1.5, 1.5);
       }
 
-      // Draw Platforms
+      // Ground Platform
       ctx.fillStyle = '#1e293b';
       ctx.fillRect(40, sim.groundY, 880, 24);
       ctx.fillStyle = '#065f46';
@@ -384,7 +462,7 @@ export default function StickmanTutorial() {
       // Head
       ctx.beginPath();
       ctx.arc(p.x + 14, p.y + 12, 10, 0, Math.PI * 2);
-      ctx.fillStyle = '#ea580c';
+      ctx.fillStyle = specialActive ? '#c084fc' : '#ea580c';
       ctx.fill();
       ctx.stroke();
 
@@ -401,9 +479,23 @@ export default function StickmanTutorial() {
       ctx.lineTo(p.x + (p.facingRight ? 28 : 0), p.y + 34);
       ctx.stroke();
 
+      // Aim Trajectory Preview when drawing
+      if (p.isDrawing) {
+        ctx.strokeStyle = 'rgba(250, 204, 21, 0.6)';
+        ctx.setLineDash([4, 4]);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        const startX = p.x + (p.facingRight ? 26 : 2);
+        const startY = p.y + 30;
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(startX + Math.cos(p.aimAngle) * 120, startY + Math.sin(p.aimAngle) * 120);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
       // Bow
       ctx.strokeStyle = '#e2e8f0';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
       ctx.arc(p.x + (p.facingRight ? 26 : 2), p.y + 30, 14, -Math.PI / 2, Math.PI / 2, !p.facingRight);
       ctx.stroke();
@@ -447,7 +539,7 @@ export default function StickmanTutorial() {
 
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [stageIdx]);
+  }, [stageIdx, specialActive]);
 
   const advanceStage = (msg) => {
     setFeedback(msg);
@@ -464,18 +556,21 @@ export default function StickmanTutorial() {
     recordGameResult('stickman', 1500, true);
   };
 
-  // On-screen control helpers for touch/mouse testing
+  // Touch and click fallback helpers
   const handleSimMove = (dir) => {
-    simRef.current.player.vx = dir * 4;
+    simRef.current.player.vx = dir * 4.5;
     simRef.current.player.facingRight = dir > 0;
+    setLeftGesture(dir < 0 ? 'Move Left 👈' : 'Move Right 👉');
   };
   const handleSimStop = () => {
     simRef.current.player.vx = 0;
+    setLeftGesture('Open Palm ✋');
   };
   const handleSimJump = () => {
     if (simRef.current.player.isGrounded) {
-      simRef.current.player.vy = -11;
+      simRef.current.player.vy = -12;
       simRef.current.player.isGrounded = false;
+      setLeftGesture('Jump ⏫');
     }
   };
   const handleSimShoot = () => {
@@ -488,6 +583,7 @@ export default function StickmanTutorial() {
       vy: Math.sin(p.aimAngle) * 22,
       active: true,
     });
+    setRightGesture('Release Pinch 🏹');
     if (stageIdx === 2) advanceStage('Bullseye! Archery mastered.');
   };
 
@@ -535,6 +631,19 @@ export default function StickmanTutorial() {
           <div className="px-2 py-1 bg-black/85 border border-cyan-400 text-cyan-300 font-mono font-black text-[10px] uppercase shadow-neo-sm">
             RIGHT HAND: {rightGesture}
           </div>
+          {specialActive && (
+            <div className="px-2 py-1 bg-purple-600 text-white font-mono font-black text-[10px] uppercase shadow-neo-sm animate-pulse">
+              ⚡ SPECIAL SHIELD ACTIVE!
+            </div>
+          )}
+        </div>
+
+        {/* Live Camera PIP Skeleton Preview */}
+        <div className="absolute top-2 right-2 z-20 bg-black/85 border-2 border-black p-1 shadow-neo-sm flex flex-col items-center">
+          <canvas ref={pipCanvasRef} width={120} height={90} className="w-24 sm:w-28 h-auto bg-zinc-950 block border border-white/20" />
+          <span className="text-[8px] font-mono font-black text-zinc-300 mt-0.5">
+            {cameraReady ? '🟢 DUAL-HAND AI ACTIVE' : '🟡 CAMERA CONNECTING...'}
+          </span>
         </div>
 
         {/* Feedback Banner */}
@@ -588,7 +697,7 @@ export default function StickmanTutorial() {
         {/* Touch & Click Testing Bar */}
         <div className="mt-4 pt-3 border-t-2 border-black/10 flex flex-wrap items-center justify-between gap-2">
           <span className="font-mono text-[11px] text-zinc-500 font-bold uppercase">
-            TRY WITH TOUCH / CLICK CONTROLS:
+            OR TEST WITH TOUCH / CLICK CONTROLS:
           </span>
           <div className="flex items-center gap-1.5">
             <button
@@ -635,4 +744,3 @@ export default function StickmanTutorial() {
     </div>
   );
 }
-
