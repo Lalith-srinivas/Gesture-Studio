@@ -22,6 +22,7 @@ export default function StickmanShowdown() {
 
   const {
     matchState,
+    setMatchState,
     opponent,
     opponentExtra,
     opponentGraceTimer,
@@ -115,7 +116,7 @@ export default function StickmanShowdown() {
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-      const elem = rootRef.current || document.documentElement;
+      const elem = document.documentElement;
       if (elem.requestFullscreen) {
         elem.requestFullscreen().catch(() => {});
       } else if (elem.webkitRequestFullscreen) {
@@ -307,7 +308,12 @@ export default function StickmanShowdown() {
     }
 
     submitFinalScore(eng.score, reason);
-  }, [submitFinalScore]);
+
+    // Guaranteed fallback: If server MATCH_RESULT takes >1.8s, ensure client transitions to FINISHED
+    setTimeout(() => {
+      setMatchState((curr) => (curr === 'PLAYING' || curr === 'COUNTDOWN' ? 'FINISHED' : curr));
+    }, 1800);
+  }, [submitFinalScore, setMatchState]);
 
   // ── 6. Handle Match State Transitions & Fix Stuck "GO!" ────────────────────
   useEffect(() => {
@@ -633,8 +639,8 @@ export default function StickmanShowdown() {
       p.aimAngle = input.aimAngle;
       p.drawPower = Math.min(1.0, p.drawPower + 0.04);
       stickmanAudio.playBowDraw(p.drawPower);
-    } else if (input.attackRelease && p.drawPower > 0.15) {
-      const power = p.drawPower;
+    } else if (input.attackRelease && (p.drawPower > 0.08 || p.isDrawing)) {
+      const power = Math.max(0.32, p.drawPower);
       const angle = p.aimAngle;
       const speed = ARROW_BASE_SPEED * (0.5 + power * 0.7);
       stickmanAudio.playArrowRelease(power);
@@ -961,92 +967,15 @@ export default function StickmanShowdown() {
   };
 
   return (
-    <div ref={rootRef} className="fixed inset-0 w-screen h-screen bg-[#040914] text-white flex items-center justify-center p-0 select-none font-sans overflow-hidden">
+    <div ref={rootRef} className="fixed inset-0 w-full h-full bg-[#040914] text-white select-none font-sans overflow-hidden">
 
       {/* Hidden Webcam Video for MediaPipe Hand Tracking */}
       <video ref={videoRef} className="hidden" playsInline muted autoPlay />
 
-      {/* ── Fixed Top-Left Back Arrow Button (ALWAYS VISIBLE & ACCESSIBLE) ── */}
-      <button
-        onClick={handleGoBack}
-        className="fixed top-2 sm:top-3 left-2 sm:left-3 z-[100] px-3 py-1.5 sm:px-3.5 sm:py-2 bg-[#FFFDF5] hover:bg-neo-yellow text-black border-2 sm:border-3 border-black font-mono font-black text-xs sm:text-sm uppercase flex items-center gap-1.5 shadow-neo active:translate-x-0.5 active:translate-y-0.5 cursor-pointer pointer-events-auto transition-transform"
-        title="Go back to Home"
-      >
-        <span className="text-base font-black">←</span>
-        <span>BACK</span>
-      </button>
-
-      {/* ── Mobile Orientation Rotate Screen Blocker ───────────────────── */}
-      {isPortrait && (
-        <div className="fixed inset-0 z-50 bg-[#040914] flex flex-col items-center justify-center p-6 text-center select-none text-white animate-in fade-in">
-          <div className="w-20 h-20 mb-4 animate-bounce text-6xl flex items-center justify-center">
-            📱🔄
-          </div>
-          <h2 className="font-display font-black text-2xl sm:text-3xl uppercase tracking-wider text-neo-yellow mb-2">
-            ROTATE YOUR PHONE
-          </h2>
-          <p className="font-mono text-xs sm:text-sm text-zinc-300 max-w-xs mb-6">
-            Stickman Showdown 1v1 Arena is designed for widescreen landscape combat. Please turn your phone horizontally.
-          </p>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleGoBack}
-              className="px-4 py-2.5 bg-white text-black border-2 border-black font-mono font-black text-xs uppercase shadow-neo cursor-pointer"
-            >
-              ← EXIT TO HOME
-            </button>
-            <button
-              onClick={toggleFullscreen}
-              className="px-5 py-2.5 bg-neo-lime hover:bg-lime-400 text-black border-2 border-black font-display font-black text-xs uppercase shadow-neo cursor-pointer"
-            >
-              ⛶ FULLSCREEN
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Multiplayer Matchmaking & Lobby Modal ───────────────────────── */}
-      <MultiplayerLobbyModal
-        isOpen={showLobbyModal && matchState !== 'PLAYING' && matchState !== 'COUNTDOWN'}
-        onClose={handleGoBack}
-        gameId="stickman-showdown"
-        gameTitle="Stickman Showdown"
-      />
-
-      {/* ── Multiplayer Result Modal ────────────────────────────────────── */}
-      <MultiplayerResultModal
-        isOpen={matchState === 'FINISHED'}
-        onReturnToLobby={() => {
-          resetMultiplayerState();
-          setShowLobbyModal(true);
-        }}
-      />
-
-      {/* ── Match Completed Fullscreen Controls Banner (Always Accessible on Mobile) ── */}
-      {matchState === 'FINISHED' && (
-        <div className="fixed bottom-3 left-3 right-3 z-50 flex items-center justify-center gap-3 pointer-events-auto select-none">
-          <button
-            onClick={() => {
-              resetMultiplayerState();
-              setShowLobbyModal(true);
-            }}
-            className="px-5 py-2.5 bg-neo-yellow hover:bg-yellow-300 text-black border-3 border-black font-display font-black text-xs sm:text-sm uppercase shadow-neo cursor-pointer"
-          >
-            ← RETURN TO LOBBY
-          </button>
-          <button
-            onClick={handleGoBack}
-            className="px-5 py-2.5 bg-white hover:bg-zinc-100 text-black border-3 border-black font-mono font-black text-xs sm:text-sm uppercase shadow-neo cursor-pointer"
-          >
-            🏠 EXIT TO HOME
-          </button>
-        </div>
-      )}
-
-      {/* ── Active Game Arena (Centered Landscape Canvas) ───────────────── */}
+      {/* ── Active Game Arena (Layer 0, Canvas Arena) ────────────────────── */}
       <div
         ref={containerRef}
-        className="relative w-full h-full flex items-center justify-center overflow-hidden"
+        className="absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden z-0 pointer-events-auto"
       >
         {/* Canvas */}
         <canvas
@@ -1073,9 +1002,19 @@ export default function StickmanShowdown() {
         )}
       </div>
 
-      {/* ── FULL PAGE Top Match VS HUD (Anchored Across Full Viewport) ───── */}
+      {/* ── Fixed Top-Left Back Arrow Button (ALWAYS ON TOP, z-[100]) ─────── */}
+      <button
+        onClick={handleGoBack}
+        className="absolute top-2 sm:top-3 left-2 sm:left-3 z-[100] px-3 py-1.5 sm:px-3.5 sm:py-2 bg-[#FFFDF5] hover:bg-neo-yellow text-black border-2 sm:border-3 border-black font-mono font-black text-xs sm:text-sm uppercase flex items-center gap-1.5 shadow-neo active:translate-x-0.5 active:translate-y-0.5 cursor-pointer pointer-events-auto transition-transform"
+        title="Go back to Home"
+      >
+        <span className="text-base font-black">←</span>
+        <span>BACK</span>
+      </button>
+
+      {/* ── FULL PAGE Top Match VS HUD (Layer 40) ────────────────────────── */}
       {(matchState === 'PLAYING' || matchState === 'COUNTDOWN') && (
-        <div className="fixed top-0 left-0 right-0 z-40 px-2 sm:px-4 pt-1 sm:pt-2 pb-1 flex items-center justify-between pointer-events-none select-none">
+        <div className="absolute top-0 left-0 right-0 z-40 px-2 sm:px-4 pt-1 sm:pt-2 pb-1 flex items-center justify-between pointer-events-none select-none">
           
           {/* Player 1 Health (Offset for Back button) */}
           <div className="flex items-center gap-2 pointer-events-auto pl-22 sm:pl-28">
@@ -1158,26 +1097,23 @@ export default function StickmanShowdown() {
         </div>
       )}
 
-      {/* ── Webcam PIP & Live Gesture HUD ──────────────────────────────── */}
+      {/* ── Webcam PIP & Live Gesture HUD (Layer 40) ────────────────────── */}
       {cameraEnabled && (matchState === 'PLAYING' || matchState === 'COUNTDOWN') && showPip && (
-        <div className="fixed top-12 sm:top-14 right-2 sm:right-4 z-40 pointer-events-auto bg-black/85 border-2 border-black p-1 rounded shadow-neo-sm flex flex-col items-center">
+        <div className="absolute top-12 sm:top-14 right-2 sm:right-4 z-40 pointer-events-auto bg-black/85 border-2 border-black p-1 rounded shadow-neo-sm flex flex-col items-center">
           <canvas ref={pipCanvasRef} width={140} height={105} className="w-20 sm:w-28 h-auto border border-white/20 rounded-xs block bg-zinc-950" />
           <div className="w-full flex justify-between items-center text-[7px] sm:text-[9px] font-mono font-black text-zinc-300 mt-0.5 px-0.5">
-            <span>{cameraReady ? '🟢 DUAL-HAND' : '🟡 CAMERA'}</span>
+            <span>{cameraReady ? '🟢 RIGHT-HAND AI' : '🟡 CAMERA'}</span>
             <button onClick={() => setShowPip(false)} className="text-zinc-400 hover:text-white cursor-pointer">✕</button>
           </div>
-          <div className="w-full text-[7px] sm:text-[8px] font-mono text-amber-300 px-0.5 truncate max-w-[110px] sm:max-w-[130px]">
-            L: {leftGestureStatus}
-          </div>
-          <div className="w-full text-[7px] sm:text-[8px] font-mono text-cyan-300 px-0.5 truncate max-w-[110px] sm:max-w-[130px]">
-            R: {rightGestureStatus}
+          <div className="w-full text-[8px] font-mono font-bold text-neo-yellow px-0.5 truncate max-w-[120px] sm:max-w-[140px]">
+            {rightGestureStatus}
           </div>
         </div>
       )}
 
-      {/* ── FULL PAGE Mobile Virtual On-Screen Touch Controls ───────────── */}
+      {/* ── Mobile Virtual On-Screen Touch Controls (Layer 40) ─────────── */}
       {(matchState === 'PLAYING' || matchState === 'COUNTDOWN') && (
-        <div className="fixed bottom-2 sm:bottom-3 left-2 sm:left-4 right-2 sm:right-4 z-40 pointer-events-none flex justify-between items-end">
+        <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-4 right-2 sm:right-4 z-40 pointer-events-none flex justify-between items-end">
           
           {/* Left Touch Pad (Move Left, Move Right, Jump) */}
           <div className="flex items-center gap-1 sm:gap-2 pointer-events-auto select-none">
@@ -1253,6 +1189,73 @@ export default function StickmanShowdown() {
             </button>
           </div>
 
+        </div>
+      )}
+
+      {/* ── Match Completed Fullscreen Controls Banner (Layer 80, Always on Mobile) ── */}
+      {matchState === 'FINISHED' && (
+        <div className="absolute bottom-4 left-4 right-4 z-[80] flex items-center justify-center gap-3 pointer-events-auto select-none animate-in fade-in">
+          <button
+            onClick={() => {
+              resetMultiplayerState();
+              setShowLobbyModal(true);
+            }}
+            className="px-6 py-3 bg-neo-yellow hover:bg-yellow-300 text-black border-3 border-black font-display font-black text-xs sm:text-sm uppercase shadow-neo active:scale-95 cursor-pointer"
+          >
+            ← RETURN TO LOBBY
+          </button>
+          <button
+            onClick={handleGoBack}
+            className="px-6 py-3 bg-white hover:bg-zinc-100 text-black border-3 border-black font-mono font-black text-xs sm:text-sm uppercase shadow-neo active:scale-95 cursor-pointer"
+          >
+            🏠 EXIT TO HOME
+          </button>
+        </div>
+      )}
+
+      {/* ── Multiplayer Result Modal (Layer 90) ──────────────────────────── */}
+      <MultiplayerResultModal
+        isOpen={matchState === 'FINISHED'}
+        onReturnToLobby={() => {
+          resetMultiplayerState();
+          setShowLobbyModal(true);
+        }}
+      />
+
+      {/* ── Multiplayer Matchmaking & Lobby Modal (Layer 90) ─────────────── */}
+      <MultiplayerLobbyModal
+        isOpen={showLobbyModal && matchState !== 'PLAYING' && matchState !== 'COUNTDOWN'}
+        onClose={handleGoBack}
+        gameId="stickman-showdown"
+        gameTitle="Stickman Showdown"
+      />
+
+      {/* ── Mobile Orientation Rotate Screen Blocker (Layer 110) ─────────── */}
+      {isPortrait && (
+        <div className="fixed inset-0 z-[110] bg-[#040914] flex flex-col items-center justify-center p-6 text-center select-none text-white animate-in fade-in">
+          <div className="w-20 h-20 mb-4 animate-bounce text-6xl flex items-center justify-center">
+            📱🔄
+          </div>
+          <h2 className="font-display font-black text-2xl sm:text-3xl uppercase tracking-wider text-neo-yellow mb-2">
+            ROTATE YOUR PHONE
+          </h2>
+          <p className="font-mono text-xs sm:text-sm text-zinc-300 max-w-xs mb-6">
+            Stickman Showdown 1v1 Arena is designed for widescreen landscape combat. Please turn your phone horizontally.
+          </p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleGoBack}
+              className="px-4 py-2.5 bg-white text-black border-2 border-black font-mono font-black text-xs uppercase shadow-neo cursor-pointer"
+            >
+              ← EXIT TO HOME
+            </button>
+            <button
+              onClick={toggleFullscreen}
+              className="px-5 py-2.5 bg-neo-lime hover:bg-lime-400 text-black border-2 border-black font-display font-black text-xs uppercase shadow-neo cursor-pointer"
+            >
+              ⛶ FULLSCREEN
+            </button>
+          </div>
         </div>
       )}
 

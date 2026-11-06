@@ -41,8 +41,8 @@ export default function MultiplayerResultModal({ isOpen, onReturnToLobby }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xs p-2 sm:p-4 select-none overflow-y-auto">
-      <div className="neo-box-xl bg-[#FFFDF5] max-w-md w-full p-4 sm:p-6 text-center relative border-3 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] my-auto max-h-[94vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/85 backdrop-blur-xs p-2 sm:p-4 select-none overflow-y-auto pointer-events-auto">
+      <div className="neo-box-xl bg-[#FFFDF5] max-w-md w-full p-4 sm:p-6 text-center relative border-3 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] my-auto max-h-[94vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200 pointer-events-auto">
         
         {/* Top Left Close/Back Button */}
         <button
@@ -60,7 +60,7 @@ export default function MultiplayerResultModal({ isOpen, onReturnToLobby }) {
               <div className="inline-block px-3 sm:px-4 py-1 bg-neo-lime border-3 border-black shadow-neo font-display font-black text-xl sm:text-2xl uppercase tracking-wider text-black rotate-1">
                 🏆 VICTORY!
               </div>
-              {matchResult.forfeit && (
+              {matchResult?.forfeit && (
                 <div className="block mt-1.5 font-mono font-black text-[10px] sm:text-xs uppercase bg-[#FFE142] border-2 border-black py-0.5 px-2 text-black shadow-neo-sm">
                   ⚡ OPPONENT FORFEIT (LEFT THE MATCH)
                 </div>
@@ -88,7 +88,7 @@ export default function MultiplayerResultModal({ isOpen, onReturnToLobby }) {
             <span className="text-[10px] font-mono font-bold text-zinc-600">COINS</span>
           </div>
           <p className="font-mono text-[10px] sm:text-[11px] text-zinc-600 mt-0.5">
-            {matchResult.forfeit && isWinner
+            {matchResult?.forfeit && isWinner
               ? 'Opponent exited the match and did not return. You were awarded the full match pool victory!'
               : isWinner
               ? 'Congratulations! You claimed the full winner match pool.'
@@ -132,16 +132,16 @@ export default function MultiplayerResultModal({ isOpen, onReturnToLobby }) {
         <div className="flex flex-col gap-2">
           <button
             onClick={handlePlayAgain}
-            disabled={rematchRequested || matchResult.forfeit}
+            disabled={rematchRequested || matchResult?.forfeit}
             className={`w-full py-2.5 sm:py-3 font-mono font-black text-xs sm:text-sm uppercase tracking-wider border-2 sm:border-3 border-black shadow-neo transition-all ${
-              matchResult.forfeit
+              matchResult?.forfeit
                 ? 'bg-zinc-200 text-zinc-400 border-zinc-400 cursor-not-allowed shadow-none'
                 : rematchRequested
                 ? 'bg-zinc-200 text-zinc-600 cursor-not-allowed'
                 : 'bg-neo-lime hover:bg-lime-300 cursor-pointer active:translate-y-0.5'
             }`}
           >
-            {matchResult.forfeit
+            {matchResult?.forfeit
               ? 'OPPONENT EXITED MATCH ✕'
               : rematchRequested
               ? 'WAITING FOR OPPONENT... ⏳'
