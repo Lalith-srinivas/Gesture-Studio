@@ -5,11 +5,11 @@ import { usePlayer } from '../hooks/usePlayer';
 import { useMultiplayer } from '../context/MultiplayerContext';
 import { stickmanAudio } from '../games/stickman/StickmanAudio';
 import { KeyboardMouseInputProvider } from '../games/stickman/InputProviders';
+import { DualHandDetector } from '../games/stickman/DualHandDetector';
 import { StickmanRenderer } from '../games/stickman/StickmanRenderer';
 import { ParticleSystem, checkPlatformCollision, GRAVITY, ARROW_BASE_SPEED } from '../games/stickman/StickmanPhysics';
 import { MULTIPLAYER_ARENA, ARROW_TYPES } from '../games/stickman/StickmanLevels';
 import MultiplayerLobbyModal from '../components/multiplayer/MultiplayerLobbyModal';
-import MultiplayerVSHUD from '../components/multiplayer/MultiplayerVSHUD';
 import MultiplayerResultModal from '../components/multiplayer/MultiplayerResultModal';
 
 const MAX_HP = 150;
@@ -18,14 +18,11 @@ const MATCH_DURATION_SEC = 90;
 export default function StickmanShowdown() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { playerData, coins } = usePlayer();
+  const { playerData } = usePlayer();
 
   const {
     matchState,
-    currentRoom,
     opponent,
-    myScore,
-    opponentScore,
     opponentExtra,
     opponentGraceTimer,
     sendScore,
@@ -34,8 +31,9 @@ export default function StickmanShowdown() {
     resetState: resetMultiplayerState,
   } = useMultiplayer();
 
-  // Screen & Orientation States
+  // Screen, Mobile & Fullscreen States
   const [isPortrait, setIsPortrait] = useState(false);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showLobbyModal, setShowLobbyModal] = useState(true);
 
@@ -44,6 +42,16 @@ export default function StickmanShowdown() {
   const [oppHp, setOppHp] = useState(MAX_HP);
   const [matchTimeLeft, setMatchTimeLeft] = useState(MATCH_DURATION_SEC);
   const [countdownSec, setCountdownSec] = useState(null);
+
+  // AI Webcam Gesture States
+  const [cameraEnabled, setCameraEnabled] = useState(true);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [showPip, setShowPip] = useState(true);
+  const [leftGestureStatus, setLeftGestureStatus] = useState('Neutral');
+  const [rightGestureStatus, setRightGestureStatus] = useState('Idle');
+
+  // Active arrow selection
+  const [currentArrowIdx, setCurrentArrowIdx] = useState(0);
 
   // References
   const canvasRef = useRef(null);
@@ -56,6 +64,14 @@ export default function StickmanShowdown() {
   const matchFinishedRef = useRef(false);
   const lastSyncTimeRef = useRef(0);
   const lastProcessedOpponentArrowIdRef = useRef(null);
+
+  // Camera & MediaPipe Refs
+  const videoRef = useRef(null);
+  const pipCanvasRef = useRef(null);
+  const handsRef = useRef(null);
+  const cameraRef = useRef(null);
+  const dualHandDetectorRef = useRef(new DualHandDetector());
+  const cameraActiveRef = useRef(false);
 
   // Engine state (mutable for 60fps loop)
   const engineRef = useRef({
@@ -75,11 +91,12 @@ export default function StickmanShowdown() {
     pendingArrowShot: null,
   });
 
-  // ── 1. Orientation & Fullscreen Detection ──────────────────────────────────
+  // ── 1. Orientation & Mobile Detection ──────────────────────────────────────
   const checkOrientation = useCallback(() => {
-    const isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 820;
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 820;
     const isPortraitMode = window.innerHeight > window.innerWidth;
-    setIsPortrait(isMobileDevice && isPortraitMode);
+    setIsMobileDevice(isMobile);
+    setIsPortrait(isMobile && isPortraitMode);
     setIsFullscreen(Boolean(document.fullscreenElement));
   }, []);
 
@@ -116,7 +133,6 @@ export default function StickmanShowdown() {
   }, []);
 
   // ── 2. Determine Player Roles & Spawns ──────────────────────────────────────
-  // Guaranteed role consistency: player with alphabetically smaller UID gets Player 1 (Left Island)
   const isPlayer1 = React.useMemo(() => {
     const myUid = currentUser?.uid || playerData?.uid || 'user_local';
     const oppUid = opponent?.uid || 'user_remote';
@@ -150,8 +166,9 @@ export default function StickmanShowdown() {
       aimAngle: isPlayer1 ? 0 : Math.PI,
       facingRight: isPlayer1,
       onGround: true,
-      color: isPlayer1 ? '#f97316' : '#06b6d4', // Orange (P1) vs Cyan (P2)
+      color: isPlayer1 ? '#f97316' : '#06b6d4',
       hitFlash: 0,
+      specialActive: 0,
     };
 
     const opponentChar = {
@@ -170,11 +187,11 @@ export default function StickmanShowdown() {
       onGround: true,
       color: isPlayer1 ? '#06b6d4' : '#f97316',
       hitFlash: 0,
+      specialActive: 0,
     };
 
     const crates = arena.crates.map((c) => ({ ...c, hp: c.hp, destroyed: false }));
 
-    // Helper: Snap entity safely onto the platform directly below it
     const snapToPlatform = (char) => {
       for (const plat of arena.platforms) {
         if (char.x + char.width * 0.8 > plat.x && char.x + char.width * 0.2 < plat.x + plat.width) {
@@ -219,7 +236,7 @@ export default function StickmanShowdown() {
     eng.screenShake = 16;
     particlesRef.current.addExplosion(ex, ey, blastRadius);
 
-    // Damage local player if in blast
+    // Damage local player
     const pDist = Math.hypot((eng.player.x + 14) - ex, (eng.player.y + 40) - ey);
     if (pDist < blastRadius) {
       const pDmg = Math.round(damage * (0.5 + (1 - pDist / blastRadius) * 0.5));
@@ -230,7 +247,7 @@ export default function StickmanShowdown() {
       particlesRef.current.addDamageNumber(eng.player.x + 14, eng.player.y, pDmg, true, '#ef4444');
     }
 
-    // Damage opponent if in blast
+    // Damage opponent
     const oppDist = Math.hypot((eng.opponentChar.x + 14) - ex, (eng.opponentChar.y + 40) - ey);
     if (oppDist < blastRadius) {
       const oppDmg = Math.round(damage * (0.5 + (1 - oppDist / blastRadius) * 0.5));
@@ -242,7 +259,7 @@ export default function StickmanShowdown() {
       eng.score += oppDmg * 10;
     }
 
-    // Chain explosions for nearby TNT crates
+    // Chain explosions for nearby TNT
     for (const crate of eng.crates) {
       if (crate.destroyed || crate.type !== 'tnt') continue;
       const cDist = Math.hypot((crate.x + crate.width / 2) - ex, (crate.y + crate.height / 2) - ey);
@@ -274,7 +291,7 @@ export default function StickmanShowdown() {
     submitFinalScore(eng.score, reason);
   }, [submitFinalScore]);
 
-  // ── 6. Handle Match State Transitions & Countdown ─────────────────────────
+  // ── 6. Handle Match State Transitions & Fix Stuck "GO!" ────────────────────
   useEffect(() => {
     if (matchState === 'COUNTDOWN') {
       setShowLobbyModal(false);
@@ -284,7 +301,7 @@ export default function StickmanShowdown() {
       const t1 = setTimeout(() => setCountdownSec(2), 1000);
       const t2 = setTimeout(() => setCountdownSec(1), 2000);
       const t3 = setTimeout(() => setCountdownSec('GO!'), 2900);
-      const t4 = setTimeout(() => setCountdownSec(null), 3500);
+      const t4 = setTimeout(() => setCountdownSec(null), 3600);
 
       return () => {
         clearTimeout(t1);
@@ -293,12 +310,14 @@ export default function StickmanShowdown() {
         clearTimeout(t4);
       };
     } else if (matchState === 'PLAYING') {
+      // Immediately clear any leftover countdown overlay so "GO!" never stays stuck
+      setCountdownSec(null);
       setShowLobbyModal(false);
+
       if (!engineRef.current.running) {
         initArenaMatch();
       }
 
-      // Match timer countdown (90s)
       if (matchTimerRef.current) clearInterval(matchTimerRef.current);
       matchTimerRef.current = setInterval(() => {
         setMatchTimeLeft((prev) => {
@@ -315,22 +334,156 @@ export default function StickmanShowdown() {
         if (matchTimerRef.current) clearInterval(matchTimerRef.current);
       };
     } else if (matchState === 'FINISHED') {
+      setCountdownSec(null);
       engineRef.current.running = false;
       if (matchTimerRef.current) clearInterval(matchTimerRef.current);
     } else if (matchState === 'IDLE') {
+      setCountdownSec(null);
       setShowLobbyModal(true);
       engineRef.current.running = false;
     }
   }, [matchState, initArenaMatch, finishMatch]);
 
-  // ── 7. Handle Incoming Opponent Sync Payload ───────────────────────────────
+  // ── 7. MediaPipe Dual-Hand Webcam Tracking Setup ───────────────────────────
+  useEffect(() => {
+    if (!cameraEnabled || !videoRef.current) return;
+    if (typeof window.Hands !== 'function' || typeof window.Camera !== 'function') {
+      console.warn('[StickmanShowdown] MediaPipe not loaded yet.');
+      return;
+    }
+
+    cameraActiveRef.current = true;
+
+    const hands = new window.Hands({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`,
+    });
+
+    hands.setOptions({
+      maxNumHands: 2, // Dual-hand tracking!
+      modelComplexity: 0,
+      minDetectionConfidence: 0.55,
+      minTrackingConfidence: 0.55,
+    });
+
+    hands.onResults((results) => {
+      if (!cameraActiveRef.current) return;
+      setCameraReady(true);
+
+      const pipCanvas = pipCanvasRef.current;
+      const video = videoRef.current;
+
+      // Draw skeleton to PIP window
+      if (pipCanvas && video) {
+        if (pipCanvas.width !== video.videoWidth || pipCanvas.height !== video.videoHeight) {
+          pipCanvas.width = video.videoWidth || 320;
+          pipCanvas.height = video.videoHeight || 240;
+        }
+        const ctx = pipCanvas.getContext('2d');
+        ctx.clearRect(0, 0, pipCanvas.width, pipCanvas.height);
+
+        // Draw camera frame with mirror
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, -pipCanvas.width, 0, pipCanvas.width, pipCanvas.height);
+        ctx.restore();
+
+        // Draw landmarks
+        if (results.multiHandLandmarks) {
+          ctx.save();
+          ctx.scale(-1, 1);
+          ctx.translate(-pipCanvas.width, 0);
+
+          for (const lms of results.multiHandLandmarks) {
+            ctx.fillStyle = '#38bdf8';
+            ctx.strokeStyle = '#facc15';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < lms.length; i++) {
+              ctx.beginPath();
+              ctx.arc(lms[i].x * pipCanvas.width, lms[i].y * pipCanvas.height, 3, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+          ctx.restore();
+        }
+      }
+
+      // Process Dual-Hand Gestures
+      const playerFacing = engineRef.current.player?.facingRight ?? true;
+      const gestures = dualHandDetectorRef.current.process(results.multiHandLandmarks, playerFacing);
+
+      if (inputRef.current) {
+        inputRef.current.setGestureState({
+          moveX: gestures.moveX,
+          jump: gestures.jump,
+          aimAngle: gestures.aimAngle,
+          isDrawing: gestures.isDrawing,
+          attackRelease: gestures.attackRelease,
+          meleeAttack: gestures.meleeAttack,
+          specialAbility: gestures.specialAbility,
+          switchArrow: gestures.switchArrow,
+        });
+      }
+
+      // Update gesture badges for visual feedback
+      if (gestures.leftHandDetected) {
+        if (gestures.leftGesture === 'THUMBS_UP') setLeftGestureStatus('👍 Special Power!');
+        else if (gestures.leftGesture === 'VICTORY') setLeftGestureStatus('✌️ Switch Arrow');
+        else if (gestures.leftGesture === 'FIST') setLeftGestureStatus('✊ Melee Attack');
+        else if (gestures.moveX < 0) setLeftGestureStatus('⬅️ Move Left');
+        else if (gestures.moveX > 0) setLeftGestureStatus('➡️ Move Right');
+        else setLeftGestureStatus('✋ Open Palm (Stop)');
+      } else {
+        setLeftGestureStatus('Left Hand: Searching...');
+      }
+
+      if (gestures.rightHandDetected) {
+        if (gestures.isDrawing) setLeftGestureStatus((prev) => prev); // keep
+        setRightGestureStatus(gestures.isDrawing ? '🤏 Drawing Bow!' : '📐 Aiming');
+      } else {
+        setRightGestureStatus('Right Hand: Searching...');
+      }
+
+      // Cycle arrow if victory sign detected
+      if (gestures.switchArrow) {
+        setCurrentArrowIdx((prev) => (prev + 1) % ARROW_TYPES.length);
+        stickmanAudio.playCoin();
+      }
+    });
+
+    handsRef.current = hands;
+
+    const camera = new window.Camera(videoRef.current, {
+      onFrame: async () => {
+        if (!cameraActiveRef.current || !videoRef.current || !handsRef.current) return;
+        try {
+          await handsRef.current.send({ image: videoRef.current });
+        } catch (e) {}
+      },
+      width: 480,
+      height: 360,
+    });
+
+    camera.start().catch((err) => {
+      console.warn('[StickmanShowdown] Camera start failed:', err);
+      setCameraReady(false);
+    });
+
+    cameraRef.current = camera;
+
+    return () => {
+      cameraActiveRef.current = false;
+      try { cameraRef.current?.stop(); } catch (e) {}
+      try { handsRef.current?.close(); } catch (e) {}
+    };
+  }, [cameraEnabled]);
+
+  // ── 8. Handle Incoming Opponent Sync Payload ───────────────────────────────
   useEffect(() => {
     if (!opponentExtra || !engineRef.current.running) return;
     const eng = engineRef.current;
     const opp = eng.opponentChar;
     if (!opp) return;
 
-    // Smooth position interpolation
     opp.x = opp.x + (opponentExtra.x - opp.x) * 0.65;
     opp.y = opp.y + (opponentExtra.y - opp.y) * 0.65;
     opp.vx = opponentExtra.vx || 0;
@@ -346,7 +499,6 @@ export default function StickmanShowdown() {
       setOppHp(opponentExtra.hp);
     }
 
-    // Spawn newly fired opponent arrow
     if (opponentExtra.arrowShot && opponentExtra.arrowShot.id !== lastProcessedOpponentArrowIdRef.current) {
       lastProcessedOpponentArrowIdRef.current = opponentExtra.arrowShot.id;
       const shot = opponentExtra.arrowShot;
@@ -369,7 +521,7 @@ export default function StickmanShowdown() {
     }
   }, [opponentExtra]);
 
-  // ── 8. Main 60 FPS Arena Physics & Render Loop ─────────────────────────────
+  // ── 9. Main 60 FPS Arena Physics & Render Loop ─────────────────────────────
   const gameLoop = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !rendererRef.current) return;
@@ -383,8 +535,36 @@ export default function StickmanShowdown() {
     const opp = eng.opponentChar;
     const pSys = particlesRef.current;
 
+    // Special Ability Trigger (e.g. from Thumbs Up 👍 or Q)
+    if (input.specialAbility && p.specialActive <= 0) {
+      p.specialActive = 180; // 3 seconds speed & shield boost
+      stickmanAudio.playBowDraw(1.0);
+      pSys.addSpark(p.x + 14, p.y + 40, '#facc15', 24);
+    }
+    if (p.specialActive > 0) p.specialActive--;
+
+    // Melee Attack (from Closed Fist ✊)
+    if (input.meleeAttack) {
+      const distToOpp = Math.hypot((p.x + 14) - (opp.x + 14), (p.y + 40) - (opp.y + 40));
+      stickmanAudio.playMeleeSlash();
+      pSys.addSpark(p.x + (p.facingRight ? 35 : -15), p.y + 35, '#f97316', 12);
+      if (distToOpp < 65) {
+        opp.hp = Math.max(0, opp.hp - 25);
+        opp.hitFlash = 8;
+        eng.oppHp = opp.hp;
+        setOppHp(opp.hp);
+        pSys.addDamageNumber(opp.x + 14, opp.y, '-25', false, '#f97316');
+        eng.score += 250;
+        if (opp.hp <= 0) {
+          finishMatch('opponent_eliminated');
+          return;
+        }
+      }
+    }
+
     // 1. Local Player Movement & Physics
-    p.vx = input.moveX * 4.2;
+    const speedMult = p.specialActive > 0 ? 1.35 : 1.0;
+    p.vx = input.moveX * 4.2 * speedMult;
     p.x += p.vx;
     p.y += p.vy;
     p.vy += GRAVITY;
@@ -393,10 +573,8 @@ export default function StickmanShowdown() {
       p.facingRight = input.moveX > 0;
     }
 
-    // Platform collisions
     p.onGround = checkPlatformCollision(p, eng.platforms);
 
-    // Jump
     if (input.jump && p.onGround) {
       p.vy = -10.5;
       p.onGround = false;
@@ -409,7 +587,6 @@ export default function StickmanShowdown() {
       p.drawPower = Math.min(1.0, p.drawPower + 0.04);
       stickmanAudio.playBowDraw(p.drawPower);
     } else if (input.attackRelease && p.drawPower > 0.15) {
-      // Release bowstring -> loose arrow!
       const power = p.drawPower;
       const angle = p.aimAngle;
       const speed = ARROW_BASE_SPEED * (0.5 + power * 0.7);
@@ -421,6 +598,8 @@ export default function StickmanShowdown() {
       const vx = Math.cos(angle) * speed;
       const vy = Math.sin(angle) * speed;
 
+      const activeArrowDef = ARROW_TYPES[currentArrowIdx] || ARROW_TYPES[0];
+
       const newArrow = {
         id: arrowId,
         x: spawnX,
@@ -429,10 +608,10 @@ export default function StickmanShowdown() {
         vy,
         rotation: angle,
         power,
-        damage: Math.round(35 * power),
-        type: 'standard',
-        color: '#f97316',
-        trailColor: '#fb923c',
+        damage: Math.round(35 * power * activeArrowDef.damageMult),
+        type: activeArrowDef.id,
+        color: activeArrowDef.color,
+        trailColor: activeArrowDef.trailColor,
         active: true,
       };
 
@@ -446,7 +625,7 @@ export default function StickmanShowdown() {
         rotation: angle,
         power,
         damage: newArrow.damage,
-        type: 'standard',
+        type: activeArrowDef.id,
       };
 
       p.drawPower = 0;
@@ -460,7 +639,6 @@ export default function StickmanShowdown() {
       inputRef.current.setPlayerScreenPos(p.x + 14, p.y + 24);
     }
 
-    // Bounds safety: clamp inside arena
     p.x = Math.max(15, Math.min(canvas.width - p.width - 15, p.x));
     if (p.y > canvas.height + 60) {
       p.hp = 0;
@@ -502,6 +680,10 @@ export default function StickmanShowdown() {
         stickmanAudio.playHit(isHeadshot);
         pSys.addSpark(a.x, a.y, '#facc15', isHeadshot ? 18 : 10);
         pSys.addDamageNumber(opp.x + 14, opp.y, `-${damageDealt}`, isHeadshot, isHeadshot ? '#facc15' : '#ffffff');
+
+        if (a.type === 'explosive') {
+          triggerExplosionAt(a.x, a.y, 75, 45);
+        }
 
         arrowConsumed = true;
 
@@ -564,7 +746,8 @@ export default function StickmanShowdown() {
           a.y >= pHitbox.y && a.y <= pHitbox.y + pHitbox.height) {
         
         const isHeadshot = a.y <= p.y + 24;
-        const damageTaken = isHeadshot ? Math.round(a.damage * 2.2) : a.damage;
+        let damageTaken = isHeadshot ? Math.round(a.damage * 2.2) : a.damage;
+        if (p.specialActive > 0) damageTaken = Math.round(damageTaken * 0.5); // 50% shield
 
         p.hp = Math.max(0, p.hp - damageTaken);
         p.hitFlash = 8;
@@ -575,6 +758,10 @@ export default function StickmanShowdown() {
         stickmanAudio.playHit(isHeadshot);
         pSys.addSpark(a.x, a.y, '#ef4444', isHeadshot ? 18 : 10);
         pSys.addDamageNumber(p.x + 14, p.y, `-${damageTaken}`, isHeadshot, '#ef4444');
+
+        if (a.type === 'explosive') {
+          triggerExplosionAt(a.x, a.y, 75, 45);
+        }
 
         arrowConsumed = true;
 
@@ -675,7 +862,7 @@ export default function StickmanShowdown() {
 
     eng.tick++;
     rafRef.current = requestAnimationFrame(gameLoop);
-  }, [currentUser?.uid, sendScore, triggerExplosionAt, finishMatch]);
+  }, [currentUser?.uid, currentArrowIdx, sendScore, triggerExplosionAt, finishMatch]);
 
   // Canvas Resize Handler
   const handleResize = useCallback(() => {
@@ -711,8 +898,25 @@ export default function StickmanShowdown() {
     };
   }, [matchState, gameLoop]);
 
+  // Mobile Virtual Button Handlers
+  const handleTouchMoveStart = (dir) => {
+    if (inputRef.current) inputRef.current.setVirtualInput({ moveX: dir, jump: false });
+  };
+  const handleTouchMoveEnd = () => {
+    if (inputRef.current) inputRef.current.setVirtualInput({ moveX: 0, jump: false });
+  };
+  const handleTouchJump = () => {
+    if (inputRef.current) inputRef.current.setVirtualInput({ moveX: 0, jump: true });
+    setTimeout(() => {
+      if (inputRef.current) inputRef.current.setVirtualInput({ moveX: 0, jump: false });
+    }, 150);
+  };
+
   return (
     <div className="min-h-screen bg-[#040914] text-white flex flex-col items-center justify-center p-1 sm:p-2 select-none font-sans relative overflow-hidden">
+
+      {/* Hidden Webcam Video for MediaPipe Hand Tracking */}
+      <video ref={videoRef} className="hidden" playsInline muted autoPlay />
 
       {/* ── Mobile Orientation Rotate Screen Blocker ───────────────────── */}
       {isPortrait && (
@@ -760,7 +964,7 @@ export default function StickmanShowdown() {
         }`}
       >
         {/* Canvas */}
-        <canvas ref={canvasRef} width={960} height={540} className="block w-full h-full cursor-crosshair" />
+        <canvas ref={canvasRef} width={960} height={540} className="block w-full h-full cursor-crosshair touch-none" />
 
         {/* ── Top Match VS HUD ─────────────────────────────────────────── */}
         {matchState === 'PLAYING' && (
@@ -791,9 +995,20 @@ export default function StickmanShowdown() {
                 ⏱️ {matchTimeLeft}s
               </div>
               
+              {/* Webcam Gestures Toggle */}
+              <button
+                onClick={() => setCameraEnabled((prev) => !prev)}
+                className={`px-2 py-1 border-2 border-black font-mono font-black text-[10px] sm:text-xs uppercase shadow-neo-sm cursor-pointer transition-transform active:scale-95 ${
+                  cameraEnabled ? 'bg-[#86EFAC] text-black' : 'bg-zinc-700 text-zinc-300'
+                }`}
+                title={cameraEnabled ? 'AI Gestures Active' : 'Camera Disabled'}
+              >
+                {cameraEnabled ? '📷 GESTURES ON' : '📷 GESTURES OFF'}
+              </button>
+
               <button
                 onClick={toggleFullscreen}
-                className="w-8 h-8 bg-zinc-800 hover:bg-zinc-700 border-2 border-black flex items-center justify-center text-xs font-mono font-black shadow-neo-sm cursor-pointer"
+                className="w-8 h-8 bg-zinc-800 hover:bg-zinc-700 border-2 border-black flex items-center justify-center text-xs font-mono font-black shadow-neo-sm cursor-pointer text-white"
                 title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
               >
                 {isFullscreen ? '🗗' : '⛶'}
@@ -834,8 +1049,8 @@ export default function StickmanShowdown() {
           </div>
         )}
 
-        {/* ── 3-2-1-GO Countdown Overlay ───────────────────────────────── */}
-        {countdownSec !== null && (
+        {/* ── 3-2-1-GO Countdown Overlay (ONLY visible during COUNTDOWN state) ─ */}
+        {matchState === 'COUNTDOWN' && countdownSec !== null && (
           <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-xs pointer-events-none">
             <div className="font-display font-black text-7xl sm:text-9xl text-neo-yellow drop-shadow-[5px_5px_0px_#000000] animate-pulse">
               {countdownSec}
@@ -850,15 +1065,65 @@ export default function StickmanShowdown() {
           </div>
         )}
 
-        {/* ── Bottom Controls Guide Bar ─────────────────────────────────── */}
+        {/* ── Webcam PIP & Live Gesture HUD ──────────────────────────────── */}
+        {cameraEnabled && matchState === 'PLAYING' && showPip && (
+          <div className="absolute top-14 right-2 z-30 pointer-events-auto bg-black/80 border-2 border-black p-1 rounded shadow-neo-sm flex flex-col items-center">
+            <canvas ref={pipCanvasRef} width={140} height={105} className="w-28 sm:w-32 h-auto border border-white/20 rounded-xs block bg-zinc-950" />
+            <div className="w-full flex justify-between items-center text-[9px] font-mono font-black text-zinc-300 mt-1 px-1">
+              <span>{cameraReady ? '🟢 DUAL-HAND' : '🟡 CAMERA'}</span>
+              <button onClick={() => setShowPip(false)} className="text-zinc-400 hover:text-white cursor-pointer">✕</button>
+            </div>
+            <div className="w-full text-[8px] font-mono text-amber-300 px-1 truncate">
+              L: {leftGestureStatus}
+            </div>
+            <div className="w-full text-[8px] font-mono text-cyan-300 px-1 truncate">
+              R: {rightGestureStatus}
+            </div>
+          </div>
+        )}
+
+        {/* ── Mobile Virtual On-Screen Touch Controls ─────────────────────── */}
         {matchState === 'PLAYING' && (
-          <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between pointer-events-none z-30 px-2 text-[10px] sm:text-xs font-mono text-zinc-400">
-            <div className="bg-black/60 px-2 py-0.5 rounded border border-white/10">
-              ⌨️ <span className="text-zinc-200">A / D</span>: Move &bull; <span className="text-zinc-200">W / Space</span>: Jump
+          <div className="absolute inset-x-2 bottom-2 z-30 pointer-events-none flex justify-between items-end">
+            
+            {/* Left Touch Pad (Move Left, Move Right, Jump) */}
+            <div className="flex items-center gap-1.5 pointer-events-auto select-none">
+              <button
+                onTouchStart={() => handleTouchMoveStart(-1)}
+                onTouchEnd={handleTouchMoveEnd}
+                onMouseDown={() => handleTouchMoveStart(-1)}
+                onMouseUp={handleTouchMoveEnd}
+                className="w-12 h-12 sm:w-14 sm:h-14 bg-black/75 hover:bg-black text-white border-2 border-black font-display font-black text-xl flex items-center justify-center rounded shadow-neo active:scale-95 cursor-pointer touch-none"
+              >
+                ◀
+              </button>
+              <button
+                onTouchStart={() => handleTouchMoveStart(1)}
+                onTouchEnd={handleTouchMoveEnd}
+                onMouseDown={() => handleTouchMoveStart(1)}
+                onMouseUp={handleTouchMoveEnd}
+                className="w-12 h-12 sm:w-14 sm:h-14 bg-black/75 hover:bg-black text-white border-2 border-black font-display font-black text-xl flex items-center justify-center rounded shadow-neo active:scale-95 cursor-pointer touch-none"
+              >
+                ▶
+              </button>
+              <button
+                onTouchStart={handleTouchJump}
+                onMouseDown={handleTouchJump}
+                className="w-12 h-12 sm:w-14 sm:h-14 bg-amber-500 hover:bg-amber-400 text-black border-2 border-black font-display font-black text-xl flex items-center justify-center rounded shadow-neo active:scale-95 cursor-pointer touch-none ml-1"
+                title="Jump"
+              >
+                ▲
+              </button>
             </div>
-            <div className="bg-black/60 px-2 py-0.5 rounded border border-white/10">
-              🖱️ <span className="text-zinc-200">Mouse</span>: Aim &bull; <span className="text-zinc-200">Hold Click</span>: Draw &bull; <span className="text-zinc-200">Release</span>: Shoot
+
+            {/* Right Touch Pad (Quick Arrow Selector & Hint) */}
+            <div className="flex flex-col items-end gap-1 pointer-events-auto select-none">
+              <div className="flex items-center gap-1 bg-black/70 border border-white/20 p-1 rounded text-[9px] font-mono text-zinc-300">
+                <span className="text-zinc-400">TOUCH CANVAS TO AIM & SHOOT</span>
+                <span className="text-amber-400 font-black">🏹 {ARROW_TYPES[currentArrowIdx]?.name}</span>
+              </div>
             </div>
+
           </div>
         )}
 
