@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useHandTracking } from '../hooks/useHandTracking';
 import { GESTURES } from '../utils/gestureDetector';
 import {
@@ -12,6 +12,12 @@ import {
 } from '../utils/soundEffects';
 import { usePlayer } from '../hooks/usePlayer';
 import { useTrackSoloGame } from '../hooks/useTrackSoloGame';
+import { useMultiplayer } from '../context/MultiplayerContext';
+import GameModeModal from '../components/multiplayer/GameModeModal';
+import MultiplayerLobbyModal from '../components/multiplayer/MultiplayerLobbyModal';
+import MultiplayerResultModal from '../components/multiplayer/MultiplayerResultModal';
+import MultiplayerVSHUD from '../components/multiplayer/MultiplayerVSHUD';
+import { createPRNG } from '../utils/prng';
 import PostGameProgression from '../components/PostGameProgression';
 import AdSlot from '../components/ads/AdSlot';
 import AnimeCam from '../components/AnimeCam';
@@ -123,14 +129,15 @@ function createGameState() {
   };
 }
 
-function spawnTrafficVehicle(canvasWidth) {
+function spawnTrafficVehicle(canvasWidth, prng = null) {
   const scale = canvasWidth / 460;
   const roadMargin = 50 * scale;
   const playableWidth = canvasWidth - roadMargin * 2;
   const laneWidth = playableWidth / LANE_COUNT;
-  const lane = Math.floor(Math.random() * LANE_COUNT);
+  const rand = prng ? prng.random : Math.random;
+  const lane = Math.floor(rand() * LANE_COUNT);
   const types = ['sports_orange', 'taxi'];
-  const type = types[Math.floor(Math.random() * types.length)];
+  const type = types[Math.floor(rand() * types.length)];
 
   return {
     lane,
@@ -138,17 +145,18 @@ function spawnTrafficVehicle(canvasWidth) {
     y: -120 * scale,
     width: 48 * scale,
     height: 92 * scale,
-    speed: (2 + Math.random() * 2.5) * scale,
+    speed: (2 + rand() * 2.5) * scale,
     type,
   };
 }
 
-function spawnCoin(canvasWidth) {
+function spawnCoin(canvasWidth, prng = null) {
   const scale = canvasWidth / 460;
   const roadMargin = 50 * scale;
   const playableWidth = canvasWidth - roadMargin * 2;
   const laneWidth = playableWidth / LANE_COUNT;
-  const lane = Math.floor(Math.random() * LANE_COUNT);
+  const rand = prng ? prng.random : Math.random;
+  const lane = Math.floor(rand() * LANE_COUNT);
 
   return {
     x: roadMargin + lane * laneWidth + laneWidth / 2,
@@ -320,6 +328,32 @@ function drawRoadsideTrees(ctx, width, height, roadOffset) {
 
 export default function TrafficRiderGame() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isModeParam = searchParams.get('mode') === 'multiplayer';
+
+  const {
+    matchState,
+    seed,
+    sendScore,
+    submitFinalScore,
+    matchResult,
+    opponent,
+    opponentScore,
+    opponentExtra,
+    leaveRoom,
+    resetState: resetMultiplayerState,
+  } = useMultiplayer();
+
+  const [isMultiplayer, setIsMultiplayer] = useState(isModeParam);
+  const [showModeModal, setShowModeModal] = useState(!isModeParam);
+  const [showLobbyModal, setShowLobbyModal] = useState(isModeParam);
+  const [mpTimeLeft, setMpTimeLeft] = useState(60);
+
+  const prngRef = useRef(null);
+  const mpTimerRef = useRef(null);
+  const isMultiplayerRef = useRef(isMultiplayer);
+  useEffect(() => { isMultiplayerRef.current = isMultiplayer; }, [isMultiplayer]);
+
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
   const videoRef = useRef(null);
@@ -331,7 +365,12 @@ export default function TrafficRiderGame() {
 
   const [activeGesture, setActiveGesture] = useState(GESTURES.NONE);
   const [isPlaying, setIsPlaying] = useState(false);
-  useTrackSoloGame('Crazy Road', isPlaying);
+  const isPlayingRef = useRef(isPlaying);
+  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
+
+  // Track active solo gameplay in presence engine (blocks incoming match invites while racing)
+  useTrackSoloGame('Crazy Road', !isMultiplayer && isPlaying);
+
   const { recordGameResult, allGameStats } = usePlayer();
   const [highScore, setHighScore] = useState(() => {
     const remote = allGameStats?.['hill-climb']?.bestScore || 0;
@@ -340,6 +379,34 @@ export default function TrafficRiderGame() {
   });
   const [lastProgressionResult, setLastProgressionResult] = useState(null);
   const sessionRecordedRef = useRef(false);
+
+  // Automatically open lobby & hide mode selection whenever invited or in multiplayer
+  useEffect(() => {
+    const isMp = isModeParam || (matchState && matchState !== 'IDLE');
+    if (isMp) {
+      setIsMultiplayer(true);
+      setShowModeModal(false);
+      if (matchState !== 'PLAYING' && matchState !== 'FINISHED') {
+        setShowLobbyModal(true);
+      }
+    }
+  }, [isModeParam, matchState]);
+
+  // If match finishes, stop the car & game loop immediately
+  useEffect(() => {
+    if (isMultiplayer && (matchState === 'FINISHED' || matchResult)) {
+      const gs = gsRef.current;
+      gs.running = false;
+      gs.over = true;
+      setIsPlaying(false);
+      stopCarEngineSound();
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (mpTimerRef.current) clearInterval(mpTimerRef.current);
+    }
+  }, [isMultiplayer, matchState, matchResult]);
+
+  // Stable ref so tick loop and timers can call endGame without stale closures
+  const endGameRef = useRef(null);
 
   // Sync high score from Firestore allGameStats across all devices/origins
   useEffect(() => {
@@ -400,30 +467,42 @@ export default function TrafficRiderGame() {
     return false;
   }, []);
 
-  const endGame = useCallback(() => {
+  const endGame = useCallback((reason = 'crash') => {
     setIsPlaying(false);
     playCrashSound();
     stopCarEngineSound();
     const gs = gsRef.current;
     gs.over = true;
     gs.running = false;
+    if (mpTimerRef.current) clearInterval(mpTimerRef.current);
+
     const isNewHigh = saveHighScore(gs.score);
+    const finalScore = Math.floor(gs.score);
+
+    if (isMultiplayerRef.current) {
+      submitFinalScore(finalScore, reason);
+      return;
+    }
 
     if (olTitleRef.current) olTitleRef.current.textContent = '💥 CRASH!';
-    if (olSubRef.current) olSubRef.current.textContent = `${isNewHigh ? 'New High Score:' : 'Final Score:'} ${Math.floor(gs.score)}`;
+    if (olSubRef.current) olSubRef.current.textContent = `${isNewHigh ? 'New High Score:' : 'Final Score:'} ${finalScore}`;
     if (overlayRef.current) overlayRef.current.style.display = 'flex';
 
     if (!sessionRecordedRef.current) {
       sessionRecordedRef.current = true;
       recordGameResult({
         gameId: 'hill-climb',
-        score: Math.floor(gs.score),
+        score: finalScore,
         sessionId: `cr_${Date.now()}_${Math.random()}`,
       }).then((res) => {
         if (res) setLastProgressionResult(res);
       });
     }
-  }, [saveHighScore, recordGameResult]);
+  }, [saveHighScore, recordGameResult, submitFinalScore]);
+
+  useEffect(() => {
+    endGameRef.current = endGame;
+  }, [endGame]);
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // GAME LOOP
@@ -478,12 +557,20 @@ export default function TrafficRiderGame() {
     gs.roadOffset = (gs.roadOffset + gs.speed) % (60 * scale);
     gs.score += (gs.speed / scale) * 0.05;
 
-    // 4. Spawners
+    // Stream score & position to opponent in real time
+    if (isMultiplayerRef.current && gs.tick % 10 === 0) {
+      sendScore(Math.floor(gs.score), {
+        lane: gs.player.lane,
+        boost: gs.boostActive,
+      });
+    }
+
+    // 4. Spawners (Synchronized in multiplayer via PRNG seed)
     if (gs.tick % 45 === 0) {
-      gs.traffic.push(spawnTrafficVehicle(canvas.width));
+      gs.traffic.push(spawnTrafficVehicle(canvas.width, prngRef.current));
     }
     if (gs.tick % 80 === 0) {
-      gs.coins.push(spawnCoin(canvas.width));
+      gs.coins.push(spawnCoin(canvas.width, prngRef.current));
     }
 
     // 5. Traffic Updates
@@ -497,7 +584,7 @@ export default function TrafficRiderGame() {
                   Math.abs(p.y - v.y) < (p.height + v.height) / 2 - 8 * scale;
 
       if (hit && !gs.boostActive) {
-        endGame();
+        endGame('crash');
         return;
       }
 
@@ -578,6 +665,38 @@ export default function TrafficRiderGame() {
       }
     }
 
+    // Opponent Ghost Car (Multiplayer 1v1 Live)
+    if (isMultiplayerRef.current && opponent) {
+      const oppLane = opponentExtra?.lane ?? 1;
+      const oppTargetX = roadMargin + oppLane * laneWidth + laneWidth / 2;
+      if (gs.oppGhostX === undefined) gs.oppGhostX = oppTargetX;
+      gs.oppGhostX += (oppTargetX - gs.oppGhostX) * 0.22;
+
+      // Relative Y position based on score difference:
+      // Positive score difference (opponent leading) pushes them ahead on screen
+      const scoreDiff = (opponentScore || 0) - gs.score;
+      const clampedOffset = Math.max(-100 * scale, Math.min(80 * scale, -scoreDiff * 0.6 * scale));
+      const oppY = gs.player.y + clampedOffset;
+
+      ctx.save();
+      ctx.globalAlpha = 0.65;
+      if (opponentExtra?.boost) {
+        ctx.shadowColor = '#60a5fa';
+        ctx.shadowBlur = 18;
+      }
+      drawSportsCar(ctx, gs.oppGhostX, oppY, gs.player.width, gs.player.height, '#2563eb', '#ffffff', false);
+
+      // Label above ghost car
+      const oppName = (opponent?.username || 'RIVAL').slice(0, 10).toUpperCase();
+      ctx.fillStyle = 'rgba(0,0,0,0.75)';
+      ctx.fillRect(gs.oppGhostX - 28 * scale, oppY - gs.player.height / 2 - 16 * scale, 56 * scale, 13 * scale);
+      ctx.fillStyle = '#93c5fd';
+      ctx.font = `bold ${Math.max(8, Math.round(9 * scale))}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText(`⚔️ ${oppName}`, gs.oppGhostX, oppY - gs.player.height / 2 - 6 * scale);
+      ctx.restore();
+    }
+
     // Player Car (Red Sports Car)
     ctx.save();
     if (gs.boostActive) {
@@ -591,7 +710,7 @@ export default function TrafficRiderGame() {
     gs.tick++;
     updateHUD();
     rafRef.current = requestAnimationFrame(gameLoop);
-  }, [endGame, updateHUD]);
+  }, [endGame, updateHUD, sendScore, opponent, opponentScore, opponentExtra]);
 
   const startGame = useCallback(() => {
     resumeAudio();
@@ -604,6 +723,33 @@ export default function TrafficRiderGame() {
     if (overlayRef.current) overlayRef.current.style.display = 'none';
     rafRef.current = requestAnimationFrame(gameLoop);
   }, [gameLoop]);
+
+  // Synchronize multiplayer game start and 60-second timer
+  useEffect(() => {
+    if (isMultiplayer && matchState === 'PLAYING' && !isPlayingRef.current) {
+      setShowLobbyModal(false);
+      if (seed) {
+        prngRef.current = createPRNG(seed);
+      }
+      setMpTimeLeft(60);
+      startGame();
+
+      if (mpTimerRef.current) clearInterval(mpTimerRef.current);
+      mpTimerRef.current = setInterval(() => {
+        setMpTimeLeft((prev) => {
+          if (prev <= 1) {
+            clearInterval(mpTimerRef.current);
+            endGameRef.current?.('time_up');
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (mpTimerRef.current) clearInterval(mpTimerRef.current);
+    };
+  }, [isMultiplayer, matchState, seed, startGame]);
 
   // Responsive canvas sizing
   const resizeCanvas = useCallback(() => {
@@ -664,8 +810,15 @@ export default function TrafficRiderGame() {
     <div className="min-h-screen bg-neo-dots text-black flex flex-col items-center justify-center p-2 sm:p-4 select-none font-sans relative overflow-hidden">
       {/* Back button */}
       <button
-        onClick={() => navigate('/')}
-        className="absolute top-4 left-4 sm:top-6 sm:left-6 neo-btn-white px-3 sm:px-3.5 py-1.5 sm:py-2 text-xs font-mono font-black uppercase z-50 flex items-center gap-1.5"
+        onClick={() => {
+          if (isMultiplayer) {
+            leaveRoom();
+            resetMultiplayerState();
+          }
+          stopCarEngineSound();
+          navigate('/');
+        }}
+        className="absolute top-4 left-4 sm:top-6 sm:left-6 neo-btn-white px-3 sm:px-3.5 py-1.5 sm:py-2 text-xs font-mono font-black uppercase z-50 flex items-center gap-1.5 pointer-events-auto"
         title="Back to Home"
       >
         <span>←</span> HOME
@@ -673,15 +826,22 @@ export default function TrafficRiderGame() {
 
       <div ref={containerRef} className="relative border-4 border-black shadow-neo-2xl bg-black overflow-hidden flex items-center justify-center">
         
-        {/* Top-Left Score Overlay */}
-        <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-10 bg-neo-yellow border-3 border-black shadow-neo px-2.5 py-1 sm:px-3 sm:py-1.5 flex flex-col items-start">
-          <div className="font-display font-black text-base sm:text-lg text-black leading-tight">
-            SCORE: <span ref={scoreRef}>0</span>
+        {/* Multiplayer 1v1 VS HUD */}
+        {isMultiplayer && isPlaying && (
+          <MultiplayerVSHUD timeLeft={mpTimeLeft} showLives={false} />
+        )}
+
+        {/* Top-Left Score Overlay (Solo Mode) */}
+        {!isMultiplayer && (
+          <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-10 bg-neo-yellow border-3 border-black shadow-neo px-2.5 py-1 sm:px-3 sm:py-1.5 flex flex-col items-start">
+            <div className="font-display font-black text-base sm:text-lg text-black leading-tight">
+              SCORE: <span ref={scoreRef}>0</span>
+            </div>
+            <div className="font-mono text-[9px] sm:text-[10px] font-bold text-zinc-800 uppercase">
+              HIGH: <span ref={highScoreRef}>{highScore}</span>
+            </div>
           </div>
-          <div className="font-mono text-[9px] sm:text-[10px] font-bold text-zinc-800 uppercase">
-            HIGH: <span ref={highScoreRef}>{highScore}</span>
-          </div>
-        </div>
+        )}
 
         {/* Bottom-Right Speedometer / Boost Dial */}
         <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-10 w-24 sm:w-28 bg-[#FFFDF5] border-3 border-black shadow-neo p-1.5 sm:p-2 flex flex-col items-center">
@@ -725,10 +885,29 @@ export default function TrafficRiderGame() {
 
             <div className="flex flex-col gap-2 w-full mt-2 shrink-0 pb-1">
               <button onClick={startGame} className="neo-btn-primary w-full py-2.5 sm:py-3 text-sm sm:text-base uppercase tracking-wider">
-                RACE NOW ➔
+                {isMultiplayer ? "RACE AGAIN ➔" : "RACE NOW ➔"}
               </button>
+
               <button
-                onClick={() => navigate('/')}
+                onClick={() => {
+                  setIsMultiplayer(true);
+                  setShowLobbyModal(true);
+                }}
+                className="w-full py-2 sm:py-2.5 bg-neo-pink hover:bg-rose-300 text-black border-2 sm:border-3 border-black font-mono font-black text-xs uppercase shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-all flex items-center justify-center gap-1.5"
+              >
+                <span>⚔️</span>
+                <span>SWITCH TO MULTIPLAYER (1v1)</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  if (isMultiplayer) {
+                    leaveRoom();
+                    resetMultiplayerState();
+                  }
+                  stopCarEngineSound();
+                  navigate('/');
+                }}
                 className="w-full py-2 sm:py-2.5 bg-white hover:bg-zinc-100 text-black border-2 sm:border-3 border-black font-mono font-black text-xs uppercase shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-all flex items-center justify-center gap-1.5"
               >
                 <span>←</span>
@@ -760,6 +939,46 @@ export default function TrafficRiderGame() {
       <div className="fixed bottom-4 right-4 w-28 h-20 sm:w-32 sm:h-24 border-[3px] border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] z-40 overflow-hidden pointer-events-none">
         <AnimeCam videoRef={videoRef} />
       </div>
+
+      {/* ── Mode Selection Modal (Single Player vs Multiplayer) ─────── */}
+      <GameModeModal
+        isOpen={showModeModal}
+        onClose={() => setShowModeModal(false)}
+        onSelectSinglePlayer={() => {
+          setIsMultiplayer(false);
+          setShowModeModal(false);
+        }}
+        onSelectMultiplayer={() => {
+          setIsMultiplayer(true);
+          setShowModeModal(false);
+          setShowLobbyModal(true);
+        }}
+        gameTitle="Crazy Road"
+      />
+
+      {/* ── Multiplayer Lobby Modal (Random / Friends / Stakes) ─────── */}
+      <MultiplayerLobbyModal
+        isOpen={isMultiplayer && showLobbyModal}
+        onClose={() => {
+          setShowLobbyModal(false);
+          setShowModeModal(true);
+          setIsMultiplayer(false);
+          setIsPlaying(false);
+        }}
+        gameId="hill-climb"
+        gameTitle="Crazy Road"
+      />
+
+      {/* ── Multiplayer Result Modal ─────────────────────────────────── */}
+      <MultiplayerResultModal
+        isOpen={isMultiplayer && Boolean(matchResult)}
+        onReturnToLobby={() => {
+          resetMultiplayerState();
+          setIsMultiplayer(false);
+          setShowModeModal(true);
+          setIsPlaying(false);
+        }}
+      />
     </div>
   );
 }

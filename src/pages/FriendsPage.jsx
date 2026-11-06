@@ -169,8 +169,10 @@ export default function FriendsPage() {
     });
   };
 
-  const handleChallengeFriend = (friendUid) => {
-    const fStatus = friendsStatus[friendUid];
+  const [challengeTargetFriend, setChallengeTargetFriend] = useState(null);
+
+  const handleChallengeFriend = (friend) => {
+    const fStatus = friendsStatus[friend.uid];
     if (fStatus?.isPlaying) {
       setNeoAlert({
         title: 'FRIEND IS PLAYING',
@@ -179,8 +181,15 @@ export default function FriendsPage() {
       });
       return;
     }
-    sendFriendInvite(friendUid, 'fruit-ninja');
-    navigate('/fruit-ninja?mode=multiplayer');
+    setChallengeTargetFriend(friend);
+  };
+
+  const executeChallenge = (gameId) => {
+    if (!challengeTargetFriend) return;
+    sendFriendInvite(challengeTargetFriend.uid, gameId);
+    const targetRoute = gameId === 'hill-climb' ? '/hill-climb' : '/fruit-ninja';
+    navigate(`${targetRoute}?mode=multiplayer`);
+    setChallengeTargetFriend(null);
   };
 
   const todayDate = new Date().toISOString().slice(0, 10);
@@ -462,7 +471,7 @@ export default function FriendsPage() {
                     {/* Actions */}
                     <div className="flex items-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-200">
                       <button
-                        onClick={() => handleChallengeFriend(friend.uid)}
+                        onClick={() => handleChallengeFriend(friend)}
                         disabled={!isOnline || isPlaying}
                         className={`flex-1 sm:flex-none px-3.5 py-1.5 font-mono font-black text-xs uppercase border-2 border-black shadow-neo-sm transition-all flex items-center justify-center gap-1.5 ${
                           isPlaying
@@ -794,6 +803,61 @@ export default function FriendsPage() {
         )}
 
       </div>
+
+      {/* ── Game Challenge Selection Modal ── */}
+      {challengeTargetFriend && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4 select-none animate-in fade-in duration-150">
+          <div className="neo-box-xl bg-[#FFFDF5] max-w-sm w-full p-6 text-center relative border-3 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+            <button
+              onClick={() => setChallengeTargetFriend(null)}
+              className="absolute top-4 right-4 w-8 h-8 bg-white border-2 border-black font-mono font-black text-xs hover:bg-zinc-100 flex items-center justify-center cursor-pointer shadow-neo-sm"
+            >
+              ✕
+            </button>
+
+            <span className="inline-block px-3 py-1 bg-neo-yellow border-2 border-black font-mono font-black text-[10px] uppercase mb-3 shadow-neo-sm">
+              ⚔️ 1v1 MATCH INVITATION
+            </span>
+
+            <h3 className="font-display font-black text-xl uppercase mb-1">
+              Challenge {challengeTargetFriend.username}
+            </h3>
+            <p className="font-mono text-xs text-zinc-600 mb-5">
+              Choose the arena for your live 1v1 coin wager duel:
+            </p>
+
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => executeChallenge('fruit-ninja')}
+                className="w-full p-3.5 bg-[#FECDD3] hover:bg-[#FDA4AF] border-3 border-black shadow-neo font-mono font-black text-xs uppercase flex items-center justify-between transition-transform active:translate-y-0.5 cursor-pointer text-left"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-2xl">🍉</span>
+                  <div>
+                    <div className="font-display font-black text-sm text-black">Fruit Ninja</div>
+                    <div className="font-mono text-[10px] text-zinc-700">Blade slicing reflex duel</div>
+                  </div>
+                </div>
+                <span className="text-black font-mono font-black text-xs">GO →</span>
+              </button>
+
+              <button
+                onClick={() => executeChallenge('hill-climb')}
+                className="w-full p-3.5 bg-[#FEF08A] hover:bg-[#FDE047] border-3 border-black shadow-neo font-mono font-black text-xs uppercase flex items-center justify-between transition-transform active:translate-y-0.5 cursor-pointer text-left"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-2xl">🏎️</span>
+                  <div>
+                    <div className="font-display font-black text-sm text-black">Crazy Road</div>
+                    <div className="font-mono text-[10px] text-zinc-700">High-speed traffic dodge race</div>
+                  </div>
+                </div>
+                <span className="text-black font-mono font-black text-xs">GO →</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Daily Friend Coin Request Modal ── */}
       <FriendCoinRequestModal

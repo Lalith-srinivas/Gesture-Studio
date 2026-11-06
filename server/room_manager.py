@@ -67,6 +67,15 @@ MATCH_TIERS = {
 
 INITIAL_USER_COINS = 1000
 
+def format_game_display_name(game_id: str) -> str:
+    if not game_id:
+        return "Fruit Ninja"
+    if game_id == "fruit-ninja":
+        return "Fruit Ninja"
+    if game_id in ("hill-climb", "crazy-road", "crazyroad"):
+        return "Crazy Road"
+    return game_id.replace("-", " ").title()
+
 class RoomManager:
     def __init__(self):
         # Connected clients: uid -> { ws, username, avatar, status, current_room }
@@ -632,7 +641,7 @@ class RoomManager:
             pool = room.get("total_pool", 400)
             tier = room.get("tier", "bronze")
             game_id = room.get("game_id", "fruit-ninja")
-            game_name = "Fruit Ninja" if game_id == "fruit-ninja" else game_id.replace("-", " ").title()
+            game_name = format_game_display_name(game_id)
 
             match_data = {
                 "matchId": room["room_id"],
@@ -930,7 +939,7 @@ class RoomManager:
             return
 
         # Settle match immediately upon any player game over
-        if reason in ("bomb", "miss", "defeat", "game_over"):
+        if reason in ("bomb", "miss", "defeat", "game_over", "crash"):
             await self.settle_match(room_id, default_winner_uid=other_uid)
         else:
             await self.settle_match(room_id)
@@ -1296,7 +1305,7 @@ class RoomManager:
                 "avatar": from_user["avatar"]
             },
             "gameId": game_id,
-            "gameName": "Fruit Ninja" if game_id == "fruit-ninja" else game_id.replace("-", " ").title()
+            "gameName": format_game_display_name(game_id)
         })
 
         await self.send_to_user(from_uid, {

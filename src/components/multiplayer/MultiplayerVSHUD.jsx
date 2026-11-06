@@ -9,6 +9,7 @@ export default function MultiplayerVSHUD({
   maxLives = 10,
   myBombs = 0,
   maxBombs = 3,
+  showLives = true,
 }) {
   const { opponent, myScore, opponentScore, totalPool, tier, opponentGraceTimer } = useMultiplayer();
   const { currentUser } = useAuth();
@@ -48,15 +49,17 @@ export default function MultiplayerVSHUD({
           </div>
         </div>
 
-        {/* Lives / Bombs Indicators */}
-        <div className="flex gap-1">
-          <div className="bg-[#FFFDF5] border border-black px-1.5 py-0.5 text-[10px] font-mono font-bold">
-            ❤️ {myLives}/{maxLives}
+        {/* Lives / Bombs Indicators (for Fruit Ninja) */}
+        {showLives && (
+          <div className="flex gap-1">
+            <div className="bg-[#FFFDF5] border border-black px-1.5 py-0.5 text-[10px] font-mono font-bold">
+              ❤️ {myLives}/{maxLives}
+            </div>
+            <div className="bg-[#FFFDF5] border border-black px-1.5 py-0.5 text-[10px] font-mono font-bold">
+              💣 {maxBombs - myBombs}/{maxBombs}
+            </div>
           </div>
-          <div className="bg-[#FFFDF5] border border-black px-1.5 py-0.5 text-[10px] font-mono font-bold">
-            💣 {maxBombs - myBombs}/{maxBombs}
-          </div>
-        </div>
+        )}
       </div>
 
       {/* ── Center: Match Info & Timer ── */}
