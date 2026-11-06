@@ -329,8 +329,8 @@ export default function StickmanShowdown() {
       });
     }
 
-    // 2. Submit with backend-supported keyword ('defeat' or 'game_over') so server settles immediately
-    const serverReason = reason === 'opponent_eliminated' || isWinner ? 'game_over' : 'defeat';
+    // 2. Submit with backend-supported keyword ('opponent_eliminated' for winner, 'defeat' for loser)
+    const serverReason = isWinner ? 'opponent_eliminated' : (reason || 'defeat');
     submitFinalScore(eng.score, serverReason);
 
     // 3. Immediately transition client state so controls & result modal show instantly without lag

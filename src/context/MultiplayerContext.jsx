@@ -14,9 +14,13 @@ import { playCountdownSound } from '../utils/soundEffects';
 const MultiplayerContext = createContext(null);
 
 const WS_URL = import.meta.env.VITE_WS_BACKEND_URL || (
-  window.location.protocol === 'https:'
-    ? `wss://${window.location.host}/ws`
-    : `ws://127.0.0.1:8000/ws`
+  typeof window !== 'undefined' && window.location.protocol === 'https:'
+    ? (window.location.hostname.endsWith('github.io') || window.location.hostname.includes('firebaseapp.com') || window.location.hostname.includes('web.app')
+        ? 'wss://gesture-studio.onrender.com/ws'
+        : `wss://${window.location.host}/ws`)
+    : (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+        ? `ws://${window.location.hostname}:8000/ws`
+        : `ws://127.0.0.1:8000/ws`)
 );
 
 export function MultiplayerProvider({ children }) {

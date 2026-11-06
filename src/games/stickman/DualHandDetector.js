@@ -210,30 +210,20 @@ export class DualHandDetector {
     // 4. MOVEMENT: Open Palm = Stop / Neutral, Move Left / Right = Move
     // ─────────────────────────────────────────────────────────────────────────
     if (!isFist && !isPinching) {
-      const deltaX = screenX - this.neutralX;
-
       if (isOpenPalm) {
-        // Open palm defaults to STOP / NEUTRAL unless deliberately moved/tilted far
-        if (deltaX < -0.10 || tiltX < -0.09) {
-          result.moveX = -1;
-          result.gestureName = '👈 Move Left';
-          result.rightGesture = '👈 Move Left';
-        } else if (deltaX > 0.10 || tiltX > 0.09) {
-          result.moveX = 1;
-          result.gestureName = '👉 Move Right';
-          result.rightGesture = '👉 Move Right';
-        } else {
-          result.moveX = 0; // STOP / NEUTRAL
-          result.gestureName = '✋ Open Palm (Stop)';
-          result.rightGesture = '✋ Open Palm (Stop)';
-        }
+        // Open palm is STRICTLY STOP / STAND STILL — eliminates accidental drifting or falling
+        result.moveX = 0;
+        result.gestureName = '✋ Open Palm (Stop)';
+        result.rightGesture = '✋ Open Palm (Stop)';
       } else {
-        // Pointing or semi-open hand moving left or right
-        if (deltaX < -0.07 || tiltX < -0.07) {
+        // Moving hand horizontally relative to the neutral resting position
+        const deltaX = screenX - this.neutralX;
+
+        if (deltaX < -0.075) {
           result.moveX = -1;
           result.gestureName = '👈 Move Left';
           result.rightGesture = '👈 Move Left';
-        } else if (deltaX > 0.07 || tiltX > 0.07) {
+        } else if (deltaX > 0.075) {
           result.moveX = 1;
           result.gestureName = '👉 Move Right';
           result.rightGesture = '👉 Move Right';

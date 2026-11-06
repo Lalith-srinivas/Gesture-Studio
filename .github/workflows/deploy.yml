@@ -35,6 +35,15 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY || 'AIzaSyBTqAV7ICb_efIvv5hn632fvqPfbpvbfjo' }}
+          VITE_FIREBASE_AUTH_DOMAIN: gesture-studio.firebaseapp.com
+          VITE_FIREBASE_PROJECT_ID: gesture-studio
+          VITE_FIREBASE_STORAGE_BUCKET: gesture-studio.firebasestorage.app
+          VITE_FIREBASE_MESSAGING_SENDER_ID: 285043818581
+          VITE_FIREBASE_APP_ID: 1:285043818581:web:312670c321b92a9ca954dc
+          VITE_FIREBASE_MEASUREMENT_ID: G-S1WYRLPLSR
+          VITE_WS_BACKEND_URL: wss://gesture-studio.onrender.com/ws
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
