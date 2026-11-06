@@ -361,6 +361,13 @@ export default function StickmanShowdown() {
       setCountdownSec(null);
       engineRef.current.running = false;
       if (matchTimerRef.current) clearInterval(matchTimerRef.current);
+      // Automatically exit fullscreen so mobile browser controls and page layout are immediately restored
+      if (document.fullscreenElement || document.webkitFullscreenElement) {
+        try {
+          if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+          else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        } catch {}
+      }
     } else if (matchState === 'IDLE') {
       setCountdownSec(null);
       setShowLobbyModal(true);
@@ -1231,7 +1238,7 @@ export default function StickmanShowdown() {
       />
 
       {/* ── Mobile Orientation Rotate Screen Blocker (Layer 110) ─────────── */}
-      {isPortrait && (
+      {isPortrait && matchState !== 'FINISHED' && (
         <div className="fixed inset-0 z-[110] bg-[#040914] flex flex-col items-center justify-center p-6 text-center select-none text-white animate-in fade-in">
           <div className="w-20 h-20 mb-4 animate-bounce text-6xl flex items-center justify-center">
             📱🔄
