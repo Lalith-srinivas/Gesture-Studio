@@ -198,7 +198,7 @@ export default function Home() {
 
           <Link
             to="/achievements"
-            className="relative px-2.5 sm:px-3 py-1 bg-[#FDE047] hover:bg-yellow-300 text-black border-2 border-black font-mono font-black text-xs uppercase flex items-center gap-1.5 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
+            className="hidden md:flex relative px-2.5 sm:px-3 py-1 bg-[#FDE047] hover:bg-yellow-300 text-black border-2 border-black font-mono font-black text-xs uppercase items-center gap-1.5 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 transition-transform"
             title="Achievements"
           >
             <span>🥇</span>

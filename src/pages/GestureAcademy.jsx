@@ -12,6 +12,7 @@ import ArcheryTutorial from '../components/academy/ArcheryTutorial';
 import BirdHunterTutorial from '../components/academy/BirdHunterTutorial';
 import FruitNinjaTutorial from '../components/academy/FruitNinjaTutorial';
 import SpaceShooterTutorial from '../components/academy/SpaceShooterTutorial';
+import StickmanTutorial from '../components/academy/StickmanTutorial';
 
 // ── Web Audio Sound Synthesis ─────────────────────────────────────────────
 class SoundPlayer {
@@ -101,6 +102,7 @@ const GAME_MAP = {
   'archery': { name: 'Archery Challenge', path: '/archery', emoji: '🏹' },
   'bird-hunter': { name: 'Bird Hunter', path: '/bird-hunter', emoji: '🦅' },
   'space-shooter': { name: 'Space Shooter', path: '/space-shooter', emoji: '🚀' },
+  'stickman': { name: 'Stickman Showdown', path: '/stickman-showdown', emoji: '⚔️' },
 };
 
 // ── Master Gestures Dictionary ───────────────────────────────────────────
@@ -665,6 +667,8 @@ export default function GestureAcademy() {
           <FruitNinjaTutorial />
         ) : targetGameKey === 'space-shooter' ? (
           <SpaceShooterTutorial />
+        ) : targetGameKey === 'stickman' ? (
+          <StickmanTutorial />
         ) : !isCompleted ? (
           <div className="flex flex-col gap-6">
             {/* ── Progress Bar & Lesson Counter ────────────────────────────── */}

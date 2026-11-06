@@ -56,6 +56,7 @@ export default function StickmanShowdown() {
   // References
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
+  const rootRef = useRef(null);
   const inputRef = useRef(null);
   const rendererRef = useRef(null);
   const particlesRef = useRef(new ParticleSystem());
@@ -113,8 +114,8 @@ export default function StickmanShowdown() {
   }, [checkOrientation]);
 
   const toggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      const elem = containerRef.current || document.documentElement;
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      const elem = rootRef.current || document.documentElement;
       if (elem.requestFullscreen) {
         elem.requestFullscreen().catch(() => {});
       } else if (elem.webkitRequestFullscreen) {
@@ -128,14 +129,20 @@ export default function StickmanShowdown() {
     } else {
       if (document.exitFullscreen) {
         document.exitFullscreen().catch(() => {});
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
       }
     }
   }, []);
 
   const handleGoBack = useCallback(() => {
-    if (document.fullscreenElement) {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
       try {
-        document.exitFullscreen().catch(() => {});
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        }
       } catch {}
     }
     leaveRoom();
@@ -910,21 +917,21 @@ export default function StickmanShowdown() {
   }, [matchState, gameLoop]);
 
   // Mobile Virtual Button Handlers
-  const handleTouchMoveStart = (dir) => {
-    if (inputRef.current) inputRef.current.setVirtualInput({ moveX: dir, jump: false });
+  const handleTouchMoveStart = (e, dir) => {
+    if (e && e.cancelable) e.preventDefault();
+    if (inputRef.current) inputRef.current.setVirtualMove(dir);
   };
-  const handleTouchMoveEnd = () => {
-    if (inputRef.current) inputRef.current.setVirtualInput({ moveX: 0, jump: false });
+  const handleTouchMoveEnd = (e) => {
+    if (e && e.cancelable) e.preventDefault();
+    if (inputRef.current) inputRef.current.setVirtualMove(0);
   };
-  const handleTouchJump = () => {
-    if (inputRef.current) inputRef.current.setVirtualInput({ moveX: 0, jump: true });
-    setTimeout(() => {
-      if (inputRef.current) inputRef.current.setVirtualInput({ moveX: 0, jump: false });
-    }, 150);
+  const handleTouchJump = (e) => {
+    if (e && e.cancelable) e.preventDefault();
+    if (inputRef.current) inputRef.current.triggerVirtualJump();
   };
 
   return (
-    <div className="min-h-screen bg-[#040914] text-white flex flex-col items-center justify-center p-0 sm:p-2 select-none font-sans relative overflow-hidden">
+    <div ref={rootRef} className="fixed inset-0 w-screen h-screen bg-[#040914] text-white flex items-center justify-center p-0 select-none font-sans overflow-hidden">
 
       {/* Hidden Webcam Video for MediaPipe Hand Tracking */}
       <video ref={videoRef} className="hidden" playsInline muted autoPlay />
@@ -951,12 +958,20 @@ export default function StickmanShowdown() {
           <p className="font-mono text-xs sm:text-sm text-zinc-300 max-w-xs mb-6">
             Stickman Showdown 1v1 Arena is designed for widescreen landscape combat. Please turn your phone horizontally.
           </p>
-          <button
-            onClick={toggleFullscreen}
-            className="px-6 py-3 bg-neo-lime hover:bg-lime-400 text-black border-3 border-black font-display font-black text-sm uppercase shadow-neo active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
-          >
-            ⛶ ENTER FULLSCREEN & PLAY
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleGoBack}
+              className="px-4 py-2.5 bg-white text-black border-2 border-black font-mono font-black text-xs uppercase shadow-neo cursor-pointer"
+            >
+              ← EXIT TO HOME
+            </button>
+            <button
+              onClick={toggleFullscreen}
+              className="px-5 py-2.5 bg-neo-lime hover:bg-lime-400 text-black border-2 border-black font-display font-black text-xs uppercase shadow-neo cursor-pointer"
+            >
+              ⛶ FULLSCREEN
+            </button>
+          </div>
         </div>
       )}
 
@@ -977,15 +992,18 @@ export default function StickmanShowdown() {
         }}
       />
 
-      {/* ── Active Game Arena (Landscape Canvas) ────────────────────────── */}
+      {/* ── Active Game Arena (Centered Landscape Canvas) ───────────────── */}
       <div
         ref={containerRef}
-        className={`relative border-2 sm:border-4 border-[#1e293b] shadow-[0_0_35px_rgba(0,0,0,0.85)] bg-[#040914] rounded-lg overflow-hidden flex items-center justify-center w-full max-w-[960px] aspect-[16/9] ${
-          isFullscreen ? 'fixed inset-0 w-screen h-screen max-w-none max-h-none rounded-none border-none aspect-auto z-10' : ''
-        }`}
+        className="relative w-full h-full flex items-center justify-center overflow-hidden"
       >
         {/* Canvas */}
-        <canvas ref={canvasRef} width={960} height={540} className="block w-full h-full object-contain cursor-crosshair touch-none" />
+        <canvas
+          ref={canvasRef}
+          width={960}
+          height={540}
+          className="max-w-full max-h-full aspect-[16/9] block object-contain cursor-crosshair touch-none"
+        />
 
         {/* ── 3-2-1-GO Countdown Overlay (ONLY visible during COUNTDOWN state) ─ */}
         {matchState === 'COUNTDOWN' && countdownSec !== null && (
@@ -1005,21 +1023,21 @@ export default function StickmanShowdown() {
       </div>
 
       {/* ── FULL PAGE Top Match VS HUD (Anchored Across Full Viewport) ───── */}
-      {matchState === 'PLAYING' && (
-        <div className="fixed top-0 left-0 right-0 z-40 px-2 sm:px-4 pt-2 pb-1 flex items-center justify-between pointer-events-none select-none">
+      {(matchState === 'PLAYING' || matchState === 'COUNTDOWN') && (
+        <div className="fixed top-0 left-0 right-0 z-40 px-2 sm:px-4 pt-1 sm:pt-2 pb-1 flex items-center justify-between pointer-events-none select-none">
           
           {/* Player 1 Health (Offset for Back button) */}
-          <div className="flex items-center gap-2 pointer-events-auto pl-20 sm:pl-24">
-            <div className="flex items-center gap-2 bg-black/85 border-2 border-black p-1.5 shadow-neo-sm">
-              <span className="text-lg sm:text-xl">🏹</span>
+          <div className="flex items-center gap-2 pointer-events-auto pl-22 sm:pl-28">
+            <div className="flex items-center gap-2 bg-black/85 border-2 border-black p-1 sm:p-1.5 shadow-neo-sm">
+              <span className="text-base sm:text-xl">🏹</span>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <span className="font-mono font-black text-[10px] sm:text-xs uppercase text-amber-400 truncate max-w-[90px] sm:max-w-[130px]">
+                  <span className="font-mono font-black text-[9px] sm:text-xs uppercase text-amber-400 truncate max-w-[80px] sm:max-w-[130px]">
                     {isPlayer1 ? (playerData?.username || 'You') : (opponent?.username || 'Opponent')}
                   </span>
-                  {isPlayer1 && <span className="bg-neo-lime border border-black text-[8px] sm:text-[9px] font-mono font-black px-1 text-black">YOU</span>}
+                  {isPlayer1 && <span className="bg-neo-lime border border-black text-[7px] sm:text-[9px] font-mono font-black px-1 text-black">YOU</span>}
                 </div>
-                <div className="w-20 sm:w-36 h-2 sm:h-2.5 bg-zinc-800 border border-black rounded-xs overflow-hidden mt-0.5">
+                <div className="w-16 sm:w-36 h-1.5 sm:h-2.5 bg-zinc-800 border border-black rounded-xs overflow-hidden mt-0.5">
                   <div
                     className="h-full bg-emerald-500 transition-all duration-150"
                     style={{ width: `${Math.max(0, Math.min(100, ((isPlayer1 ? myHp : oppHp) / MAX_HP) * 100))}%` }}
@@ -1030,15 +1048,15 @@ export default function StickmanShowdown() {
           </div>
 
           {/* Center Timer & Match Controls */}
-          <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
-            <div className="bg-neo-yellow border-2 sm:border-3 border-black px-2.5 sm:px-3 py-1 text-black font-display font-black text-xs sm:text-base shadow-neo-sm">
+          <div className="flex items-center gap-1 sm:gap-2 pointer-events-auto">
+            <div className="bg-neo-yellow border-2 sm:border-3 border-black px-2 sm:px-3 py-0.5 sm:py-1 text-black font-display font-black text-xs sm:text-base shadow-neo-sm">
               ⏱️ {matchTimeLeft}s
             </div>
             
             {/* Webcam Gestures Toggle */}
             <button
               onClick={() => setCameraEnabled((prev) => !prev)}
-              className={`px-2 py-1 border-2 border-black font-mono font-black text-[9px] sm:text-xs uppercase shadow-neo-sm cursor-pointer transition-transform active:scale-95 ${
+              className={`px-1.5 sm:px-2 py-0.5 sm:py-1 border-2 border-black font-mono font-black text-[8px] sm:text-xs uppercase shadow-neo-sm cursor-pointer transition-transform active:scale-95 ${
                 cameraEnabled ? 'bg-[#86EFAC] text-black' : 'bg-zinc-700 text-zinc-300'
               }`}
               title={cameraEnabled ? 'AI Gestures Active' : 'Camera Disabled'}
@@ -1048,7 +1066,7 @@ export default function StickmanShowdown() {
 
             <button
               onClick={toggleFullscreen}
-              className="w-8 h-8 bg-zinc-800 hover:bg-zinc-700 border-2 border-black flex items-center justify-center text-xs font-mono font-black shadow-neo-sm cursor-pointer text-white"
+              className="w-7 h-7 sm:w-8 sm:h-8 bg-zinc-800 hover:bg-zinc-700 border-2 border-black flex items-center justify-center text-xs font-mono font-black shadow-neo-sm cursor-pointer text-white"
               title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
             >
               {isFullscreen ? '🗗' : '⛶'}
@@ -1060,7 +1078,7 @@ export default function StickmanShowdown() {
                 resetMultiplayerState();
                 setShowLobbyModal(true);
               }}
-              className="w-8 h-8 bg-red-600 hover:bg-red-500 border-2 border-black flex items-center justify-center text-xs font-mono font-black shadow-neo-sm cursor-pointer text-white"
+              className="w-7 h-7 sm:w-8 sm:h-8 bg-red-600 hover:bg-red-500 border-2 border-black flex items-center justify-center text-xs font-mono font-black shadow-neo-sm cursor-pointer text-white"
               title="Leave Match"
             >
               ✕
@@ -1068,84 +1086,120 @@ export default function StickmanShowdown() {
           </div>
 
           {/* Player 2 Health */}
-          <div className="flex items-center gap-2 bg-black/85 border-2 border-black p-1.5 shadow-neo-sm text-right pointer-events-auto">
+          <div className="flex items-center gap-2 bg-black/85 border-2 border-black p-1 sm:p-1.5 shadow-neo-sm text-right pointer-events-auto">
             <div>
               <div className="flex items-center justify-end gap-1.5">
-                {!isPlayer1 && <span className="bg-neo-lime border border-black text-[8px] sm:text-[9px] font-mono font-black px-1 text-black">YOU</span>}
-                <span className="font-mono font-black text-[10px] sm:text-xs uppercase text-cyan-400 truncate max-w-[90px] sm:max-w-[130px]">
+                {!isPlayer1 && <span className="bg-neo-lime border border-black text-[7px] sm:text-[9px] font-mono font-black px-1 text-black">YOU</span>}
+                <span className="font-mono font-black text-[9px] sm:text-xs uppercase text-cyan-400 truncate max-w-[80px] sm:max-w-[130px]">
                   {!isPlayer1 ? (playerData?.username || 'You') : (opponent?.username || 'Opponent')}
                 </span>
               </div>
-              <div className="w-20 sm:w-36 h-2 sm:h-2.5 bg-zinc-800 border border-black rounded-xs overflow-hidden mt-0.5">
+              <div className="w-16 sm:w-36 h-1.5 sm:h-2.5 bg-zinc-800 border border-black rounded-xs overflow-hidden mt-0.5">
                 <div
                   className="h-full bg-cyan-500 transition-all duration-150"
                   style={{ width: `${Math.max(0, Math.min(100, ((!isPlayer1 ? myHp : oppHp) / MAX_HP) * 100))}%` }}
                 />
               </div>
             </div>
-            <span className="text-lg sm:text-xl">🎯</span>
+            <span className="text-base sm:text-xl">🎯</span>
           </div>
 
         </div>
       )}
 
       {/* ── Webcam PIP & Live Gesture HUD ──────────────────────────────── */}
-      {cameraEnabled && matchState === 'PLAYING' && showPip && (
-        <div className="fixed top-14 right-2 sm:right-4 z-40 pointer-events-auto bg-black/85 border-2 border-black p-1 rounded shadow-neo-sm flex flex-col items-center">
-          <canvas ref={pipCanvasRef} width={140} height={105} className="w-24 sm:w-32 h-auto border border-white/20 rounded-xs block bg-zinc-950" />
-          <div className="w-full flex justify-between items-center text-[8px] sm:text-[9px] font-mono font-black text-zinc-300 mt-1 px-1">
+      {cameraEnabled && (matchState === 'PLAYING' || matchState === 'COUNTDOWN') && showPip && (
+        <div className="fixed top-12 sm:top-14 right-2 sm:right-4 z-40 pointer-events-auto bg-black/85 border-2 border-black p-1 rounded shadow-neo-sm flex flex-col items-center">
+          <canvas ref={pipCanvasRef} width={140} height={105} className="w-20 sm:w-28 h-auto border border-white/20 rounded-xs block bg-zinc-950" />
+          <div className="w-full flex justify-between items-center text-[7px] sm:text-[9px] font-mono font-black text-zinc-300 mt-0.5 px-0.5">
             <span>{cameraReady ? '🟢 DUAL-HAND' : '🟡 CAMERA'}</span>
             <button onClick={() => setShowPip(false)} className="text-zinc-400 hover:text-white cursor-pointer">✕</button>
           </div>
-          <div className="w-full text-[8px] font-mono text-amber-300 px-1 truncate max-w-[130px]">
+          <div className="w-full text-[7px] sm:text-[8px] font-mono text-amber-300 px-0.5 truncate max-w-[110px] sm:max-w-[130px]">
             L: {leftGestureStatus}
           </div>
-          <div className="w-full text-[8px] font-mono text-cyan-300 px-1 truncate max-w-[130px]">
+          <div className="w-full text-[7px] sm:text-[8px] font-mono text-cyan-300 px-0.5 truncate max-w-[110px] sm:max-w-[130px]">
             R: {rightGestureStatus}
           </div>
         </div>
       )}
 
       {/* ── FULL PAGE Mobile Virtual On-Screen Touch Controls ───────────── */}
-      {matchState === 'PLAYING' && (
+      {(matchState === 'PLAYING' || matchState === 'COUNTDOWN') && (
         <div className="fixed bottom-2 sm:bottom-3 left-2 sm:left-4 right-2 sm:right-4 z-40 pointer-events-none flex justify-between items-end">
           
           {/* Left Touch Pad (Move Left, Move Right, Jump) */}
-          <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto select-none">
+          <div className="flex items-center gap-1 sm:gap-2 pointer-events-auto select-none">
             <button
-              onTouchStart={() => handleTouchMoveStart(-1)}
+              onTouchStart={(e) => handleTouchMoveStart(e, -1)}
               onTouchEnd={handleTouchMoveEnd}
-              onMouseDown={() => handleTouchMoveStart(-1)}
+              onTouchCancel={handleTouchMoveEnd}
+              onMouseDown={(e) => handleTouchMoveStart(e, -1)}
               onMouseUp={handleTouchMoveEnd}
-              className="w-12 h-12 sm:w-14 sm:h-14 bg-black/85 hover:bg-black text-white border-2 sm:border-3 border-black font-display font-black text-xl flex items-center justify-center rounded shadow-neo active:scale-95 cursor-pointer touch-none"
+              className="w-11 h-11 sm:w-14 sm:h-14 bg-black/85 hover:bg-black text-white border-2 sm:border-3 border-black font-display font-black text-lg sm:text-xl flex items-center justify-center rounded shadow-neo active:scale-95 cursor-pointer touch-none"
             >
               ◀
             </button>
             <button
-              onTouchStart={() => handleTouchMoveStart(1)}
+              onTouchStart={(e) => handleTouchMoveStart(e, 1)}
               onTouchEnd={handleTouchMoveEnd}
-              onMouseDown={() => handleTouchMoveStart(1)}
+              onTouchCancel={handleTouchMoveEnd}
+              onMouseDown={(e) => handleTouchMoveStart(e, 1)}
               onMouseUp={handleTouchMoveEnd}
-              className="w-12 h-12 sm:w-14 sm:h-14 bg-black/85 hover:bg-black text-white border-2 sm:border-3 border-black font-display font-black text-xl flex items-center justify-center rounded shadow-neo active:scale-95 cursor-pointer touch-none"
+              className="w-11 h-11 sm:w-14 sm:h-14 bg-black/85 hover:bg-black text-white border-2 sm:border-3 border-black font-display font-black text-lg sm:text-xl flex items-center justify-center rounded shadow-neo active:scale-95 cursor-pointer touch-none"
             >
               ▶
             </button>
             <button
               onTouchStart={handleTouchJump}
               onMouseDown={handleTouchJump}
-              className="w-12 h-12 sm:w-14 sm:h-14 bg-amber-500 hover:bg-amber-400 text-black border-2 sm:border-3 border-black font-display font-black text-xl flex items-center justify-center rounded shadow-neo active:scale-95 cursor-pointer touch-none ml-1"
+              className="w-11 h-11 sm:w-14 sm:h-14 bg-amber-500 hover:bg-amber-400 text-black border-2 sm:border-3 border-black font-display font-black text-lg sm:text-xl flex items-center justify-center rounded shadow-neo active:scale-95 cursor-pointer touch-none ml-0.5 sm:ml-1"
               title="Jump"
             >
               ▲
             </button>
           </div>
 
-          {/* Right Touch Pad (Quick Arrow Selector & Hint) */}
-          <div className="flex flex-col items-end gap-1 pointer-events-auto select-none">
-            <div className="flex items-center gap-1 bg-black/80 border border-white/20 p-1 sm:p-1.5 rounded text-[8px] sm:text-[10px] font-mono text-zinc-300 shadow-neo-sm">
-              <span className="text-zinc-400 hidden sm:inline">TOUCH CANVAS TO AIM & SHOOT</span>
-              <span className="text-amber-400 font-black">🏹 {ARROW_TYPES[currentArrowIdx]?.name}</span>
+          {/* Right Touch Pad (Shoot Button & Arrow Selector) */}
+          <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto select-none">
+            <div className="flex flex-col items-end gap-1">
+              <button
+                onClick={() => setCurrentArrowIdx((prev) => (prev + 1) % ARROW_TYPES.length)}
+                className="flex items-center gap-1 bg-black/80 hover:bg-black border border-white/20 p-1 sm:p-1.5 rounded text-[8px] sm:text-[10px] font-mono text-zinc-300 shadow-neo-sm cursor-pointer"
+                title="Tap to switch arrow"
+              >
+                <span className="text-zinc-400 hidden sm:inline">ARROW:</span>
+                <span className="text-amber-400 font-black">🏹 {ARROW_TYPES[currentArrowIdx]?.name}</span>
+                <span className="text-[9px] text-zinc-400">⟳</span>
+              </button>
             </div>
+
+            {/* Dedicated Shoot Button for easy thumb tapping */}
+            <button
+              onTouchStart={(e) => {
+                if (e.cancelable) e.preventDefault();
+                if (inputRef.current) inputRef.current.triggerTouchDraw();
+              }}
+              onTouchEnd={(e) => {
+                if (e.cancelable) e.preventDefault();
+                if (inputRef.current) inputRef.current.triggerTouchRelease();
+              }}
+              onTouchCancel={(e) => {
+                if (e.cancelable) e.preventDefault();
+                if (inputRef.current) inputRef.current.triggerTouchRelease();
+              }}
+              onMouseDown={() => {
+                if (inputRef.current) inputRef.current.triggerTouchDraw();
+              }}
+              onMouseUp={() => {
+                if (inputRef.current) inputRef.current.triggerTouchRelease();
+              }}
+              className="w-11 h-11 sm:w-14 sm:h-14 bg-red-600 hover:bg-red-500 text-white border-2 sm:border-3 border-black font-display font-black text-xs flex flex-col items-center justify-center rounded shadow-neo active:scale-95 cursor-pointer touch-none"
+              title="Draw & Release Bow"
+            >
+              <span className="text-base sm:text-lg">🏹</span>
+              <span className="text-[7px] sm:text-[9px]">SHOOT</span>
+            </button>
           </div>
 
         </div>

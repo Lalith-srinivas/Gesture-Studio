@@ -1,6 +1,6 @@
 /**
  * InputProviders — Unified Controller Architecture for Stickman Showdown
- * Supports Keyboard, Mouse, Mobile Touch Controls, and AI Hand Gestures simultaneously.
+ * Supports Keyboard, Mouse, Mobile Multi-Touch Controls, and AI Hand Gestures simultaneously.
  */
 
 export class BaseInputProvider {
@@ -12,8 +12,8 @@ export class BaseInputProvider {
       isDrawing: false,     // true while holding down attack/bowstring
       attackRelease: false, // true on the exact frame attack is released
       meleeAttack: false,   // true for quick melee attack
-      weaponIndex: 0,       // 0..4
-      arrowTypeIndex: 0,    // 0..5
+      weaponIndex: 0,
+      arrowTypeIndex: 0,
       specialAbility: false,
     };
   }
@@ -27,17 +27,20 @@ export class KeyboardMouseInputProvider extends BaseInputProvider {
     this.canvas = canvasElement;
     this.keys = {};
     this.mouse = {
-      x: 200,
-      y: 300,
+      x: 300,
+      y: 250,
       isDown: false,
       justReleased: false,
     };
 
-    this.playerScreenPos = { x: 200, y: 400 };
+    this.playerScreenPos = { x: 120, y: 358 };
 
     // Mobile Virtual Touch Controls state
     this.virtualMoveX = 0;
     this.virtualJump = false;
+
+    // Track touch identifier specifically used for aiming on mobile
+    this.aimTouchId = null;
 
     // AI Hand Gesture inputs
     this.gestureState = {
@@ -72,7 +75,7 @@ export class KeyboardMouseInputProvider extends BaseInputProvider {
       this.canvas.addEventListener('mousedown', this.onMouseDown);
       window.addEventListener('mouseup', this.onMouseUp);
 
-      // Touch events for direct touch-to-aim and touch-to-shoot on mobile
+      // Dedicated Touch listeners on canvas
       this.canvas.addEventListener('touchstart', this.onTouchStart, { passive: false });
       this.canvas.addEventListener('touchmove', this.onTouchMove, { passive: false });
       this.canvas.addEventListener('touchend', this.onTouchEnd, { passive: false });
@@ -85,9 +88,12 @@ export class KeyboardMouseInputProvider extends BaseInputProvider {
     this.playerScreenPos.y = y;
   }
 
-  setVirtualInput({ moveX = 0, jump = false }) {
-    this.virtualMoveX = moveX;
-    this.virtualJump = jump;
+  setVirtualMove(dir) {
+    this.virtualMoveX = dir;
+  }
+
+  triggerVirtualJump() {
+    this.virtualJump = true;
   }
 
   setGestureState(gestures) {
@@ -119,8 +125,26 @@ export class KeyboardMouseInputProvider extends BaseInputProvider {
   onMouseMove(e) {
     if (!this.canvas) return;
     const rect = this.canvas.getBoundingClientRect();
-    this.mouse.x = (e.clientX - rect.left) * (this.canvas.width / rect.width);
-    this.mouse.y = (e.clientY - rect.top) * (this.canvas.height / rect.height);
+    const canvasRatio = 960 / 540;
+    const elemRatio = rect.width / rect.height;
+    let actualW = rect.width;
+    let actualH = rect.height;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    if (elemRatio > canvasRatio) {
+      actualW = rect.height * canvasRatio;
+      offsetX = (rect.width - actualW) / 2;
+    } else {
+      actualH = rect.width / canvasRatio;
+      offsetY = (rect.height - actualH) / 2;
+    }
+
+    const relX = (e.clientX - (rect.left + offsetX)) / actualW;
+    const relY = (e.clientY - (rect.top + offsetY)) / actualH;
+
+    this.mouse.x = Math.max(0, Math.min(960, relX * 960));
+    this.mouse.y = Math.max(0, Math.min(540, relY * 540));
   }
 
   onMouseDown(e) {
@@ -139,30 +163,83 @@ export class KeyboardMouseInputProvider extends BaseInputProvider {
     }
   }
 
+  updateAimTouch(touch) {
+    if (!this.canvas) return;
+    const rect = this.canvas.getBoundingClientRect();
+    const canvasRatio = 960 / 540;
+    const elemRatio = rect.width / rect.height;
+    let actualW = rect.width;
+    let actualH = rect.height;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    if (elemRatio > canvasRatio) {
+      actualW = rect.height * canvasRatio;
+      offsetX = (rect.width - actualW) / 2;
+    } else {
+      actualH = rect.width / canvasRatio;
+      offsetY = (rect.height - actualH) / 2;
+    }
+
+    const relX = (touch.clientX - (rect.left + offsetX)) / actualW;
+    const relY = (touch.clientY - (rect.top + offsetY)) / actualH;
+
+    this.mouse.x = Math.max(0, Math.min(960, relX * 960));
+    this.mouse.y = Math.max(0, Math.min(540, relY * 540));
+  }
+
   onTouchStart(e) {
-    if (e.touches && e.touches.length > 0) {
+    if (e.changedTouches && e.changedTouches.length > 0) {
       e.preventDefault();
-      const touch = e.touches[0];
-      const rect = this.canvas.getBoundingClientRect();
-      this.mouse.x = (touch.clientX - rect.left) * (this.canvas.width / rect.width);
-      this.mouse.y = (touch.clientY - rect.top) * (this.canvas.height / rect.height);
-      this.mouse.isDown = true;
-      this.mouse.justReleased = false;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        if (this.aimTouchId === null) {
+          this.aimTouchId = touch.identifier;
+          this.updateAimTouch(touch);
+          this.mouse.isDown = true;
+          this.mouse.justReleased = false;
+          break;
+        }
+      }
     }
   }
 
   onTouchMove(e) {
-    if (e.touches && e.touches.length > 0) {
+    if (e.changedTouches && e.changedTouches.length > 0 && this.aimTouchId !== null) {
       e.preventDefault();
-      const touch = e.touches[0];
-      const rect = this.canvas.getBoundingClientRect();
-      this.mouse.x = (touch.clientX - rect.left) * (this.canvas.width / rect.width);
-      this.mouse.y = (touch.clientY - rect.top) * (this.canvas.height / rect.height);
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        if (touch.identifier === this.aimTouchId) {
+          this.updateAimTouch(touch);
+          break;
+        }
+      }
     }
   }
 
   onTouchEnd(e) {
-    e.preventDefault();
+    if (e.changedTouches && this.aimTouchId !== null) {
+      e.preventDefault();
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        if (touch.identifier === this.aimTouchId) {
+          this.aimTouchId = null;
+          if (this.mouse.isDown) {
+            this.mouse.justReleased = true;
+          }
+          this.mouse.isDown = false;
+          break;
+        }
+      }
+    }
+  }
+
+  triggerTouchDraw() {
+    this.mouse.isDown = true;
+    this.mouse.justReleased = false;
+  }
+
+  triggerTouchRelease() {
     if (this.mouse.isDown) {
       this.mouse.justReleased = true;
     }
@@ -178,7 +255,7 @@ export class KeyboardMouseInputProvider extends BaseInputProvider {
   }
 
   getState() {
-    // 1. Horizontal movement from Keyboard, Mobile Virtual Buttons, or AI Gestures
+    // 1. Horizontal movement from Keyboard, Virtual D-pad, or AI Gestures
     let moveX = 0;
     if (this.keys['a'] || this.keys['arrowleft']) moveX -= 1;
     if (this.keys['d'] || this.keys['arrowright']) moveX += 1;
@@ -201,7 +278,8 @@ export class KeyboardMouseInputProvider extends BaseInputProvider {
       this.gestureState.jump
     );
 
-    // Consume single-frame gesture jump
+    // Consume single-frame jump triggers
+    this.virtualJump = false;
     this.gestureState.jump = false;
 
     // 3. Aiming Angle
@@ -214,7 +292,7 @@ export class KeyboardMouseInputProvider extends BaseInputProvider {
       aimAngle = Math.atan2(dy, dx);
     }
 
-    // 4. Bow Draw & Release (Mouse, Touch, or AI Pinch Gesture)
+    // 4. Bow Draw & Release
     const isDrawing = this.mouse.isDown || Boolean(this.gestureState.isDrawing);
 
     const attackRelease = this.mouse.justReleased || Boolean(this.gestureState.attackRelease);

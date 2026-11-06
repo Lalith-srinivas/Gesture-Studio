@@ -20,6 +20,7 @@ const GAME_NAMES = [
   'archery',
   'bird-hunter',
   'space-shooter',
+  'stickman',
 ];
 
 export const GESTURE_KEYS = {
