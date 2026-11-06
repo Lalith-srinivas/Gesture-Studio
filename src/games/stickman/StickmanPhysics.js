@@ -176,19 +176,27 @@ export class ParticleSystem {
 export function checkPlatformCollision(char, platforms) {
   let onGround = false;
   const feetY = char.y + char.height;
+  const prevFeetY = feetY - char.vy;
 
   for (const plat of platforms) {
-    const isWithinX = char.x + char.width * 0.2 < plat.x + plat.width &&
-                      char.x + char.width * 0.8 > plat.x;
+    // Check horizontal overlap with generous margins
+    const isWithinX = (char.x + char.width * 0.85 > plat.x) &&
+                      (char.x + char.width * 0.15 < plat.x + plat.width);
 
     if (isWithinX) {
-      // Falling onto platform top
-      if (feetY >= plat.y && feetY - char.vy <= plat.y + 16 && char.vy >= 0) {
-        char.y = plat.y - char.height;
-        char.vy = 0;
-        onGround = true;
-        char.currentPlatform = plat;
-        break;
+      if (char.vy >= 0) {
+        // Did feet cross from above the platform surface or land on it?
+        const crossedSurface = prevFeetY <= plat.y + 8 && feetY >= plat.y;
+        // Or are feet resting inside the top band of the platform?
+        const insideTopBand = feetY >= plat.y && feetY <= plat.y + Math.max(20, char.vy + 6);
+
+        if (crossedSurface || insideTopBand) {
+          char.y = plat.y - char.height;
+          char.vy = 0;
+          onGround = true;
+          char.currentPlatform = plat;
+          break;
+        }
       }
     }
   }

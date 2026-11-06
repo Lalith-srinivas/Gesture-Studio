@@ -27,7 +27,7 @@ export const CAMPAIGN_LEVELS = [
     subtitle: 'Learn bow mechanics & hit your first rogue target',
     targetScore: 200,
     coinReward: 400,
-    playerStart: { x: 120, y: 380 },
+    playerStart: { x: 120, y: 358 },
     platforms: [
       // Left player ledge
       { x: 50, y: 440, width: 220, height: 40, type: 'island' },
@@ -44,7 +44,7 @@ export const CAMPAIGN_LEVELS = [
       { x: 380, y: 416, width: 110, height: 26, type: 'floating' },
     ],
     enemies: [
-      { id: 'e1', type: 'archer', x: 720, y: 360, maxHp: 60, name: 'Trainee Archer', color: '#22c55e' },
+      { id: 'e1', type: 'archer', x: 700, y: 338, maxHp: 60, name: 'Trainee Archer', color: '#22c55e' },
     ],
   },
   {
@@ -53,7 +53,7 @@ export const CAMPAIGN_LEVELS = [
     subtitle: 'Dodge enemy arrows and snipe cross-platform enemies',
     targetScore: 450,
     coinReward: 650,
-    playerStart: { x: 100, y: 380 },
+    playerStart: { x: 100, y: 358 },
     platforms: [
       { x: 40, y: 440, width: 200, height: 40, type: 'island' },
       { x: 380, y: 340, width: 150, height: 30, type: 'floating' },
@@ -66,8 +66,8 @@ export const CAMPAIGN_LEVELS = [
       { x: 750, y: 394, width: 36, height: 36, type: 'wood', hp: 30 },
     ],
     enemies: [
-      { id: 'e1', type: 'archer', x: 460, y: 280, maxHp: 75, name: 'Outpost Archer', color: '#22c55e' },
-      { id: 'e2', type: 'elite_archer', x: 780, y: 200, maxHp: 90, name: 'Sentry Sniper', color: '#10b981' },
+      { id: 'e1', type: 'archer', x: 440, y: 258, maxHp: 75, name: 'Outpost Archer', color: '#22c55e' },
+      { id: 'e2', type: 'elite_archer', x: 780, y: 178, maxHp: 90, name: 'Sentry Sniper', color: '#10b981' },
     ],
   },
   {
@@ -76,7 +76,7 @@ export const CAMPAIGN_LEVELS = [
     subtitle: 'Sword warriors rush your platform while archers cover them',
     targetScore: 700,
     coinReward: 900,
-    playerStart: { x: 100, y: 380 },
+    playerStart: { x: 100, y: 358 },
     platforms: [
       { x: 40, y: 440, width: 260, height: 40, type: 'island' },
       { x: 360, y: 450, width: 180, height: 35, type: 'island' },
@@ -89,9 +89,9 @@ export const CAMPAIGN_LEVELS = [
       { x: 700, y: 318, width: 36, height: 36, type: 'wood', hp: 30 },
     ],
     enemies: [
-      { id: 'e1', type: 'warrior', x: 440, y: 390, maxHp: 95, name: 'Blade Runner', color: '#f59e0b' },
-      { id: 'e2', type: 'archer', x: 720, y: 330, maxHp: 80, name: 'Cliff Scout', color: '#22c55e' },
-      { id: 'e3', type: 'assassin', x: 800, y: 330, maxHp: 70, name: 'Night Stalker', color: '#a855f7' },
+      { id: 'e1', type: 'warrior', x: 440, y: 368, maxHp: 95, name: 'Blade Runner', color: '#f59e0b' },
+      { id: 'e2', type: 'archer', x: 720, y: 308, maxHp: 80, name: 'Cliff Scout', color: '#22c55e' },
+      { id: 'e3', type: 'assassin', x: 800, y: 308, maxHp: 70, name: 'Night Stalker', color: '#a855f7' },
     ],
   },
   {
@@ -100,7 +100,7 @@ export const CAMPAIGN_LEVELS = [
     subtitle: 'Heavily armored bruisers with explosive hazards',
     targetScore: 1100,
     coinReward: 1400,
-    playerStart: { x: 90, y: 380 },
+    playerStart: { x: 90, y: 358 },
     platforms: [
       { x: 30, y: 440, width: 220, height: 40, type: 'island' },
       { x: 310, y: 370, width: 140, height: 30, type: 'floating' },
@@ -115,10 +115,10 @@ export const CAMPAIGN_LEVELS = [
       { x: 800, y: 344, width: 36, height: 36, type: 'wood', hp: 30 },
     ],
     enemies: [
-      { id: 'e1', type: 'heavy', x: 590, y: 400, maxHp: 160, name: 'Iron Guard', color: '#ef4444' },
-      { id: 'e2', type: 'assassin', x: 370, y: 310, maxHp: 85, name: 'Shadow Assassin', color: '#a855f7' },
-      { id: 'e3', type: 'elite_archer', x: 840, y: 320, maxHp: 110, name: 'Bastion Sniper', color: '#10b981' },
-      { id: 'e4', type: 'archer', x: 670, y: 160, maxHp: 85, name: 'Tower Archer', color: '#22c55e' },
+      { id: 'e1', type: 'heavy', x: 590, y: 378, maxHp: 160, name: 'Iron Guard', color: '#ef4444' },
+      { id: 'e2', type: 'assassin', x: 370, y: 288, maxHp: 85, name: 'Shadow Assassin', color: '#a855f7' },
+      { id: 'e3', type: 'elite_archer', x: 840, y: 298, maxHp: 110, name: 'Bastion Sniper', color: '#10b981' },
+      { id: 'e4', type: 'archer', x: 670, y: 138, maxHp: 85, name: 'Tower Archer', color: '#22c55e' },
     ],
   },
   {
@@ -127,7 +127,7 @@ export const CAMPAIGN_LEVELS = [
     subtitle: 'BOSS BATTLE — Defeat the Titan Warlord across the sky ruins',
     targetScore: 2000,
     coinReward: 2500,
-    playerStart: { x: 100, y: 380 },
+    playerStart: { x: 100, y: 358 },
     platforms: [
       { x: 40, y: 440, width: 240, height: 40, type: 'island' },
       { x: 350, y: 320, width: 130, height: 26, type: 'floating' },
@@ -146,14 +146,14 @@ export const CAMPAIGN_LEVELS = [
         type: 'boss',
         isBoss: true,
         x: 750,
-        y: 330,
+        y: 310,
         maxHp: 480,
         name: 'SHADOW WARLORD',
         color: '#dc2626',
         scale: 1.6,
       },
-      { id: 'e1', type: 'archer', x: 400, y: 260, maxHp: 80, name: 'Minion Scout', color: '#22c55e' },
-      { id: 'e2', type: 'assassin', x: 620, y: 370, maxHp: 80, name: 'Minion Assassin', color: '#a855f7' },
+      { id: 'e1', type: 'archer', x: 400, y: 238, maxHp: 80, name: 'Minion Scout', color: '#22c55e' },
+      { id: 'e2', type: 'assassin', x: 620, y: 348, maxHp: 80, name: 'Minion Assassin', color: '#a855f7' },
     ],
   },
 ];

@@ -169,6 +169,22 @@ export default function StickmanShowdown() {
       ...(config.tntPlatforms || []),
     ];
 
+    // Helper: Snap entity safely onto the platform directly below it
+    const snapToPlatform = (char) => {
+      for (const plat of allPlatforms) {
+        if (char.x + char.width * 0.8 > plat.x && char.x + char.width * 0.2 < plat.x + plat.width) {
+          char.y = plat.y - char.height;
+          char.vy = 0;
+          char.onGround = true;
+          char.currentPlatform = plat;
+          return;
+        }
+      }
+    };
+
+    snapToPlatform(player);
+    enemies.forEach(snapToPlatform);
+
     engineRef.current = {
       running: true,
       tick: 0,
@@ -757,14 +773,12 @@ export default function StickmanShowdown() {
     rafRef.current = requestAnimationFrame(gameLoop);
   }, [saveData.unlockedWeapons, saveData.unlockedArrows, triggerExplosionAt, handleDefeat, handleVictory]);
 
-  // Canvas Resize Handler
+  // Canvas Logical Coordinate Space (Standardized 960x540 landscape virtual arena)
   const handleResize = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const w = Math.min(window.innerWidth - 16, 960);
-    const h = Math.min(window.innerHeight - 16, 540);
-    canvas.width = Math.round(w);
-    canvas.height = Math.round(h);
+    canvas.width = 960;
+    canvas.height = 540;
   }, []);
 
   useEffect(() => {
@@ -838,7 +852,7 @@ export default function StickmanShowdown() {
       <div ref={containerRef} className="relative border-4 border-[#1e293b] shadow-[0_0_35px_rgba(0,0,0,0.85)] bg-[#040914] rounded-lg overflow-hidden flex items-center justify-center max-w-[960px] w-full aspect-[16/9]">
         
         {/* Canvas */}
-        <canvas ref={canvasRef} className="block w-full h-full cursor-crosshair" />
+        <canvas ref={canvasRef} width={960} height={540} className="block w-full h-full cursor-crosshair" />
 
         {/* ── TOP HUD (Matches Reference Screenshot!) ──────────────────── */}
         {gameState === 'playing' && (
