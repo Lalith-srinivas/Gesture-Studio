@@ -1,177 +1,182 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import { usePlayer } from '../hooks/usePlayer';
-import { useTrackSoloGame } from '../hooks/useTrackSoloGame';
+import { useMultiplayer } from '../context/MultiplayerContext';
 import { stickmanAudio } from '../games/stickman/StickmanAudio';
 import { KeyboardMouseInputProvider } from '../games/stickman/InputProviders';
 import { StickmanRenderer } from '../games/stickman/StickmanRenderer';
-import { ParticleSystem, checkPlatformCollision, lineIntersectsBox, GRAVITY, ARROW_BASE_SPEED } from '../games/stickman/StickmanPhysics';
-import { CAMPAIGN_LEVELS, WEAPONS, ARROW_TYPES } from '../games/stickman/StickmanLevels';
-import PostGameProgression from '../components/PostGameProgression';
-import AdSlot from '../components/ads/AdSlot';
+import { ParticleSystem, checkPlatformCollision, GRAVITY, ARROW_BASE_SPEED } from '../games/stickman/StickmanPhysics';
+import { MULTIPLAYER_ARENA, ARROW_TYPES } from '../games/stickman/StickmanLevels';
+import MultiplayerLobbyModal from '../components/multiplayer/MultiplayerLobbyModal';
+import MultiplayerVSHUD from '../components/multiplayer/MultiplayerVSHUD';
+import MultiplayerResultModal from '../components/multiplayer/MultiplayerResultModal';
 
-const SAVE_KEY = 'stickman_showdown_save_v1';
-const HIGH_SCORE_KEY = 'stickman_showdown_highscore';
-
-function loadSaveData() {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return {
-    coins: 600,
-    maxLevelUnlocked: 1,
-    levelStars: {},
-    upgrades: {
-      healthTier: 0,
-      damageTier: 0,
-      powerRegenTier: 0,
-      armorTier: 0,
-    },
-    unlockedWeapons: ['bow'],
-    unlockedArrows: ['standard'],
-    activeWeapon: 'bow',
-    activeArrow: 'standard',
-  };
-}
-
-function saveUserData(data) {
-  try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
-  } catch {}
-}
+const MAX_HP = 150;
+const MATCH_DURATION_SEC = 90;
 
 export default function StickmanShowdown() {
   const navigate = useNavigate();
-  const { recordGameResult, allGameStats } = usePlayer();
+  const { currentUser } = useAuth();
+  const { playerData, coins } = usePlayer();
 
-  const [gameState, setGameState] = useState('menu'); // 'menu' | 'level_select' | 'shop' | 'playing' | 'paused' | 'victory' | 'defeat'
-  const [currentLevelId, setCurrentLevelId] = useState(1);
-  const [saveData, setSaveData] = useState(loadSaveData);
+  const {
+    matchState,
+    currentRoom,
+    opponent,
+    myScore,
+    opponentScore,
+    opponentExtra,
+    opponentGraceTimer,
+    sendScore,
+    submitFinalScore,
+    leaveRoom,
+    resetState: resetMultiplayerState,
+  } = useMultiplayer();
 
-  // Player Stats for HUD
-  const [playerHp, setPlayerHp] = useState(100);
-  const [maxHp, setMaxHp] = useState(100);
-  const [armPower, setArmPower] = useState(100);
-  const [coinsDisplay, setCoinsDisplay] = useState(saveData.coins);
-  const [killsDisplay, setKillsDisplay] = useState(0);
-  const [headshotsDisplay, setHeadshotsDisplay] = useState(0);
-  const [activeArrowId, setActiveArrowId] = useState(saveData.activeArrow);
-  const [activeWeaponId, setActiveWeaponId] = useState(saveData.activeWeapon);
+  // Screen & Orientation States
+  const [isPortrait, setIsPortrait] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showLobbyModal, setShowLobbyModal] = useState(true);
 
-  // Boss state
-  const [bossHp, setBossHp] = useState(null);
-  const [bossMaxHp, setBossMaxHp] = useState(null);
-  const [bossName, setBossName] = useState('');
+  // Match Hud States
+  const [myHp, setMyHp] = useState(MAX_HP);
+  const [oppHp, setOppHp] = useState(MAX_HP);
+  const [matchTimeLeft, setMatchTimeLeft] = useState(MATCH_DURATION_SEC);
+  const [countdownSec, setCountdownSec] = useState(null);
 
-  // End of level result
-  const [levelStats, setLevelStats] = useState({ score: 0, coins: 0, kills: 0, headshots: 0 });
-  const [lastProgressionResult, setLastProgressionResult] = useState(null);
-  const sessionRecordedRef = useRef(false);
-
-  useTrackSoloGame('Stickman Showdown', gameState === 'playing');
-
-  // DOM Refs
+  // References
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const inputRef = useRef(null);
   const rendererRef = useRef(null);
   const particlesRef = useRef(new ParticleSystem());
   const rafRef = useRef(null);
+  const matchTimerRef = useRef(null);
+  const matchFinishedRef = useRef(false);
+  const lastSyncTimeRef = useRef(0);
+  const lastProcessedOpponentArrowIdRef = useRef(null);
 
-  // Internal Engine Game State (Mutable for 60fps loop)
+  // Engine state (mutable for 60fps loop)
   const engineRef = useRef({
     running: false,
     tick: 0,
     screenShake: 0,
+    isPlayer1: true,
     player: null,
-    enemies: [],
+    opponentChar: null,
     platforms: [],
     crates: [],
-    arrows: [],
-    enemyArrows: [],
-    levelConfig: null,
+    myArrows: [],
+    oppArrows: [],
     score: 0,
-    coinsEarned: 0,
-    kills: 0,
-    headshots: 0,
+    myHp: MAX_HP,
+    oppHp: MAX_HP,
+    pendingArrowShot: null,
   });
 
-  // Calculate actual player stats based on upgrades
-  const calculatePlayerStats = useCallback(() => {
-    const healthBonus = (saveData.upgrades.healthTier || 0) * 25;
-    const damageMult = 1 + (saveData.upgrades.damageTier || 0) * 0.2;
-    const powerRegenMult = 1 + (saveData.upgrades.powerRegenTier || 0) * 0.25;
-    const armorReduction = Math.min(0.5, (saveData.upgrades.armorTier || 0) * 0.1);
-    return {
-      maxHealth: 100 + healthBonus,
-      damageMult,
-      powerRegenMult,
-      armorReduction,
-    };
-  }, [saveData.upgrades]);
+  // ── 1. Orientation & Fullscreen Detection ──────────────────────────────────
+  const checkOrientation = useCallback(() => {
+    const isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 820;
+    const isPortraitMode = window.innerHeight > window.innerWidth;
+    setIsPortrait(isMobileDevice && isPortraitMode);
+    setIsFullscreen(Boolean(document.fullscreenElement));
+  }, []);
 
-  // ── Spawn Level Entities ──────────────────────────────────────────────────
-  const setupLevel = useCallback((levelId) => {
-    const config = CAMPAIGN_LEVELS.find((l) => l.id === levelId) || CAMPAIGN_LEVELS[0];
-    const stats = calculatePlayerStats();
+  useEffect(() => {
+    checkOrientation();
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+    document.addEventListener('fullscreenchange', checkOrientation);
+    return () => {
+      window.removeEventListener('resize', checkOrientation);
+      window.removeEventListener('orientationchange', checkOrientation);
+      document.removeEventListener('fullscreenchange', checkOrientation);
+    };
+  }, [checkOrientation]);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      const elem = containerRef.current || document.documentElement;
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen().catch(() => {});
+      } else if (elem.webkitRequestFullscreen) {
+        elem.webkitRequestFullscreen();
+      }
+      try {
+        if (screen.orientation && screen.orientation.lock) {
+          screen.orientation.lock('landscape').catch(() => {});
+        }
+      } catch {}
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+  }, []);
+
+  // ── 2. Determine Player Roles & Spawns ──────────────────────────────────────
+  // Guaranteed role consistency: player with alphabetically smaller UID gets Player 1 (Left Island)
+  const isPlayer1 = React.useMemo(() => {
+    const myUid = currentUser?.uid || playerData?.uid || 'user_local';
+    const oppUid = opponent?.uid || 'user_remote';
+    return myUid <= oppUid;
+  }, [currentUser?.uid, playerData?.uid, opponent?.uid]);
+
+  // ── 3. Initialize Multiplayer Arena Match ─────────────────────────────────
+  const initArenaMatch = useCallback(() => {
+    stickmanAudio.init();
+    matchFinishedRef.current = false;
+    lastProcessedOpponentArrowIdRef.current = null;
+
+    const arena = MULTIPLAYER_ARENA;
     const pSys = new ParticleSystem();
     particlesRef.current = pSys;
 
-    const player = {
-      x: config.playerStart.x,
-      y: config.playerStart.y,
+    const mySpawn = isPlayer1 ? arena.player1Start : arena.player2Start;
+    const oppSpawn = isPlayer1 ? arena.player2Start : arena.player1Start;
+
+    const localPlayer = {
+      x: mySpawn.x,
+      y: mySpawn.y,
       vx: 0,
       vy: 0,
       width: 28,
       height: 82,
-      hp: stats.maxHealth,
-      maxHp: stats.maxHealth,
-      armPower: 100,
+      hp: MAX_HP,
+      maxHp: MAX_HP,
       drawPower: 0,
       isDrawing: false,
-      aimAngle: 0,
-      facingRight: true,
-      onGround: false,
-      weapon: saveData.activeWeapon,
-      arrowType: saveData.activeArrow,
+      aimAngle: isPlayer1 ? 0 : Math.PI,
+      facingRight: isPlayer1,
+      onGround: true,
+      color: isPlayer1 ? '#f97316' : '#06b6d4', // Orange (P1) vs Cyan (P2)
       hitFlash: 0,
-      color: '#f97316', // Orange warrior
-      hasHelmet: saveData.upgrades.armorTier > 0,
     };
 
-    const enemies = config.enemies.map((e) => ({
-      ...e,
+    const opponentChar = {
+      x: oppSpawn.x,
+      y: oppSpawn.y,
       vx: 0,
       vy: 0,
-      width: (e.isBoss ? 42 : 28),
-      height: (e.isBoss ? 120 : 82),
-      hp: e.maxHp,
+      width: 28,
+      height: 82,
+      hp: MAX_HP,
+      maxHp: MAX_HP,
       drawPower: 0,
       isDrawing: false,
-      aimAngle: Math.PI,
-      facingRight: false,
-      onGround: false,
+      aimAngle: isPlayer1 ? Math.PI : 0,
+      facingRight: !isPlayer1,
+      onGround: true,
+      color: isPlayer1 ? '#06b6d4' : '#f97316',
       hitFlash: 0,
-      aiCooldown: 30 + Math.floor(Math.random() * 45),
-      patrolTimer: 0,
-      dead: false,
-    }));
+    };
 
-    const crates = (config.crates || []).map((c) => ({
-      ...c,
-      hp: c.hp,
-      destroyed: false,
-    }));
-
-    const allPlatforms = [
-      ...config.platforms,
-      ...(config.tntPlatforms || []),
-    ];
+    const crates = arena.crates.map((c) => ({ ...c, hp: c.hp, destroyed: false }));
 
     // Helper: Snap entity safely onto the platform directly below it
     const snapToPlatform = (char) => {
-      for (const plat of allPlatforms) {
+      for (const plat of arena.platforms) {
         if (char.x + char.width * 0.8 > plat.x && char.x + char.width * 0.2 < plat.x + plat.width) {
           char.y = plat.y - char.height;
           char.vy = 0;
@@ -182,172 +187,62 @@ export default function StickmanShowdown() {
       }
     };
 
-    snapToPlatform(player);
-    enemies.forEach(snapToPlatform);
+    snapToPlatform(localPlayer);
+    snapToPlatform(opponentChar);
 
     engineRef.current = {
       running: true,
       tick: 0,
       screenShake: 0,
-      player,
-      enemies,
-      platforms: allPlatforms,
+      isPlayer1,
+      player: localPlayer,
+      opponentChar,
+      platforms: arena.platforms,
       crates,
-      arrows: [],
-      enemyArrows: [],
-      levelConfig: config,
+      myArrows: [],
+      oppArrows: [],
       score: 0,
-      coinsEarned: 0,
-      kills: 0,
-      headshots: 0,
-      damageMult: stats.damageMult,
-      armorReduction: stats.armorReduction,
-      powerRegenMult: stats.powerRegenMult,
+      myHp: MAX_HP,
+      oppHp: MAX_HP,
+      pendingArrowShot: null,
     };
 
-    setMaxHp(stats.maxHealth);
-    setPlayerHp(stats.maxHealth);
-    setArmPower(100);
-    setKillsDisplay(0);
-    setHeadshotsDisplay(0);
+    setMyHp(MAX_HP);
+    setOppHp(MAX_HP);
+    setMatchTimeLeft(MATCH_DURATION_SEC);
+  }, [isPlayer1]);
 
-    const boss = enemies.find((e) => e.isBoss);
-    if (boss) {
-      setBossHp(boss.hp);
-      setBossMaxHp(boss.maxHp);
-      setBossName(boss.name);
-    } else {
-      setBossHp(null);
-      setBossMaxHp(null);
-      setBossName('');
-    }
-  }, [calculatePlayerStats, saveData.activeWeapon, saveData.activeArrow, saveData.upgrades.armorTier]);
-
-  // ── Start Campaign Level ──────────────────────────────────────────────────
-  const startLevel = useCallback((levelId) => {
-    stickmanAudio.init();
-    sessionRecordedRef.current = false;
-    setCurrentLevelId(levelId);
-    setupLevel(levelId);
-    setGameState('playing');
-  }, [setupLevel]);
-
-  // ── Complete Level ────────────────────────────────────────────────────────
-  const handleVictory = useCallback(() => {
-    const eng = engineRef.current;
-    eng.running = false;
-    stickmanAudio.playVictory();
-
-    const levelCoins = (eng.levelConfig?.coinReward || 500) + eng.coinsEarned;
-    const finalScore = eng.score + eng.kills * 100 + eng.headshots * 150;
-
-    setLevelStats({
-      score: finalScore,
-      coins: levelCoins,
-      kills: eng.kills,
-      headshots: eng.headshots,
-    });
-
-    // Update saved progression
-    setSaveData((prev) => {
-      const nextLevel = Math.max(prev.maxLevelUnlocked, currentLevelId + 1);
-      const updatedStars = { ...prev.levelStars, [currentLevelId]: 3 };
-      const updatedCoins = prev.coins + levelCoins;
-      const nextSave = {
-        ...prev,
-        coins: updatedCoins,
-        maxLevelUnlocked: nextLevel,
-        levelStars: updatedStars,
-      };
-      saveUserData(nextSave);
-      setCoinsDisplay(updatedCoins);
-      return nextSave;
-    });
-
-    if (!sessionRecordedRef.current) {
-      sessionRecordedRef.current = true;
-      recordGameResult({
-        gameId: 'stickman-showdown',
-        score: finalScore,
-        sessionId: `ss_${Date.now()}_${Math.random()}`,
-      }).then((res) => {
-        if (res) setLastProgressionResult(res);
-      });
-    }
-
-    setGameState('victory');
-  }, [currentLevelId, recordGameResult]);
-
-  // ── Game Over / Defeat ────────────────────────────────────────────────────
-  const handleDefeat = useCallback(() => {
-    const eng = engineRef.current;
-    eng.running = false;
-    stickmanAudio.playDefeat();
-
-    const finalScore = eng.score + eng.kills * 75;
-    setLevelStats({
-      score: finalScore,
-      coins: eng.coinsEarned,
-      kills: eng.kills,
-      headshots: eng.headshots,
-    });
-
-    setSaveData((prev) => {
-      const updatedCoins = prev.coins + eng.coinsEarned;
-      const nextSave = { ...prev, coins: updatedCoins };
-      saveUserData(nextSave);
-      setCoinsDisplay(updatedCoins);
-      return nextSave;
-    });
-
-    if (!sessionRecordedRef.current) {
-      sessionRecordedRef.current = true;
-      recordGameResult({
-        gameId: 'stickman-showdown',
-        score: finalScore,
-        sessionId: `ss_${Date.now()}_${Math.random()}`,
-      }).then((res) => {
-        if (res) setLastProgressionResult(res);
-      });
-    }
-
-    setGameState('defeat');
-  }, [recordGameResult]);
-
-  // ── Trigger Explosions (TNT Barrels & Explosive Arrows) ───────────────────
-  const triggerExplosionAt = useCallback((ex, ey, blastRadius = 75, damage = 65) => {
+  // ── 4. Trigger Explosions (TNT & Explosive Arrows) ─────────────────────────
+  const triggerExplosionAt = useCallback((ex, ey, blastRadius = 75, damage = 55) => {
     const eng = engineRef.current;
     stickmanAudio.playExplosion();
     eng.screenShake = 16;
     particlesRef.current.addExplosion(ex, ey, blastRadius);
 
-    // Damage enemies in blast radius
-    for (const enemy of eng.enemies) {
-      if (enemy.dead) continue;
-      const dist = Math.hypot((enemy.x + enemy.width / 2) - ex, (enemy.y + enemy.height / 2) - ey);
-      if (dist < blastRadius) {
-        const falloff = 1 - dist / blastRadius;
-        const blastDmg = Math.round(damage * (0.5 + falloff * 0.5));
-        enemy.hp -= blastDmg;
-        enemy.hitFlash = 6;
-        particlesRef.current.addDamageNumber(enemy.x + enemy.width / 2, enemy.y, blastDmg, true, '#ef4444');
-      }
-    }
-
-    // Damage player if caught in blast
+    // Damage local player if in blast
     const pDist = Math.hypot((eng.player.x + 14) - ex, (eng.player.y + 40) - ey);
     if (pDist < blastRadius) {
-      const pDmg = Math.round(damage * (0.4 + (1 - pDist / blastRadius) * 0.4) * (1 - eng.armorReduction));
+      const pDmg = Math.round(damage * (0.5 + (1 - pDist / blastRadius) * 0.5));
       eng.player.hp = Math.max(0, eng.player.hp - pDmg);
-      eng.player.hitFlash = 6;
-      particlesRef.current.addDamageNumber(eng.player.x + 14, eng.player.y, pDmg, false, '#ef4444');
-      setPlayerHp(eng.player.hp);
-      if (eng.player.hp <= 0) {
-        handleDefeat();
-      }
+      eng.player.hitFlash = 8;
+      eng.myHp = eng.player.hp;
+      setMyHp(eng.player.hp);
+      particlesRef.current.addDamageNumber(eng.player.x + 14, eng.player.y, pDmg, true, '#ef4444');
     }
 
-    // Trigger chain explosions for nearby TNT crates
+    // Damage opponent if in blast
+    const oppDist = Math.hypot((eng.opponentChar.x + 14) - ex, (eng.opponentChar.y + 40) - ey);
+    if (oppDist < blastRadius) {
+      const oppDmg = Math.round(damage * (0.5 + (1 - oppDist / blastRadius) * 0.5));
+      eng.opponentChar.hp = Math.max(0, eng.opponentChar.hp - oppDmg);
+      eng.opponentChar.hitFlash = 8;
+      eng.oppHp = eng.opponentChar.hp;
+      setOppHp(eng.opponentChar.hp);
+      particlesRef.current.addDamageNumber(eng.opponentChar.x + 14, eng.opponentChar.y, oppDmg, true, '#facc15');
+      eng.score += oppDmg * 10;
+    }
+
+    // Chain explosions for nearby TNT crates
     for (const crate of eng.crates) {
       if (crate.destroyed || crate.type !== 'tnt') continue;
       const cDist = Math.hypot((crate.x + crate.width / 2) - ex, (crate.y + crate.height / 2) - ey);
@@ -358,9 +253,123 @@ export default function StickmanShowdown() {
         }, 120);
       }
     }
-  }, [handleDefeat]);
+  }, []);
 
-  // ── Main Game Loop (60 FPS Canvas Physics & AI) ───────────────────────────
+  // ── 5. End Match / Submit Final Scores ─────────────────────────────────────
+  const finishMatch = useCallback((reason = 'knocked_out') => {
+    if (matchFinishedRef.current) return;
+    matchFinishedRef.current = true;
+    const eng = engineRef.current;
+    eng.running = false;
+
+    if (matchTimerRef.current) clearInterval(matchTimerRef.current);
+
+    const isWinner = eng.myHp > eng.oppHp;
+    if (isWinner) {
+      stickmanAudio.playVictory();
+    } else {
+      stickmanAudio.playDefeat();
+    }
+
+    submitFinalScore(eng.score, reason);
+  }, [submitFinalScore]);
+
+  // ── 6. Handle Match State Transitions & Countdown ─────────────────────────
+  useEffect(() => {
+    if (matchState === 'COUNTDOWN') {
+      setShowLobbyModal(false);
+      setCountdownSec(3);
+      initArenaMatch();
+
+      const t1 = setTimeout(() => setCountdownSec(2), 1000);
+      const t2 = setTimeout(() => setCountdownSec(1), 2000);
+      const t3 = setTimeout(() => setCountdownSec('GO!'), 2900);
+      const t4 = setTimeout(() => setCountdownSec(null), 3500);
+
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+        clearTimeout(t4);
+      };
+    } else if (matchState === 'PLAYING') {
+      setShowLobbyModal(false);
+      if (!engineRef.current.running) {
+        initArenaMatch();
+      }
+
+      // Match timer countdown (90s)
+      if (matchTimerRef.current) clearInterval(matchTimerRef.current);
+      matchTimerRef.current = setInterval(() => {
+        setMatchTimeLeft((prev) => {
+          if (prev <= 1) {
+            clearInterval(matchTimerRef.current);
+            finishMatch('time_expired');
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => {
+        if (matchTimerRef.current) clearInterval(matchTimerRef.current);
+      };
+    } else if (matchState === 'FINISHED') {
+      engineRef.current.running = false;
+      if (matchTimerRef.current) clearInterval(matchTimerRef.current);
+    } else if (matchState === 'IDLE') {
+      setShowLobbyModal(true);
+      engineRef.current.running = false;
+    }
+  }, [matchState, initArenaMatch, finishMatch]);
+
+  // ── 7. Handle Incoming Opponent Sync Payload ───────────────────────────────
+  useEffect(() => {
+    if (!opponentExtra || !engineRef.current.running) return;
+    const eng = engineRef.current;
+    const opp = eng.opponentChar;
+    if (!opp) return;
+
+    // Smooth position interpolation
+    opp.x = opp.x + (opponentExtra.x - opp.x) * 0.65;
+    opp.y = opp.y + (opponentExtra.y - opp.y) * 0.65;
+    opp.vx = opponentExtra.vx || 0;
+    opp.vy = opponentExtra.vy || 0;
+    opp.facingRight = opponentExtra.facingRight;
+    opp.aimAngle = opponentExtra.aimAngle;
+    opp.isDrawing = opponentExtra.isDrawing;
+    opp.drawPower = opponentExtra.drawPower;
+
+    if (typeof opponentExtra.hp === 'number') {
+      opp.hp = opponentExtra.hp;
+      eng.oppHp = opponentExtra.hp;
+      setOppHp(opponentExtra.hp);
+    }
+
+    // Spawn newly fired opponent arrow
+    if (opponentExtra.arrowShot && opponentExtra.arrowShot.id !== lastProcessedOpponentArrowIdRef.current) {
+      lastProcessedOpponentArrowIdRef.current = opponentExtra.arrowShot.id;
+      const shot = opponentExtra.arrowShot;
+      stickmanAudio.playArrowRelease(shot.power || 0.8);
+
+      eng.oppArrows.push({
+        id: shot.id,
+        x: shot.x,
+        y: shot.y,
+        vx: shot.vx,
+        vy: shot.vy,
+        rotation: shot.rotation,
+        power: shot.power || 0.8,
+        damage: shot.damage || 35,
+        type: shot.type || 'standard',
+        color: '#06b6d4',
+        trailColor: '#38bdf8',
+        active: true,
+      });
+    }
+  }, [opponentExtra]);
+
+  // ── 8. Main 60 FPS Arena Physics & Render Loop ─────────────────────────────
   const gameLoop = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !rendererRef.current) return;
@@ -371,26 +380,10 @@ export default function StickmanShowdown() {
 
     const input = inputRef.current ? inputRef.current.getState() : { moveX: 0, jump: false, aimAngle: 0 };
     const p = eng.player;
+    const opp = eng.opponentChar;
     const pSys = particlesRef.current;
 
-    // Handle Weapon & Arrow Switching from Keyboard / Buttons
-    if (input.weaponIndex !== null && input.weaponIndex !== undefined) {
-      const wp = WEAPONS[input.weaponIndex];
-      if (wp && saveData.unlockedWeapons.includes(wp.id)) {
-        p.weapon = wp.id;
-        setActiveWeaponId(wp.id);
-      }
-    }
-
-    if (input.arrowTypeIndex !== null && input.arrowTypeIndex !== undefined) {
-      const arr = ARROW_TYPES[input.arrowTypeIndex];
-      if (arr && saveData.unlockedArrows.includes(arr.id)) {
-        p.arrowType = arr.id;
-        setActiveArrowId(arr.id);
-      }
-    }
-
-    // 1. Player Physics & Movement
+    // 1. Local Player Movement & Physics
     p.vx = input.moveX * 4.2;
     p.x += p.vx;
     p.y += p.vy;
@@ -400,7 +393,7 @@ export default function StickmanShowdown() {
       p.facingRight = input.moveX > 0;
     }
 
-    // Platform collision
+    // Platform collisions
     p.onGround = checkPlatformCollision(p, eng.platforms);
 
     // Jump
@@ -409,307 +402,136 @@ export default function StickmanShowdown() {
       p.onGround = false;
     }
 
-    // Arm Power Charging & Bowstring Drawing
+    // Aim & Bow Draw Mechanics
     if (input.isDrawing) {
       p.isDrawing = true;
       p.aimAngle = input.aimAngle;
-      p.drawPower = Math.min(1.0, p.drawPower + 0.038 * eng.powerRegenMult);
+      p.drawPower = Math.min(1.0, p.drawPower + 0.04);
       stickmanAudio.playBowDraw(p.drawPower);
-      setArmPower(Math.round(p.drawPower * 100));
     } else if (input.attackRelease && p.drawPower > 0.15) {
-      // Loose Arrow!
+      // Release bowstring -> loose arrow!
       const power = p.drawPower;
       const angle = p.aimAngle;
-      const speed = ARROW_BASE_SPEED * (0.45 + power * 0.75);
-      const arrowDef = ARROW_TYPES.find((a) => a.id === p.arrowType) || ARROW_TYPES[0];
-
+      const speed = ARROW_BASE_SPEED * (0.5 + power * 0.7);
       stickmanAudio.playArrowRelease(power);
 
-      eng.arrows.push({
-        x: p.x + (p.facingRight ? 26 : -10),
-        y: p.y + 24,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
+      const arrowId = `arr_${currentUser?.uid || 'p1'}_${Date.now()}_${Math.random()}`;
+      const spawnX = p.x + (p.facingRight ? 26 : -10);
+      const spawnY = p.y + 24;
+      const vx = Math.cos(angle) * speed;
+      const vy = Math.sin(angle) * speed;
+
+      const newArrow = {
+        id: arrowId,
+        x: spawnX,
+        y: spawnY,
+        vx,
+        vy,
         rotation: angle,
         power,
-        damage: Math.round(35 * eng.damageMult * arrowDef.damageMult * power),
-        type: arrowDef.id,
-        color: arrowDef.color,
-        trailColor: arrowDef.trailColor,
+        damage: Math.round(35 * power),
+        type: 'standard',
+        color: '#f97316',
+        trailColor: '#fb923c',
         active: true,
-      });
+      };
+
+      eng.myArrows.push(newArrow);
+      eng.pendingArrowShot = {
+        id: arrowId,
+        x: spawnX,
+        y: spawnY,
+        vx,
+        vy,
+        rotation: angle,
+        power,
+        damage: newArrow.damage,
+        type: 'standard',
+      };
 
       p.drawPower = 0;
       p.isDrawing = false;
-      setArmPower(0);
     } else {
       p.isDrawing = false;
       p.drawPower = 0;
     }
 
-    // Update screen pos for input aiming center
     if (inputRef.current) {
       inputRef.current.setPlayerScreenPos(p.x + 14, p.y + 24);
     }
 
-    // Screen bounds check
-    p.x = Math.max(10, Math.min(canvas.width - p.width - 10, p.x));
-    if (p.y > canvas.height + 100) {
+    // Bounds safety: clamp inside arena
+    p.x = Math.max(15, Math.min(canvas.width - p.width - 15, p.x));
+    if (p.y > canvas.height + 60) {
       p.hp = 0;
-      handleDefeat();
+      eng.myHp = 0;
+      setMyHp(0);
+      finishMatch('fell_off_arena');
       return;
     }
 
     if (p.hitFlash > 0) p.hitFlash--;
+    if (opp.hitFlash > 0) opp.hitFlash--;
 
-    // 2. Enemy AI & Physics
-    let allEnemiesDead = true;
-
-    for (const enemy of eng.enemies) {
-      if (enemy.dead) continue;
-      allEnemiesDead = false;
-
-      // Enemy physics
-      enemy.x += enemy.vx;
-      enemy.y += enemy.vy;
-      enemy.vy += GRAVITY;
-      enemy.onGround = checkPlatformCollision(enemy, eng.platforms);
-
-      // Facing towards player
-      const dxToPlayer = (p.x + 14) - (enemy.x + enemy.width / 2);
-      const dyToPlayer = (p.y + 24) - (enemy.y + enemy.height / 2);
-      enemy.facingRight = dxToPlayer > 0;
-
-      if (enemy.hitFlash > 0) enemy.hitFlash--;
-
-      // AI Decision Cycle
-      enemy.aiCooldown--;
-      if (enemy.aiCooldown <= 0) {
-        enemy.aiCooldown = enemy.isBoss ? 55 : (enemy.type === 'elite_archer' ? 65 : 85);
-
-        if (enemy.type === 'warrior' || enemy.type === 'assassin') {
-          // Rush towards player platform
-          enemy.vx = (dxToPlayer > 0 ? 1 : -1) * (enemy.type === 'assassin' ? 4.2 : 2.8);
-          if (Math.abs(dxToPlayer) < 55 && p.onGround) {
-            // Melee Slash
-            stickmanAudio.playMeleeSlash();
-            const slashDmg = Math.round(25 * (1 - eng.armorReduction));
-            p.hp = Math.max(0, p.hp - slashDmg);
-            p.hitFlash = 6;
-            pSys.addDamageNumber(p.x + 14, p.y, slashDmg, false, '#ef4444');
-            setPlayerHp(p.hp);
-            if (p.hp <= 0) {
-              handleDefeat();
-              return;
-            }
-          }
-        } else {
-          // Archer AI: Aim at player with ballistic arc prediction
-          const dist = Math.hypot(dxToPlayer, dyToPlayer);
-          const flightTime = dist / (ARROW_BASE_SPEED * 0.8);
-          // Compensate for gravity drop
-          const targetY = dyToPlayer - 0.5 * GRAVITY * (flightTime * flightTime);
-          const aimAngle = Math.atan2(targetY, dxToPlayer) + (Math.random() - 0.5) * 0.08;
-          enemy.aimAngle = aimAngle;
-
-          // Loose enemy arrow!
-          stickmanAudio.playArrowRelease(0.85);
-
-          const arrowCount = enemy.isBoss ? 3 : 1;
-          for (let s = 0; s < arrowCount; s++) {
-            const spreadAngle = aimAngle + (s - (arrowCount - 1) / 2) * 0.14;
-            eng.enemyArrows.push({
-              x: enemy.x + (enemy.facingRight ? 26 : -10),
-              y: enemy.y + 24,
-              vx: Math.cos(spreadAngle) * ARROW_BASE_SPEED * 0.8,
-              vy: Math.sin(spreadAngle) * ARROW_BASE_SPEED * 0.8,
-              rotation: spreadAngle,
-              damage: enemy.isBoss ? 26 : 18,
-              type: enemy.isBoss ? 'fire' : 'standard',
-              color: enemy.isBoss ? '#f97316' : '#a7f3d0',
-              trailColor: enemy.isBoss ? '#ef4444' : '#34d399',
-              active: true,
-            });
-          }
-        }
-      }
-
-      // Check Enemy Death
-      if (enemy.hp <= 0) {
-        enemy.dead = true;
-        pSys.addSpark(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, enemy.color, 24);
-        pSys.dropCoins(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, enemy.isBoss ? 15 : 6);
-        eng.kills++;
-        setKillsDisplay(eng.kills);
-      }
-
-      // Update Boss HUD bar if this is boss
-      if (enemy.isBoss) {
-        setBossHp(Math.max(0, enemy.hp));
-      }
-    }
-
-    // Check Level Victory
-    if (allEnemiesDead && eng.enemies.length > 0) {
-      handleVictory();
-      return;
-    }
-
-    // 3. Player Arrows Update & Hit Detection
-    for (let i = eng.arrows.length - 1; i >= 0; i--) {
-      const a = eng.arrows[i];
+    // 2. Update My Arrows -> Check Collision with Opponent & Crates
+    for (let i = eng.myArrows.length - 1; i >= 0; i--) {
+      const a = eng.myArrows[i];
       if (!a.active) continue;
-
-      const prevX = a.x;
-      const prevY = a.y;
 
       a.x += a.vx;
       a.y += a.vy;
-      a.vy += GRAVITY;
-      a.rotation = Math.atan2(a.vy, a.vx);
-
-      // Trailing sparks
-      if (eng.tick % 2 === 0) {
-        pSys.addSpark(a.x, a.y, a.trailColor, 1);
-      }
-
-      let arrowConsumed = false;
-
-      // Collision with Crates & TNT
-      for (const crate of eng.crates) {
-        if (crate.destroyed) continue;
-        if (lineIntersectsBox(prevX, prevY, a.x, a.y, crate)) {
-          crate.hp -= a.damage;
-          arrowConsumed = true;
-          pSys.addSpark(a.x, a.y, crate.type === 'tnt' ? '#facc15' : '#d97706', 8);
-
-          if (crate.type === 'tnt' || crate.hp <= 0) {
-            crate.destroyed = true;
-            if (crate.type === 'tnt' || a.type === 'explosive') {
-              triggerExplosionAt(crate.x + crate.width / 2, crate.y + crate.height / 2, 85, 75);
-            }
-          }
-          break;
-        }
-      }
-
-      if (arrowConsumed) {
-        eng.arrows.splice(i, 1);
-        continue;
-      }
-
-      // Collision with Enemies
-      for (const enemy of eng.enemies) {
-        if (enemy.dead) continue;
-
-        const bodyBox = {
-          x: enemy.x,
-          y: enemy.y + 14,
-          width: enemy.width,
-          height: enemy.height - 14,
-        };
-
-        const headBox = {
-          x: enemy.x + (enemy.width - 22) / 2,
-          y: enemy.y - 12,
-          width: 22,
-          height: 24,
-        };
-
-        const hitHead = lineIntersectsBox(prevX, prevY, a.x, a.y, headBox);
-        const hitBody = lineIntersectsBox(prevX, prevY, a.x, a.y, bodyBox);
-
-        if (hitHead || hitBody) {
-          const isCrit = hitHead;
-          const damageDealt = isCrit ? Math.round(a.damage * 2.5) : a.damage;
-          enemy.hp -= damageDealt;
-          enemy.hitFlash = 6;
-          eng.screenShake = isCrit ? 8 : 3;
-
-          stickmanAudio.playHit(isCrit);
-          pSys.addSpark(a.x, a.y, isCrit ? '#facc15' : '#ef4444', isCrit ? 16 : 8);
-
-          if (isCrit) {
-            eng.headshots++;
-            setHeadshotsDisplay(eng.headshots);
-            pSys.addDamageNumber(enemy.x + enemy.width / 2, enemy.y - 10, `HEADSHOT! -${damageDealt}`, true, '#facc15');
-          } else {
-            pSys.addDamageNumber(enemy.x + enemy.width / 2, enemy.y + 10, `-${damageDealt}`, false, '#ffffff');
-          }
-
-          // Special arrow effects
-          if (a.type === 'explosive') {
-            triggerExplosionAt(a.x, a.y, 80, 55);
-          } else if (a.type === 'fire') {
-            enemy.color = '#ea580c';
-            pSys.addSpark(enemy.x + enemy.width / 2, enemy.y + 20, '#f97316', 12);
-          }
-
-          arrowConsumed = true;
-          break;
-        }
-      }
-
-      if (arrowConsumed) {
-        eng.arrows.splice(i, 1);
-        continue;
-      }
-
-      // Collision with Platforms (Arrows stick into ground)
-      for (const plat of eng.platforms) {
-        if (a.x >= plat.x && a.x <= plat.x + plat.width && a.y >= plat.y && a.y <= plat.y + 16) {
-          a.active = false;
-          pSys.addSpark(a.x, a.y, '#94a3b8', 5);
-          if (a.type === 'explosive') {
-            triggerExplosionAt(a.x, a.y, 75, 50);
-          }
-          break;
-        }
-      }
-
-      // Out of bounds
-      if (a.y > canvas.height + 40 || a.x < -40 || a.x > canvas.width + 40) {
-        eng.arrows.splice(i, 1);
-      }
-    }
-
-    // 4. Enemy Arrows Update & Player Collision
-    for (let i = eng.enemyArrows.length - 1; i >= 0; i--) {
-      const a = eng.enemyArrows[i];
-      if (!a.active) continue;
-
-      const prevX = a.x;
-      const prevY = a.y;
-
-      a.x += a.vx;
-      a.y += a.vy;
-      a.vy += GRAVITY;
+      a.vy += GRAVITY * 0.65;
       a.rotation = Math.atan2(a.vy, a.vx);
 
       let arrowConsumed = false;
 
-      // Player collision check
-      const pBox = { x: p.x, y: p.y, width: p.width, height: p.height };
-      if (lineIntersectsBox(prevX, prevY, a.x, a.y, pBox)) {
-        const damageTaken = Math.round(a.damage * (1 - eng.armorReduction));
-        p.hp = Math.max(0, p.hp - damageTaken);
-        p.hitFlash = 6;
-        eng.screenShake = 6;
+      // Hit Opponent?
+      const oppHitbox = { x: opp.x, y: opp.y, width: opp.width, height: opp.height };
+      if (a.x >= oppHitbox.x && a.x <= oppHitbox.x + oppHitbox.width &&
+          a.y >= oppHitbox.y && a.y <= oppHitbox.y + oppHitbox.height) {
+        
+        const isHeadshot = a.y <= opp.y + 24;
+        const damageDealt = isHeadshot ? Math.round(a.damage * 2.2) : a.damage;
 
-        stickmanAudio.playHit(false);
-        pSys.addSpark(a.x, a.y, '#ef4444', 10);
-        pSys.addDamageNumber(p.x + 14, p.y, `-${damageTaken}`, false, '#ef4444');
-        setPlayerHp(p.hp);
+        opp.hp = Math.max(0, opp.hp - damageDealt);
+        opp.hitFlash = 8;
+        eng.oppHp = opp.hp;
+        setOppHp(opp.hp);
+        eng.score += isHeadshot ? damageDealt * 15 : damageDealt * 10;
 
-        if (p.hp <= 0) {
-          handleDefeat();
-          return;
-        }
+        stickmanAudio.playHit(isHeadshot);
+        pSys.addSpark(a.x, a.y, '#facc15', isHeadshot ? 18 : 10);
+        pSys.addDamageNumber(opp.x + 14, opp.y, `-${damageDealt}`, isHeadshot, isHeadshot ? '#facc15' : '#ffffff');
 
         arrowConsumed = true;
+
+        if (opp.hp <= 0) {
+          finishMatch('opponent_eliminated');
+          return;
+        }
       }
 
-      // Platform collision
+      // Hit Destructible Crates / TNT?
+      if (!arrowConsumed) {
+        for (const crate of eng.crates) {
+          if (crate.destroyed) continue;
+          if (a.x >= crate.x && a.x <= crate.x + crate.width &&
+              a.y >= crate.y && a.y <= crate.y + crate.height) {
+            crate.hp -= a.damage;
+            pSys.addSpark(a.x, a.y, '#d97706', 8);
+            if (crate.hp <= 0) {
+              crate.destroyed = true;
+              if (crate.type === 'tnt') {
+                triggerExplosionAt(crate.x + crate.width / 2, crate.y + crate.height / 2, 85, 60);
+              }
+            }
+            arrowConsumed = true;
+            break;
+          }
+        }
+      }
+
+      // Hit Platform surface?
       if (!arrowConsumed) {
         for (const plat of eng.platforms) {
           if (a.x >= plat.x && a.x <= plat.x + plat.width && a.y >= plat.y && a.y <= plat.y + 16) {
@@ -720,21 +542,109 @@ export default function StickmanShowdown() {
       }
 
       if (arrowConsumed || a.y > canvas.height + 40 || a.x < -40 || a.x > canvas.width + 40) {
-        eng.enemyArrows.splice(i, 1);
+        eng.myArrows.splice(i, 1);
       }
     }
 
-    // 5. Update Particles & Coins
-    pSys.update(eng.platforms, p, (val) => {
-      stickmanAudio.playCoin();
-      eng.coinsEarned += val * 10;
-      setCoinsDisplay((prev) => prev + val * 10);
-    });
+    // 3. Update Opponent Arrows -> Check Collision with Local Player & Crates
+    for (let i = eng.oppArrows.length - 1; i >= 0; i--) {
+      const a = eng.oppArrows[i];
+      if (!a.active) continue;
+
+      a.x += a.vx;
+      a.y += a.vy;
+      a.vy += GRAVITY * 0.65;
+      a.rotation = Math.atan2(a.vy, a.vx);
+
+      let arrowConsumed = false;
+
+      // Hit Local Player?
+      const pHitbox = { x: p.x, y: p.y, width: p.width, height: p.height };
+      if (a.x >= pHitbox.x && a.x <= pHitbox.x + pHitbox.width &&
+          a.y >= pHitbox.y && a.y <= pHitbox.y + pHitbox.height) {
+        
+        const isHeadshot = a.y <= p.y + 24;
+        const damageTaken = isHeadshot ? Math.round(a.damage * 2.2) : a.damage;
+
+        p.hp = Math.max(0, p.hp - damageTaken);
+        p.hitFlash = 8;
+        eng.myHp = p.hp;
+        setMyHp(p.hp);
+        eng.screenShake = isHeadshot ? 12 : 6;
+
+        stickmanAudio.playHit(isHeadshot);
+        pSys.addSpark(a.x, a.y, '#ef4444', isHeadshot ? 18 : 10);
+        pSys.addDamageNumber(p.x + 14, p.y, `-${damageTaken}`, isHeadshot, '#ef4444');
+
+        arrowConsumed = true;
+
+        if (p.hp <= 0) {
+          finishMatch('knocked_out');
+          return;
+        }
+      }
+
+      // Hit Destructible Crates / TNT?
+      if (!arrowConsumed) {
+        for (const crate of eng.crates) {
+          if (crate.destroyed) continue;
+          if (a.x >= crate.x && a.x <= crate.x + crate.width &&
+              a.y >= crate.y && a.y <= crate.y + crate.height) {
+            crate.hp -= a.damage;
+            pSys.addSpark(a.x, a.y, '#d97706', 8);
+            if (crate.hp <= 0) {
+              crate.destroyed = true;
+              if (crate.type === 'tnt') {
+                triggerExplosionAt(crate.x + crate.width / 2, crate.y + crate.height / 2, 85, 60);
+              }
+            }
+            arrowConsumed = true;
+            break;
+          }
+        }
+      }
+
+      // Hit Platform surface?
+      if (!arrowConsumed) {
+        for (const plat of eng.platforms) {
+          if (a.x >= plat.x && a.x <= plat.x + plat.width && a.y >= plat.y && a.y <= plat.y + 16) {
+            a.active = false;
+            break;
+          }
+        }
+      }
+
+      if (arrowConsumed || a.y > canvas.height + 40 || a.x < -40 || a.x > canvas.width + 40) {
+        eng.oppArrows.splice(i, 1);
+      }
+    }
+
+    // 4. Send Real-Time Network State via WebSocket (~20 Hz)
+    const now = Date.now();
+    if (now - lastSyncTimeRef.current >= 50) {
+      lastSyncTimeRef.current = now;
+      const payload = {
+        x: Math.round(p.x),
+        y: Math.round(p.y),
+        vx: Number(p.vx.toFixed(2)),
+        vy: Number(p.vy.toFixed(2)),
+        facingRight: p.facingRight,
+        aimAngle: Number(p.aimAngle.toFixed(3)),
+        isDrawing: p.isDrawing,
+        drawPower: Number(p.drawPower.toFixed(2)),
+        hp: p.hp,
+        arrowShot: eng.pendingArrowShot,
+      };
+      eng.pendingArrowShot = null;
+      sendScore(eng.score, payload);
+    }
+
+    // 5. Update Particles
+    pSys.update(eng.platforms, p);
 
     // 6. RENDER SCENE
     ctx.save();
 
-    // Screen Shake Offset
     if (eng.screenShake > 0) {
       const sx = (Math.random() - 0.5) * eng.screenShake;
       const sy = (Math.random() - 0.5) * eng.screenShake;
@@ -748,32 +658,26 @@ export default function StickmanShowdown() {
     renderer.renderPlatforms(eng.platforms);
     renderer.renderCrates(eng.crates);
 
-    // Aim trajectory dots while drawing bow
+    // Aim trajectory line while drawing bow
     if (p.isDrawing && p.drawPower > 0.1) {
       renderer.renderAimTrajectory(p.x + (p.facingRight ? 26 : -10), p.y + 24, p.aimAngle, p.drawPower);
     }
 
-    // Render Enemies
-    for (const enemy of eng.enemies) {
-      if (!enemy.dead) {
-        renderer.renderStickman(enemy, false, eng.tick);
-      }
-    }
-
-    // Render Player
+    // Render Both Players
+    renderer.renderStickman(opp, false, eng.tick);
     renderer.renderStickman(p, true, eng.tick);
 
-    // Render Projectiles & Visuals
-    renderer.renderArrows([...eng.arrows, ...eng.enemyArrows]);
+    // Render Projectiles
+    renderer.renderArrows([...eng.myArrows, ...eng.oppArrows]);
     renderer.renderParticles(pSys);
 
     ctx.restore();
 
     eng.tick++;
     rafRef.current = requestAnimationFrame(gameLoop);
-  }, [saveData.unlockedWeapons, saveData.unlockedArrows, triggerExplosionAt, handleDefeat, handleVictory]);
+  }, [currentUser?.uid, sendScore, triggerExplosionAt, finishMatch]);
 
-  // Canvas Logical Coordinate Space (Standardized 960x540 landscape virtual arena)
+  // Canvas Resize Handler
   const handleResize = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -787,9 +691,9 @@ export default function StickmanShowdown() {
     return () => window.removeEventListener('resize', handleResize);
   }, [handleResize]);
 
-  // Game Loop Initiation
+  // Start Loop
   useEffect(() => {
-    if (gameState === 'playing') {
+    if (matchState === 'PLAYING') {
       const canvas = canvasRef.current;
       if (canvas) {
         rendererRef.current = new StickmanRenderer(canvas);
@@ -805,495 +709,155 @@ export default function StickmanShowdown() {
         inputRef.current = null;
       }
     };
-  }, [gameState, gameLoop]);
-
-  // Upgrade Purchase Action
-  const buyUpgrade = (type, cost) => {
-    if (saveData.coins < cost) return;
-    stickmanAudio.playCoin();
-    setSaveData((prev) => {
-      const currentTier = prev.upgrades[type] || 0;
-      const nextSave = {
-        ...prev,
-        coins: prev.coins - cost,
-        upgrades: {
-          ...prev.upgrades,
-          [type]: currentTier + 1,
-        },
-      };
-      saveUserData(nextSave);
-      setCoinsDisplay(nextSave.coins);
-      return nextSave;
-    });
-  };
-
-  // Arrow Unlock Action
-  const unlockArrow = (arrow) => {
-    if (saveData.coins < arrow.price || saveData.unlockedArrows.includes(arrow.id)) return;
-    stickmanAudio.playCoin();
-    setSaveData((prev) => {
-      const nextSave = {
-        ...prev,
-        coins: prev.coins - arrow.price,
-        unlockedArrows: [...prev.unlockedArrows, arrow.id],
-        activeArrow: arrow.id,
-      };
-      saveUserData(nextSave);
-      setCoinsDisplay(nextSave.coins);
-      setActiveArrowId(arrow.id);
-      return nextSave;
-    });
-  };
+  }, [matchState, gameLoop]);
 
   return (
-    <div className="min-h-screen bg-[#040914] text-white flex flex-col items-center justify-center p-2 select-none font-sans relative overflow-hidden">
-      
+    <div className="min-h-screen bg-[#040914] text-white flex flex-col items-center justify-center p-1 sm:p-2 select-none font-sans relative overflow-hidden">
+
+      {/* ── Mobile Orientation Rotate Screen Blocker ───────────────────── */}
+      {isPortrait && (
+        <div className="fixed inset-0 z-50 bg-[#040914] flex flex-col items-center justify-center p-6 text-center select-none text-white animate-in fade-in">
+          <div className="w-20 h-20 mb-4 animate-bounce text-6xl flex items-center justify-center">
+            📱🔄
+          </div>
+          <h2 className="font-display font-black text-2xl sm:text-3xl uppercase tracking-wider text-neo-yellow mb-2">
+            ROTATE YOUR PHONE
+          </h2>
+          <p className="font-mono text-xs sm:text-sm text-zinc-300 max-w-xs mb-6">
+            Stickman Showdown 1v1 Arena is designed for widescreen landscape combat. Please turn your phone horizontally.
+          </p>
+          <button
+            onClick={toggleFullscreen}
+            className="px-6 py-3 bg-neo-lime hover:bg-lime-400 text-black border-3 border-black font-display font-black text-sm uppercase shadow-neo active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
+          >
+            ⛶ ENTER FULLSCREEN & PLAY
+          </button>
+        </div>
+      )}
+
+      {/* ── Multiplayer Matchmaking & Lobby Modal ───────────────────────── */}
+      <MultiplayerLobbyModal
+        isOpen={showLobbyModal && matchState !== 'PLAYING' && matchState !== 'COUNTDOWN'}
+        onClose={() => navigate('/')}
+        gameId="stickman-showdown"
+        gameTitle="Stickman Showdown"
+      />
+
+      {/* ── Multiplayer Result Modal ────────────────────────────────────── */}
+      <MultiplayerResultModal
+        isOpen={matchState === 'FINISHED'}
+        onReturnToLobby={() => {
+          resetMultiplayerState();
+          setShowLobbyModal(true);
+        }}
+      />
+
       {/* ── Active Game Arena (Landscape Canvas) ────────────────────────── */}
-      <div ref={containerRef} className="relative border-4 border-[#1e293b] shadow-[0_0_35px_rgba(0,0,0,0.85)] bg-[#040914] rounded-lg overflow-hidden flex items-center justify-center max-w-[960px] w-full aspect-[16/9]">
-        
+      <div
+        ref={containerRef}
+        className={`relative border-2 sm:border-4 border-[#1e293b] shadow-[0_0_35px_rgba(0,0,0,0.85)] bg-[#040914] rounded-lg overflow-hidden flex items-center justify-center w-full max-w-[960px] aspect-[16/9] ${
+          isFullscreen ? 'w-screen h-screen max-w-none max-h-none rounded-none border-none' : ''
+        }`}
+      >
         {/* Canvas */}
         <canvas ref={canvasRef} width={960} height={540} className="block w-full h-full cursor-crosshair" />
 
-        {/* ── TOP HUD (Matches Reference Screenshot!) ──────────────────── */}
-        {gameState === 'playing' && (
+        {/* ── Top Match VS HUD ─────────────────────────────────────────── */}
+        {matchState === 'PLAYING' && (
           <div className="absolute top-2 left-2 right-2 flex items-center justify-between pointer-events-none z-30 px-2 pt-1">
             
-            {/* Left Controls: Back / Health / Arm Power */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setGameState('paused')}
-                className="pointer-events-auto w-9 h-9 bg-[#1e293b] hover:bg-[#334155] border-2 border-black flex items-center justify-center text-sm font-black shadow-neo-sm cursor-pointer active:scale-95 transition-transform"
-                title="Pause Menu"
-              >
-                ◀
-              </button>
-
-              {/* Health Bar */}
-              <div className="flex items-center gap-1.5 bg-black/60 border border-white/20 px-2.5 py-1 rounded">
-                <span className="text-red-500 text-xs">❤️</span>
-                <span className="font-mono text-[10px] font-black uppercase text-zinc-300">HEALTH</span>
-                <div className="w-28 sm:w-36 h-3 bg-zinc-800 border border-black rounded-sm overflow-hidden">
+            {/* Player 1 Health */}
+            <div className="flex items-center gap-2 bg-black/75 border-2 border-black p-1.5 shadow-neo-sm">
+              <span className="text-xl">🏹</span>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono font-black text-xs uppercase text-amber-400">
+                    {isPlayer1 ? (playerData?.username || 'You') : (opponent?.username || 'Opponent')}
+                  </span>
+                  {isPlayer1 && <span className="bg-neo-lime border border-black text-[9px] font-mono font-black px-1 text-black">YOU</span>}
+                </div>
+                <div className="w-24 sm:w-36 h-2.5 bg-zinc-800 border border-black rounded-xs overflow-hidden mt-0.5">
                   <div
                     className="h-full bg-emerald-500 transition-all duration-150"
-                    style={{ width: `${Math.max(0, Math.min(100, (playerHp / maxHp) * 100))}%` }}
+                    style={{ width: `${Math.max(0, Math.min(100, ((isPlayer1 ? myHp : oppHp) / MAX_HP) * 100))}%` }}
                   />
                 </div>
               </div>
+            </div>
 
-              {/* Arm Power Bar */}
-              <div className="flex items-center gap-1.5 bg-black/60 border border-white/20 px-2.5 py-1 rounded">
-                <span className="text-fuchsia-400 text-xs">⚡</span>
-                <span className="font-mono text-[10px] font-black uppercase text-zinc-300">ARM POWER</span>
-                <div className="w-24 sm:w-32 h-3 bg-zinc-800 border border-black rounded-sm overflow-hidden">
+            {/* Center Timer & Match Controls */}
+            <div className="flex items-center gap-2 pointer-events-auto">
+              <div className="bg-neo-yellow border-2 sm:border-3 border-black px-3 py-1 text-black font-display font-black text-sm sm:text-base shadow-neo-sm">
+                ⏱️ {matchTimeLeft}s
+              </div>
+              
+              <button
+                onClick={toggleFullscreen}
+                className="w-8 h-8 bg-zinc-800 hover:bg-zinc-700 border-2 border-black flex items-center justify-center text-xs font-mono font-black shadow-neo-sm cursor-pointer"
+                title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+              >
+                {isFullscreen ? '🗗' : '⛶'}
+              </button>
+
+              <button
+                onClick={() => {
+                  leaveRoom();
+                  resetMultiplayerState();
+                  setShowLobbyModal(true);
+                }}
+                className="w-8 h-8 bg-red-600 hover:bg-red-500 border-2 border-black flex items-center justify-center text-xs font-mono font-black shadow-neo-sm cursor-pointer text-white"
+                title="Leave Match"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Player 2 Health */}
+            <div className="flex items-center gap-2 bg-black/75 border-2 border-black p-1.5 shadow-neo-sm text-right">
+              <div>
+                <div className="flex items-center justify-end gap-1.5">
+                  {!isPlayer1 && <span className="bg-neo-lime border border-black text-[9px] font-mono font-black px-1 text-black">YOU</span>}
+                  <span className="font-mono font-black text-xs uppercase text-cyan-400">
+                    {!isPlayer1 ? (playerData?.username || 'You') : (opponent?.username || 'Opponent')}
+                  </span>
+                </div>
+                <div className="w-24 sm:w-36 h-2.5 bg-zinc-800 border border-black rounded-xs overflow-hidden mt-0.5">
                   <div
-                    className="h-full bg-fuchsia-500 transition-all duration-75"
-                    style={{ width: `${armPower}%` }}
+                    className="h-full bg-cyan-500 transition-all duration-150"
+                    style={{ width: `${Math.max(0, Math.min(100, ((!isPlayer1 ? myHp : oppHp) / MAX_HP) * 100))}%` }}
                   />
                 </div>
               </div>
-            </div>
-
-            {/* Boss Health Bar (if active) */}
-            {bossHp !== null && (
-              <div className="absolute left-1/2 -translate-x-1/2 top-1 flex flex-col items-center">
-                <span className="font-mono text-[10px] font-black uppercase tracking-wider text-red-400 mb-0.5">
-                  👑 {bossName}
-                </span>
-                <div className="w-48 sm:w-64 h-3.5 bg-zinc-900 border-2 border-red-950 rounded overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-red-600 to-rose-500 transition-all duration-150"
-                    style={{ width: `${Math.max(0, Math.min(100, (bossHp / bossMaxHp) * 100))}%` }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Right Counters: Kills, Headshots, Coins */}
-            <div className="flex items-center gap-3 bg-black/60 border border-white/20 px-3 py-1 rounded">
-              <div className="flex items-center gap-1 text-xs font-mono font-bold">
-                <span>💀</span>
-                <span>{killsDisplay}</span>
-              </div>
-              <div className="flex items-center gap-1 text-xs font-mono font-bold text-amber-300">
-                <span>🎯</span>
-                <span>{headshotsDisplay}</span>
-              </div>
-              <div className="flex items-center gap-1 text-xs font-mono font-bold text-yellow-400">
-                <span>🪙</span>
-                <span>{coinsDisplay.toLocaleString()}</span>
-              </div>
+              <span className="text-xl">🎯</span>
             </div>
 
           </div>
         )}
 
-        {/* ── BOTTOM ARROW SELECTOR (Matches Reference Screenshot!) ───── */}
-        {gameState === 'playing' && (
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 p-1.5 bg-black/80 border border-white/20 rounded-lg pointer-events-auto shadow-2xl overflow-x-auto max-w-[94%]">
-            {ARROW_TYPES.map((arr, idx) => {
-              const isUnlocked = saveData.unlockedArrows.includes(arr.id);
-              const isSelected = activeArrowId === arr.id;
-
-              return (
-                <button
-                  key={arr.id}
-                  onClick={() => {
-                    if (isUnlocked) {
-                      setActiveArrowId(arr.id);
-                      if (engineRef.current.player) {
-                        engineRef.current.player.arrowType = arr.id;
-                      }
-                    } else if (saveData.coins >= arr.price) {
-                      unlockArrow(arr);
-                    }
-                  }}
-                  className={`relative flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded border-2 transition-all cursor-pointer ${
-                    isSelected
-                      ? 'border-amber-400 bg-amber-400/20 scale-105 shadow-md'
-                      : isUnlocked
-                      ? 'border-white/20 bg-zinc-900/80 hover:bg-zinc-800'
-                      : 'border-zinc-800 bg-black/60 opacity-60'
-                  }`}
-                  title={`${arr.name} ${!isUnlocked ? `(Unlock: ${arr.price} coins)` : ''}`}
-                >
-                  <span className="text-lg">{arr.icon}</span>
-                  {!isUnlocked && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 rounded text-[8px] font-mono text-amber-300 font-bold">
-                      <span>🔒</span>
-                      <span>{arr.price}</span>
-                    </div>
-                  )}
-                  {isUnlocked && (
-                    <span className="absolute bottom-0 right-1 text-[8px] font-mono text-zinc-400">
-                      {idx + 1}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* ── 1. MAIN MENU SCREEN ──────────────────────────────────────── */}
-        {gameState === 'menu' && (
-          <div className="absolute inset-0 bg-[#040914]/90 flex flex-col items-center justify-center p-6 z-40 backdrop-blur-sm">
-            <button
-              onClick={() => navigate('/')}
-              className="absolute top-4 left-4 neo-btn-white px-3 py-1.5 text-xs font-mono font-black uppercase flex items-center gap-1.5"
-            >
-              ← HOME
-            </button>
-
-            <span className="px-3 py-1 bg-amber-400 text-black border-2 border-black font-mono font-black text-xs uppercase mb-3 shadow-neo-sm">
-              🏹 2D ARCHERY & COMBAT
-            </span>
-
-            <h1 className="font-display font-black text-4xl sm:text-5xl uppercase tracking-tight text-white mb-2 drop-shadow-[0_4px_12px_rgba(245,158,11,0.5)]">
-              STICKMAN SHOWDOWN
-            </h1>
-            <p className="font-mono text-xs text-zinc-400 mb-6 text-center max-w-md">
-              Master weapons, loose glowing arrows across floating sky islands, and defeat rogue warrior waves!
-            </p>
-
-            <div className="flex flex-col gap-3 w-64">
-              <button
-                onClick={() => startLevel(saveData.maxLevelUnlocked || 1)}
-                className="w-full py-3 bg-amber-400 hover:bg-amber-300 text-black font-display font-black text-lg uppercase tracking-wider border-3 border-black shadow-neo active:translate-y-0.5 cursor-pointer transition-all"
-              >
-                ▶ PLAY CAMPAIGN
-              </button>
-
-              <button
-                onClick={() => setGameState('level_select')}
-                className="w-full py-2.5 bg-white hover:bg-zinc-100 text-black font-mono font-black text-xs uppercase border-2 border-black shadow-neo-sm cursor-pointer transition-all"
-              >
-                🗺️ LEVEL SELECT
-              </button>
-
-              <button
-                onClick={() => setGameState('shop')}
-                className="w-full py-2.5 bg-[#818CF8] hover:bg-indigo-400 text-white font-mono font-black text-xs uppercase border-2 border-black shadow-neo-sm cursor-pointer transition-all flex items-center justify-center gap-1.5"
-              >
-                <span>⚔️</span>
-                <span>ARMORY & UPGRADES ({coinsDisplay} 🪙)</span>
-              </button>
-            </div>
-
-            {/* Controls Guide */}
-            <div className="mt-8 flex gap-4 text-center font-mono text-[10px] text-zinc-400 bg-white/5 border border-white/10 px-4 py-2 rounded">
-              <div><strong className="text-white">A / D:</strong> Move</div>
-              <div><strong className="text-white">W / Space:</strong> Jump</div>
-              <div><strong className="text-white">Mouse:</strong> Aim</div>
-              <div><strong className="text-white">Hold Left Click:</strong> Draw Bow</div>
-              <div><strong className="text-white">1–5:</strong> Switch Arrow</div>
+        {/* ── 3-2-1-GO Countdown Overlay ───────────────────────────────── */}
+        {countdownSec !== null && (
+          <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-xs pointer-events-none">
+            <div className="font-display font-black text-7xl sm:text-9xl text-neo-yellow drop-shadow-[5px_5px_0px_#000000] animate-pulse">
+              {countdownSec}
             </div>
           </div>
         )}
 
-        {/* ── 2. LEVEL SELECTION SCREEN ────────────────────────────────── */}
-        {gameState === 'level_select' && (
-          <div className="absolute inset-0 bg-[#040914]/95 flex flex-col items-center justify-center p-6 z-40">
-            <button
-              onClick={() => setGameState('menu')}
-              className="absolute top-4 left-4 neo-btn-white px-3 py-1.5 text-xs font-mono font-black uppercase"
-            >
-              ← BACK
-            </button>
-
-            <h2 className="font-display font-black text-3xl uppercase text-white mb-1">
-              CAMPAIGN CHAPTERS
-            </h2>
-            <p className="font-mono text-xs text-zinc-400 mb-6">Select a floating arena to battle</p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full max-w-2xl max-h-[70vh] overflow-y-auto p-2">
-              {CAMPAIGN_LEVELS.map((lvl) => {
-                const isUnlocked = lvl.id <= saveData.maxLevelUnlocked;
-                const stars = saveData.levelStars[lvl.id] || 0;
-
-                return (
-                  <button
-                    key={lvl.id}
-                    disabled={!isUnlocked}
-                    onClick={() => startLevel(lvl.id)}
-                    className={`p-4 border-2 flex flex-col items-start justify-between text-left transition-all ${
-                      isUnlocked
-                        ? 'bg-zinc-900 border-amber-400 shadow-neo-sm hover:-translate-y-1 cursor-pointer'
-                        : 'bg-black/40 border-zinc-800 opacity-50 cursor-not-allowed'
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-center justify-between w-full mb-1">
-                        <span className="font-mono text-[10px] font-black text-amber-400 uppercase">
-                          LEVEL {lvl.id}
-                        </span>
-                        {isUnlocked && (
-                          <span className="text-xs">{stars > 0 ? '⭐⭐⭐' : 'NEW'}</span>
-                        )}
-                      </div>
-                      <h3 className="font-display font-black text-sm text-white uppercase">{lvl.title}</h3>
-                      <p className="font-mono text-[10px] text-zinc-400 mt-1 line-clamp-2">{lvl.subtitle}</p>
-                    </div>
-
-                    <div className="mt-3 flex items-center justify-between w-full pt-2 border-t border-white/10 font-mono text-[10px] text-zinc-300">
-                      <span>Reward: 🪙 {lvl.coinReward}</span>
-                      <span>{isUnlocked ? 'RACE ➔' : '🔒 LOCKED'}</span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+        {/* ── Opponent Disconnect Grace Timer Banner ─────────────────────── */}
+        {opponentGraceTimer?.active && (
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-red-600 text-white border-2 border-black px-4 py-2 font-mono font-black text-xs uppercase shadow-neo animate-bounce">
+            ⚠️ {opponentGraceTimer.message} ({opponentGraceTimer.secondsRemaining}s)
           </div>
         )}
 
-        {/* ── 3. ARMORY & UPGRADES SCREEN ─────────────────────────────── */}
-        {gameState === 'shop' && (
-          <div className="absolute inset-0 bg-[#040914]/95 flex flex-col items-center justify-center p-6 z-40 overflow-y-auto">
-            <button
-              onClick={() => setGameState('menu')}
-              className="absolute top-4 left-4 neo-btn-white px-3 py-1.5 text-xs font-mono font-black uppercase"
-            >
-              ← BACK
-            </button>
-
-            <div className="flex items-center gap-2 mb-1">
-              <h2 className="font-display font-black text-3xl uppercase text-white">WARRIOR ARMORY</h2>
-              <span className="bg-amber-400 text-black px-2 py-0.5 font-mono font-black text-xs rounded">
-                🪙 {coinsDisplay} COINS
-              </span>
+        {/* ── Bottom Controls Guide Bar ─────────────────────────────────── */}
+        {matchState === 'PLAYING' && (
+          <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between pointer-events-none z-30 px-2 text-[10px] sm:text-xs font-mono text-zinc-400">
+            <div className="bg-black/60 px-2 py-0.5 rounded border border-white/10">
+              ⌨️ <span className="text-zinc-200">A / D</span>: Move &bull; <span className="text-zinc-200">W / Space</span>: Jump
             </div>
-            <p className="font-mono text-xs text-zinc-400 mb-5">Upgrade stats and unlock special combat arrows</p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl w-full max-h-[65vh] overflow-y-auto p-1">
-              {/* Max Health Upgrade */}
-              <div className="p-3 bg-zinc-900 border border-white/20 rounded flex items-center justify-between">
-                <div>
-                  <div className="font-display font-black text-sm uppercase text-red-400">❤️ Max Health</div>
-                  <p className="font-mono text-[10px] text-zinc-400">Tier {saveData.upgrades.healthTier || 0} (+25 HP)</p>
-                </div>
-                <button
-                  onClick={() => buyUpgrade('healthTier', 500 * ((saveData.upgrades.healthTier || 0) + 1))}
-                  disabled={coinsDisplay < 500 * ((saveData.upgrades.healthTier || 0) + 1)}
-                  className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-black font-mono font-black text-xs uppercase border border-black rounded disabled:opacity-40"
-                >
-                  UPGRADE ({500 * ((saveData.upgrades.healthTier || 0) + 1)} 🪙)
-                </button>
-              </div>
-
-              {/* Bow Damage Upgrade */}
-              <div className="p-3 bg-zinc-900 border border-white/20 rounded flex items-center justify-between">
-                <div>
-                  <div className="font-display font-black text-sm uppercase text-amber-400">🏹 Bow Damage</div>
-                  <p className="font-mono text-[10px] text-zinc-400">Tier {saveData.upgrades.damageTier || 0} (+20% Dmg)</p>
-                </div>
-                <button
-                  onClick={() => buyUpgrade('damageTier', 600 * ((saveData.upgrades.damageTier || 0) + 1))}
-                  disabled={coinsDisplay < 600 * ((saveData.upgrades.damageTier || 0) + 1)}
-                  className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-black font-mono font-black text-xs uppercase border border-black rounded disabled:opacity-40"
-                >
-                  UPGRADE ({600 * ((saveData.upgrades.damageTier || 0) + 1)} 🪙)
-                </button>
-              </div>
-
-              {/* Armor Upgrade */}
-              <div className="p-3 bg-zinc-900 border border-white/20 rounded flex items-center justify-between">
-                <div>
-                  <div className="font-display font-black text-sm uppercase text-sky-400">🛡️ Warrior Armor</div>
-                  <p className="font-mono text-[10px] text-zinc-400">Tier {saveData.upgrades.armorTier || 0} (-10% damage)</p>
-                </div>
-                <button
-                  onClick={() => buyUpgrade('armorTier', 750 * ((saveData.upgrades.armorTier || 0) + 1))}
-                  disabled={coinsDisplay < 750 * ((saveData.upgrades.armorTier || 0) + 1)}
-                  className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-black font-mono font-black text-xs uppercase border border-black rounded disabled:opacity-40"
-                >
-                  UPGRADE ({750 * ((saveData.upgrades.armorTier || 0) + 1)} 🪙)
-                </button>
-              </div>
-
-              {/* Power Draw Speed */}
-              <div className="p-3 bg-zinc-900 border border-white/20 rounded flex items-center justify-between">
-                <div>
-                  <div className="font-display font-black text-sm uppercase text-fuchsia-400">⚡ Arm Power Regen</div>
-                  <p className="font-mono text-[10px] text-zinc-400">Draws bowstring 25% faster</p>
-                </div>
-                <button
-                  onClick={() => buyUpgrade('powerRegenTier', 600 * ((saveData.upgrades.powerRegenTier || 0) + 1))}
-                  disabled={coinsDisplay < 600 * ((saveData.upgrades.powerRegenTier || 0) + 1)}
-                  className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-black font-mono font-black text-xs uppercase border border-black rounded disabled:opacity-40"
-                >
-                  UPGRADE ({600 * ((saveData.upgrades.powerRegenTier || 0) + 1)} 🪙)
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── 4. PAUSE MODAL ───────────────────────────────────────────── */}
-        {gameState === 'paused' && (
-          <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center p-6 z-40 backdrop-blur-xs">
-            <div className="neo-box-lg bg-[#FFFDF5] p-6 text-center max-w-xs w-full text-black">
-              <h2 className="font-display font-black text-2xl uppercase mb-2">GAME PAUSED</h2>
-              <div className="flex flex-col gap-2 mt-4">
-                <button
-                  onClick={() => setGameState('playing')}
-                  className="py-2.5 bg-neo-lime hover:bg-lime-300 border-2 border-black font-mono font-black text-xs uppercase shadow-neo-sm cursor-pointer"
-                >
-                  ▶ RESUME
-                </button>
-                <button
-                  onClick={() => startLevel(currentLevelId)}
-                  className="py-2.5 bg-white hover:bg-zinc-100 border-2 border-black font-mono font-black text-xs uppercase shadow-neo-sm cursor-pointer"
-                >
-                  ↺ RESTART LEVEL
-                </button>
-                <button
-                  onClick={() => setGameState('menu')}
-                  className="py-2.5 bg-zinc-100 hover:bg-zinc-200 border-2 border-black font-mono font-black text-xs uppercase shadow-neo-sm cursor-pointer"
-                >
-                  MAIN MENU
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── 5. VICTORY MODAL ─────────────────────────────────────────── */}
-        {gameState === 'victory' && (
-          <div className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center p-6 z-40 backdrop-blur-xs">
-            <div className="neo-box-xl bg-[#FFFDF5] p-6 text-center max-w-sm w-full text-black animate-in zoom-in-95">
-              <div className="inline-block px-4 py-1.5 bg-neo-lime border-3 border-black font-display font-black text-2xl uppercase mb-3 shadow-neo">
-                🏆 VICTORY!
-              </div>
-
-              <h3 className="font-display font-black text-xl uppercase mb-1">
-                Level {currentLevelId} Cleared!
-              </h3>
-              <p className="font-mono text-xs text-zinc-600 mb-4">All enemies defeated across the sky islands.</p>
-
-              <div className="grid grid-cols-2 gap-2 bg-zinc-100 border-2 border-black p-3 font-mono text-xs font-bold mb-4">
-                <div>💀 Kills: {levelStats.kills}</div>
-                <div>🎯 Headshots: {levelStats.headshots}</div>
-                <div className="col-span-2 text-amber-600 font-black">
-                  🪙 +{levelStats.coins} COINS EARNED
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                {currentLevelId < CAMPAIGN_LEVELS.length ? (
-                  <button
-                    onClick={() => startLevel(currentLevelId + 1)}
-                    className="w-full py-3 bg-neo-lime hover:bg-lime-300 border-2 border-black font-mono font-black text-xs uppercase shadow-neo cursor-pointer"
-                  >
-                    NEXT LEVEL ➔
-                  </button>
-                ) : (
-                  <div className="p-2 bg-amber-100 border border-black font-mono text-xs font-black text-amber-800">
-                    👑 CONGRATULATIONS! You completed all campaign chapters!
-                  </div>
-                )}
-
-                <button
-                  onClick={() => startLevel(currentLevelId)}
-                  className="w-full py-2 bg-white hover:bg-zinc-100 border-2 border-black font-mono font-black text-xs uppercase shadow-neo-sm cursor-pointer"
-                >
-                  ↺ REPLAY LEVEL
-                </button>
-
-                <button
-                  onClick={() => setGameState('menu')}
-                  className="w-full py-2 bg-zinc-100 hover:bg-zinc-200 border-2 border-black font-mono font-black text-xs uppercase shadow-neo-sm cursor-pointer"
-                >
-                  MAIN MENU
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── 6. DEFEAT MODAL ──────────────────────────────────────────── */}
-        {gameState === 'defeat' && (
-          <div className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center p-6 z-40 backdrop-blur-xs">
-            <div className="neo-box-xl bg-[#FFFDF5] p-6 text-center max-w-sm w-full text-black animate-in zoom-in-95">
-              <div className="inline-block px-4 py-1.5 bg-neo-red text-white border-3 border-black font-display font-black text-2xl uppercase mb-3 shadow-neo">
-                💀 DEFEATED
-              </div>
-
-              <h3 className="font-display font-black text-xl uppercase mb-1">
-                You fell in battle
-              </h3>
-              <p className="font-mono text-xs text-zinc-600 mb-4">
-                Upgrade your armor & bow in the Armory to take on tougher enemies!
-              </p>
-
-              <div className="w-full shrink-0 mb-3">
-                <PostGameProgression result={lastProgressionResult} />
-              </div>
-
-              <div className="w-full my-2 flex justify-center shrink-0">
-                <AdSlot placement="game-over" format="banner" className="max-w-[280px] sm:max-w-[340px] max-h-[55px] sm:max-h-[90px]" />
-              </div>
-
-              <div className="flex flex-col gap-2 w-full mt-2">
-                <button
-                  onClick={() => startLevel(currentLevelId)}
-                  className="w-full py-3 bg-neo-lime hover:bg-lime-300 border-2 border-black font-mono font-black text-xs uppercase shadow-neo cursor-pointer"
-                >
-                  ↺ TRY AGAIN
-                </button>
-
-                <button
-                  onClick={() => setGameState('shop')}
-                  className="w-full py-2 bg-amber-400 hover:bg-amber-300 border-2 border-black font-mono font-black text-xs uppercase shadow-neo-sm cursor-pointer"
-                >
-                  ⚔️ OPEN ARMORY & UPGRADES
-                </button>
-
-                <button
-                  onClick={() => setGameState('menu')}
-                  className="w-full py-2 bg-zinc-100 hover:bg-zinc-200 border-2 border-black font-mono font-black text-xs uppercase shadow-neo-sm cursor-pointer"
-                >
-                  MAIN MENU
-                </button>
-              </div>
+            <div className="bg-black/60 px-2 py-0.5 rounded border border-white/10">
+              🖱️ <span className="text-zinc-200">Mouse</span>: Aim &bull; <span className="text-zinc-200">Hold Click</span>: Draw &bull; <span className="text-zinc-200">Release</span>: Shoot
             </div>
           </div>
         )}
@@ -1303,4 +867,3 @@ export default function StickmanShowdown() {
     </div>
   );
 }
-

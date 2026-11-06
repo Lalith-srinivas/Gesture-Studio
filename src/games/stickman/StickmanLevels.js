@@ -20,6 +20,31 @@ export const ARROW_TYPES = [
   { id: 'poison', name: 'Poison Arrow', icon: '🧪', color: '#4ade80', trailColor: '#16a34a', damageMult: 1.2, poisonDot: 8, unlocked: false, price: 2200, desc: 'Inflicts toxic rot that drains enemy life over time.' },
 ];
 
+export const MULTIPLAYER_ARENA = {
+  title: 'Stickman 1v1 Sky Arena',
+  player1Start: { x: 120, y: 358 },
+  player2Start: { x: 800, y: 358 },
+  platforms: [
+    // Left Island (P1 Home)
+    { x: 30, y: 440, width: 240, height: 40, type: 'island' },
+    // Right Island (P2 Home)
+    { x: 690, y: 440, width: 240, height: 40, type: 'island' },
+    // Center Floating Islands
+    { x: 380, y: 460, width: 200, height: 35, type: 'island' },
+    { x: 260, y: 330, width: 120, height: 26, type: 'floating' },
+    { x: 580, y: 330, width: 120, height: 26, type: 'floating' },
+    { x: 420, y: 220, width: 120, height: 26, type: 'floating' },
+  ],
+  crates: [
+    // Tactical destructible crates & TNT in the middle battleground
+    { x: 440, y: 424, width: 36, height: 36, type: 'wood', hp: 30 },
+    { x: 480, y: 424, width: 36, height: 36, type: 'tnt', hp: 15 },
+    { x: 300, y: 294, width: 36, height: 36, type: 'wood', hp: 30 },
+    { x: 620, y: 294, width: 36, height: 36, type: 'tnt', hp: 15 },
+    { x: 462, y: 184, width: 36, height: 36, type: 'tnt', hp: 15 },
+  ],
+};
+
 export const CAMPAIGN_LEVELS = [
   {
     id: 1,
