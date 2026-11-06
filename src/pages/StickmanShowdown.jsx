@@ -11,6 +11,7 @@ import { ParticleSystem, checkPlatformCollision, GRAVITY, ARROW_BASE_SPEED } fro
 import { MULTIPLAYER_ARENA, ARROW_TYPES } from '../games/stickman/StickmanLevels';
 import MultiplayerLobbyModal from '../components/multiplayer/MultiplayerLobbyModal';
 import MultiplayerResultModal from '../components/multiplayer/MultiplayerResultModal';
+import AnimeCam from '../components/AnimeCam';
 
 const MAX_HP = 150;
 const MATCH_DURATION_SEC = 90;
@@ -53,6 +54,14 @@ export default function StickmanShowdown() {
 
   // Active arrow selection
   const [currentArrowIdx, setCurrentArrowIdx] = useState(0);
+
+  // First-time player detection: Guide new warriors through Gesture Academy first!
+  useEffect(() => {
+    const hasCompletedAcademy = localStorage.getItem('gesture_studio_stickman_tutorial_completed');
+    if (!hasCompletedAcademy) {
+      navigate('/gesture-academy?game=stickman', { replace: true });
+    }
+  }, [navigate]);
 
   // References
   const canvasRef = useRef(null);
@@ -1125,15 +1134,17 @@ export default function StickmanShowdown() {
         </div>
       )}
 
-      {/* ── Webcam PIP & Live Gesture HUD (Layer 40) ────────────────────── */}
+      {/* ── Picture-in-Picture AnimeCam Feed & Live Gesture HUD (Layer 40) ── */}
       {cameraEnabled && (matchState === 'PLAYING' || matchState === 'COUNTDOWN') && showPip && (
-        <div className="absolute top-12 sm:top-14 right-2 sm:right-4 z-40 pointer-events-auto bg-black/85 border-2 border-black p-1 rounded shadow-neo-sm flex flex-col items-center">
-          <canvas ref={pipCanvasRef} width={140} height={105} className="w-20 sm:w-28 h-auto border border-white/20 rounded-xs block bg-zinc-950" />
-          <div className="w-full flex justify-between items-center text-[7px] sm:text-[9px] font-mono font-black text-zinc-300 mt-0.5 px-0.5">
-            <span>{cameraReady ? '🟢 RIGHT-HAND AI' : '🟡 CAMERA'}</span>
-            <button onClick={() => setShowPip(false)} className="text-zinc-400 hover:text-white cursor-pointer">✕</button>
+        <div className="absolute top-12 sm:top-14 right-2 sm:right-4 z-40 pointer-events-auto bg-[#FFFDF5] border-3 border-black p-1 shadow-neo flex flex-col items-center">
+          <div className="w-24 sm:w-32 h-16 sm:h-22 border-2 border-black overflow-hidden relative bg-black">
+            <AnimeCam videoRef={videoRef} />
           </div>
-          <div className="w-full text-[8px] font-mono font-bold text-neo-yellow px-0.5 truncate max-w-[120px] sm:max-w-[140px]">
+          <div className="w-full flex justify-between items-center text-[8px] sm:text-[10px] font-mono font-black text-black mt-1 px-1">
+            <span className="text-emerald-700">{cameraReady ? '🟢 ANIME CAM' : '🟡 CAMERA'}</span>
+            <button onClick={() => setShowPip(false)} className="text-zinc-600 hover:text-black cursor-pointer font-black">✕</button>
+          </div>
+          <div className="w-full text-[9px] font-mono font-black text-black bg-neo-yellow border border-black px-1 py-0.5 mt-0.5 truncate text-center shadow-neo-sm">
             {rightGestureStatus}
           </div>
         </div>

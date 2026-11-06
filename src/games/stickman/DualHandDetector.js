@@ -132,8 +132,11 @@ export class DualHandDetector {
     const extCount = [indexExt, middleExt, ringExt, pinkyExt].filter(Boolean).length;
 
     // ─────────────────────────────────────────────────────────────────────────
-    // 1. GESTURE STATES
+    // 1. GESTURE STATES & NORMALIZED DISTANCES
     // ─────────────────────────────────────────────────────────────────────────
+    // Hand scale reference (wrist to middle knuckle) for distance normalization
+    const handScale = Math.max(0.12, dist(wrist, palmCenter));
+
     // A Fist has 0 extended fingers
     const isFist = extCount === 0;
 
@@ -142,10 +145,11 @@ export class DualHandDetector {
 
     // Pinch distance check (Thumb Tip to Index Tip)
     const pDist = dist(thumbTip, indexTip);
+    const normalizedPinch = pDist / handScale;
     result.pinchDistance = pDist;
 
-    // Archery Pinch requires thumb & index touching, but NOT a closed fist
-    const isPinching = pDist < 0.088 && extCount >= 1;
+    // Archery Pinch requires thumb & index tips touching, but NEVER in an open palm or closed fist!
+    const isPinching = normalizedPinch < 0.38 && !isOpenPalm && !isFist;
 
     // ─────────────────────────────────────────────────────────────────────────
     // 2. JUMP: Open Palm ✋ then Make Fist ✊ to Jump!

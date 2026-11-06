@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useGestureAcademy } from '../../hooks/useGestureAcademy';
 import { usePlayer } from '../../hooks/usePlayer';
 import { DualHandDetector } from '../../games/stickman/DualHandDetector';
+import AnimeCam from '../AnimeCam';
 
 // ── Web Audio Synthesizer for Stickman Tutorial ─────────────────────────────
 class StickmanAudio {
@@ -524,6 +525,16 @@ export default function StickmanTutorial() {
     setCompleted(true);
     completeGame('stickman');
     recordGameResult('stickman', 1500, true);
+    try {
+      localStorage.setItem('gesture_studio_stickman_tutorial_completed', 'true');
+    } catch {}
+  };
+
+  const handleExitToGame = () => {
+    try {
+      localStorage.setItem('gesture_studio_stickman_tutorial_completed', 'true');
+    } catch {}
+    navigate('/stickman-showdown');
   };
 
   // Touch and click fallback helpers
@@ -581,7 +592,7 @@ export default function StickmanTutorial() {
             STAGE {stageIdx + 1} / {STAGES.length}
           </div>
           <button
-            onClick={() => navigate('/stickman-showdown')}
+            onClick={handleExitToGame}
             className="px-3 py-1.5 bg-zinc-200 hover:bg-zinc-300 border-2 border-black font-mono font-bold text-xs uppercase shadow-neo-sm cursor-pointer"
           >
             SKIP TUTORIAL ✕
@@ -600,11 +611,13 @@ export default function StickmanTutorial() {
           </div>
         </div>
 
-        {/* Live Camera PIP Skeleton Preview */}
-        <div className="absolute top-2 right-2 z-20 bg-black/85 border-2 border-black p-1 shadow-neo-sm flex flex-col items-center">
-          <canvas ref={pipCanvasRef} width={120} height={90} className="w-24 sm:w-28 h-auto bg-zinc-950 block border border-white/20" />
-          <span className="text-[8px] font-mono font-black text-zinc-300 mt-0.5">
-            {cameraReady ? '🟢 RIGHT-HAND AI ACTIVE' : '🟡 CAMERA CONNECTING...'}
+        {/* Live Picture-in-Picture AnimeCam Feed */}
+        <div className="absolute top-2 right-2 z-20 bg-[#FFFDF5] border-3 border-black p-1 shadow-neo flex flex-col items-center">
+          <div className="w-24 sm:w-28 h-16 sm:h-20 border-2 border-black overflow-hidden relative bg-black">
+            <AnimeCam videoRef={videoRef} />
+          </div>
+          <span className="text-[8px] font-mono font-black text-black mt-0.5">
+            {cameraReady ? '🟢 ANIME CAM ACTIVE' : '🟡 CAMERA CONNECTING...'}
           </span>
         </div>
 
@@ -632,7 +645,7 @@ export default function StickmanTutorial() {
                 REWARD: +500 COINS & ACADEMY BADGE 🎖️
               </div>
               <button
-                onClick={() => navigate('/stickman-showdown')}
+                onClick={handleExitToGame}
                 className="w-full py-3 bg-neo-lime hover:bg-lime-400 text-black border-3 border-black font-display font-black text-sm uppercase shadow-neo active:translate-y-0.5 cursor-pointer"
               >
                 ENTER 1v1 SHOWDOWN ARENA ⚔️
