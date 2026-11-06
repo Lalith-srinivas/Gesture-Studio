@@ -132,6 +132,17 @@ export default function StickmanShowdown() {
     }
   }, []);
 
+  const handleGoBack = useCallback(() => {
+    if (document.fullscreenElement) {
+      try {
+        document.exitFullscreen().catch(() => {});
+      } catch {}
+    }
+    leaveRoom();
+    resetMultiplayerState();
+    navigate('/');
+  }, [leaveRoom, resetMultiplayerState, navigate]);
+
   // ── 2. Determine Player Roles & Spawns ──────────────────────────────────────
   const isPlayer1 = React.useMemo(() => {
     const myUid = currentUser?.uid || playerData?.uid || 'user_local';
@@ -913,10 +924,20 @@ export default function StickmanShowdown() {
   };
 
   return (
-    <div className="min-h-screen bg-[#040914] text-white flex flex-col items-center justify-center p-1 sm:p-2 select-none font-sans relative overflow-hidden">
+    <div className="min-h-screen bg-[#040914] text-white flex flex-col items-center justify-center p-0 sm:p-2 select-none font-sans relative overflow-hidden">
 
       {/* Hidden Webcam Video for MediaPipe Hand Tracking */}
       <video ref={videoRef} className="hidden" playsInline muted autoPlay />
+
+      {/* ── Fixed Top-Left Back Arrow Button (ALWAYS VISIBLE & ACCESSIBLE) ── */}
+      <button
+        onClick={handleGoBack}
+        className="fixed top-2 sm:top-3 left-2 sm:left-3 z-50 px-2.5 sm:px-3 py-1.5 bg-[#FFFDF5] hover:bg-neo-yellow text-black border-2 sm:border-3 border-black font-mono font-black text-xs sm:text-sm uppercase flex items-center gap-1.5 shadow-neo active:translate-x-0.5 active:translate-y-0.5 cursor-pointer pointer-events-auto transition-transform"
+        title="Go back to Home"
+      >
+        <span className="text-sm font-black">←</span>
+        <span>BACK</span>
+      </button>
 
       {/* ── Mobile Orientation Rotate Screen Blocker ───────────────────── */}
       {isPortrait && (
@@ -942,7 +963,7 @@ export default function StickmanShowdown() {
       {/* ── Multiplayer Matchmaking & Lobby Modal ───────────────────────── */}
       <MultiplayerLobbyModal
         isOpen={showLobbyModal && matchState !== 'PLAYING' && matchState !== 'COUNTDOWN'}
-        onClose={() => navigate('/')}
+        onClose={handleGoBack}
         gameId="stickman-showdown"
         gameTitle="Stickman Showdown"
       />
@@ -960,94 +981,11 @@ export default function StickmanShowdown() {
       <div
         ref={containerRef}
         className={`relative border-2 sm:border-4 border-[#1e293b] shadow-[0_0_35px_rgba(0,0,0,0.85)] bg-[#040914] rounded-lg overflow-hidden flex items-center justify-center w-full max-w-[960px] aspect-[16/9] ${
-          isFullscreen ? 'w-screen h-screen max-w-none max-h-none rounded-none border-none' : ''
+          isFullscreen ? 'fixed inset-0 w-screen h-screen max-w-none max-h-none rounded-none border-none aspect-auto z-10' : ''
         }`}
       >
         {/* Canvas */}
-        <canvas ref={canvasRef} width={960} height={540} className="block w-full h-full cursor-crosshair touch-none" />
-
-        {/* ── Top Match VS HUD ─────────────────────────────────────────── */}
-        {matchState === 'PLAYING' && (
-          <div className="absolute top-2 left-2 right-2 flex items-center justify-between pointer-events-none z-30 px-2 pt-1">
-            
-            {/* Player 1 Health */}
-            <div className="flex items-center gap-2 bg-black/75 border-2 border-black p-1.5 shadow-neo-sm">
-              <span className="text-xl">🏹</span>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="font-mono font-black text-xs uppercase text-amber-400">
-                    {isPlayer1 ? (playerData?.username || 'You') : (opponent?.username || 'Opponent')}
-                  </span>
-                  {isPlayer1 && <span className="bg-neo-lime border border-black text-[9px] font-mono font-black px-1 text-black">YOU</span>}
-                </div>
-                <div className="w-24 sm:w-36 h-2.5 bg-zinc-800 border border-black rounded-xs overflow-hidden mt-0.5">
-                  <div
-                    className="h-full bg-emerald-500 transition-all duration-150"
-                    style={{ width: `${Math.max(0, Math.min(100, ((isPlayer1 ? myHp : oppHp) / MAX_HP) * 100))}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Center Timer & Match Controls */}
-            <div className="flex items-center gap-2 pointer-events-auto">
-              <div className="bg-neo-yellow border-2 sm:border-3 border-black px-3 py-1 text-black font-display font-black text-sm sm:text-base shadow-neo-sm">
-                ⏱️ {matchTimeLeft}s
-              </div>
-              
-              {/* Webcam Gestures Toggle */}
-              <button
-                onClick={() => setCameraEnabled((prev) => !prev)}
-                className={`px-2 py-1 border-2 border-black font-mono font-black text-[10px] sm:text-xs uppercase shadow-neo-sm cursor-pointer transition-transform active:scale-95 ${
-                  cameraEnabled ? 'bg-[#86EFAC] text-black' : 'bg-zinc-700 text-zinc-300'
-                }`}
-                title={cameraEnabled ? 'AI Gestures Active' : 'Camera Disabled'}
-              >
-                {cameraEnabled ? '📷 GESTURES ON' : '📷 GESTURES OFF'}
-              </button>
-
-              <button
-                onClick={toggleFullscreen}
-                className="w-8 h-8 bg-zinc-800 hover:bg-zinc-700 border-2 border-black flex items-center justify-center text-xs font-mono font-black shadow-neo-sm cursor-pointer text-white"
-                title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-              >
-                {isFullscreen ? '🗗' : '⛶'}
-              </button>
-
-              <button
-                onClick={() => {
-                  leaveRoom();
-                  resetMultiplayerState();
-                  setShowLobbyModal(true);
-                }}
-                className="w-8 h-8 bg-red-600 hover:bg-red-500 border-2 border-black flex items-center justify-center text-xs font-mono font-black shadow-neo-sm cursor-pointer text-white"
-                title="Leave Match"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Player 2 Health */}
-            <div className="flex items-center gap-2 bg-black/75 border-2 border-black p-1.5 shadow-neo-sm text-right">
-              <div>
-                <div className="flex items-center justify-end gap-1.5">
-                  {!isPlayer1 && <span className="bg-neo-lime border border-black text-[9px] font-mono font-black px-1 text-black">YOU</span>}
-                  <span className="font-mono font-black text-xs uppercase text-cyan-400">
-                    {!isPlayer1 ? (playerData?.username || 'You') : (opponent?.username || 'Opponent')}
-                  </span>
-                </div>
-                <div className="w-24 sm:w-36 h-2.5 bg-zinc-800 border border-black rounded-xs overflow-hidden mt-0.5">
-                  <div
-                    className="h-full bg-cyan-500 transition-all duration-150"
-                    style={{ width: `${Math.max(0, Math.min(100, ((!isPlayer1 ? myHp : oppHp) / MAX_HP) * 100))}%` }}
-                  />
-                </div>
-              </div>
-              <span className="text-xl">🎯</span>
-            </div>
-
-          </div>
-        )}
+        <canvas ref={canvasRef} width={960} height={540} className="block w-full h-full object-contain cursor-crosshair touch-none" />
 
         {/* ── 3-2-1-GO Countdown Overlay (ONLY visible during COUNTDOWN state) ─ */}
         {matchState === 'COUNTDOWN' && countdownSec !== null && (
@@ -1064,70 +1002,154 @@ export default function StickmanShowdown() {
             ⚠️ {opponentGraceTimer.message} ({opponentGraceTimer.secondsRemaining}s)
           </div>
         )}
+      </div>
 
-        {/* ── Webcam PIP & Live Gesture HUD ──────────────────────────────── */}
-        {cameraEnabled && matchState === 'PLAYING' && showPip && (
-          <div className="absolute top-14 right-2 z-30 pointer-events-auto bg-black/80 border-2 border-black p-1 rounded shadow-neo-sm flex flex-col items-center">
-            <canvas ref={pipCanvasRef} width={140} height={105} className="w-28 sm:w-32 h-auto border border-white/20 rounded-xs block bg-zinc-950" />
-            <div className="w-full flex justify-between items-center text-[9px] font-mono font-black text-zinc-300 mt-1 px-1">
-              <span>{cameraReady ? '🟢 DUAL-HAND' : '🟡 CAMERA'}</span>
-              <button onClick={() => setShowPip(false)} className="text-zinc-400 hover:text-white cursor-pointer">✕</button>
-            </div>
-            <div className="w-full text-[8px] font-mono text-amber-300 px-1 truncate">
-              L: {leftGestureStatus}
-            </div>
-            <div className="w-full text-[8px] font-mono text-cyan-300 px-1 truncate">
-              R: {rightGestureStatus}
-            </div>
-          </div>
-        )}
-
-        {/* ── Mobile Virtual On-Screen Touch Controls ─────────────────────── */}
-        {matchState === 'PLAYING' && (
-          <div className="absolute inset-x-2 bottom-2 z-30 pointer-events-none flex justify-between items-end">
-            
-            {/* Left Touch Pad (Move Left, Move Right, Jump) */}
-            <div className="flex items-center gap-1.5 pointer-events-auto select-none">
-              <button
-                onTouchStart={() => handleTouchMoveStart(-1)}
-                onTouchEnd={handleTouchMoveEnd}
-                onMouseDown={() => handleTouchMoveStart(-1)}
-                onMouseUp={handleTouchMoveEnd}
-                className="w-12 h-12 sm:w-14 sm:h-14 bg-black/75 hover:bg-black text-white border-2 border-black font-display font-black text-xl flex items-center justify-center rounded shadow-neo active:scale-95 cursor-pointer touch-none"
-              >
-                ◀
-              </button>
-              <button
-                onTouchStart={() => handleTouchMoveStart(1)}
-                onTouchEnd={handleTouchMoveEnd}
-                onMouseDown={() => handleTouchMoveStart(1)}
-                onMouseUp={handleTouchMoveEnd}
-                className="w-12 h-12 sm:w-14 sm:h-14 bg-black/75 hover:bg-black text-white border-2 border-black font-display font-black text-xl flex items-center justify-center rounded shadow-neo active:scale-95 cursor-pointer touch-none"
-              >
-                ▶
-              </button>
-              <button
-                onTouchStart={handleTouchJump}
-                onMouseDown={handleTouchJump}
-                className="w-12 h-12 sm:w-14 sm:h-14 bg-amber-500 hover:bg-amber-400 text-black border-2 border-black font-display font-black text-xl flex items-center justify-center rounded shadow-neo active:scale-95 cursor-pointer touch-none ml-1"
-                title="Jump"
-              >
-                ▲
-              </button>
-            </div>
-
-            {/* Right Touch Pad (Quick Arrow Selector & Hint) */}
-            <div className="flex flex-col items-end gap-1 pointer-events-auto select-none">
-              <div className="flex items-center gap-1 bg-black/70 border border-white/20 p-1 rounded text-[9px] font-mono text-zinc-300">
-                <span className="text-zinc-400">TOUCH CANVAS TO AIM & SHOOT</span>
-                <span className="text-amber-400 font-black">🏹 {ARROW_TYPES[currentArrowIdx]?.name}</span>
+      {/* ── FULL PAGE Top Match VS HUD (Anchored Across Full Viewport) ───── */}
+      {matchState === 'PLAYING' && (
+        <div className="fixed top-0 left-0 right-0 z-40 px-2 sm:px-4 pt-2 pb-1 flex items-center justify-between pointer-events-none select-none">
+          
+          {/* Player 1 Health (Offset for Back button) */}
+          <div className="flex items-center gap-2 pointer-events-auto pl-20 sm:pl-24">
+            <div className="flex items-center gap-2 bg-black/85 border-2 border-black p-1.5 shadow-neo-sm">
+              <span className="text-lg sm:text-xl">🏹</span>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono font-black text-[10px] sm:text-xs uppercase text-amber-400 truncate max-w-[90px] sm:max-w-[130px]">
+                    {isPlayer1 ? (playerData?.username || 'You') : (opponent?.username || 'Opponent')}
+                  </span>
+                  {isPlayer1 && <span className="bg-neo-lime border border-black text-[8px] sm:text-[9px] font-mono font-black px-1 text-black">YOU</span>}
+                </div>
+                <div className="w-20 sm:w-36 h-2 sm:h-2.5 bg-zinc-800 border border-black rounded-xs overflow-hidden mt-0.5">
+                  <div
+                    className="h-full bg-emerald-500 transition-all duration-150"
+                    style={{ width: `${Math.max(0, Math.min(100, ((isPlayer1 ? myHp : oppHp) / MAX_HP) * 100))}%` }}
+                  />
+                </div>
               </div>
             </div>
-
           </div>
-        )}
 
-      </div>
+          {/* Center Timer & Match Controls */}
+          <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
+            <div className="bg-neo-yellow border-2 sm:border-3 border-black px-2.5 sm:px-3 py-1 text-black font-display font-black text-xs sm:text-base shadow-neo-sm">
+              ⏱️ {matchTimeLeft}s
+            </div>
+            
+            {/* Webcam Gestures Toggle */}
+            <button
+              onClick={() => setCameraEnabled((prev) => !prev)}
+              className={`px-2 py-1 border-2 border-black font-mono font-black text-[9px] sm:text-xs uppercase shadow-neo-sm cursor-pointer transition-transform active:scale-95 ${
+                cameraEnabled ? 'bg-[#86EFAC] text-black' : 'bg-zinc-700 text-zinc-300'
+              }`}
+              title={cameraEnabled ? 'AI Gestures Active' : 'Camera Disabled'}
+            >
+              {cameraEnabled ? '📷 GESTURES ON' : '📷 GESTURES OFF'}
+            </button>
+
+            <button
+              onClick={toggleFullscreen}
+              className="w-8 h-8 bg-zinc-800 hover:bg-zinc-700 border-2 border-black flex items-center justify-center text-xs font-mono font-black shadow-neo-sm cursor-pointer text-white"
+              title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+            >
+              {isFullscreen ? '🗗' : '⛶'}
+            </button>
+
+            <button
+              onClick={() => {
+                leaveRoom();
+                resetMultiplayerState();
+                setShowLobbyModal(true);
+              }}
+              className="w-8 h-8 bg-red-600 hover:bg-red-500 border-2 border-black flex items-center justify-center text-xs font-mono font-black shadow-neo-sm cursor-pointer text-white"
+              title="Leave Match"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Player 2 Health */}
+          <div className="flex items-center gap-2 bg-black/85 border-2 border-black p-1.5 shadow-neo-sm text-right pointer-events-auto">
+            <div>
+              <div className="flex items-center justify-end gap-1.5">
+                {!isPlayer1 && <span className="bg-neo-lime border border-black text-[8px] sm:text-[9px] font-mono font-black px-1 text-black">YOU</span>}
+                <span className="font-mono font-black text-[10px] sm:text-xs uppercase text-cyan-400 truncate max-w-[90px] sm:max-w-[130px]">
+                  {!isPlayer1 ? (playerData?.username || 'You') : (opponent?.username || 'Opponent')}
+                </span>
+              </div>
+              <div className="w-20 sm:w-36 h-2 sm:h-2.5 bg-zinc-800 border border-black rounded-xs overflow-hidden mt-0.5">
+                <div
+                  className="h-full bg-cyan-500 transition-all duration-150"
+                  style={{ width: `${Math.max(0, Math.min(100, ((!isPlayer1 ? myHp : oppHp) / MAX_HP) * 100))}%` }}
+                />
+              </div>
+            </div>
+            <span className="text-lg sm:text-xl">🎯</span>
+          </div>
+
+        </div>
+      )}
+
+      {/* ── Webcam PIP & Live Gesture HUD ──────────────────────────────── */}
+      {cameraEnabled && matchState === 'PLAYING' && showPip && (
+        <div className="fixed top-14 right-2 sm:right-4 z-40 pointer-events-auto bg-black/85 border-2 border-black p-1 rounded shadow-neo-sm flex flex-col items-center">
+          <canvas ref={pipCanvasRef} width={140} height={105} className="w-24 sm:w-32 h-auto border border-white/20 rounded-xs block bg-zinc-950" />
+          <div className="w-full flex justify-between items-center text-[8px] sm:text-[9px] font-mono font-black text-zinc-300 mt-1 px-1">
+            <span>{cameraReady ? '🟢 DUAL-HAND' : '🟡 CAMERA'}</span>
+            <button onClick={() => setShowPip(false)} className="text-zinc-400 hover:text-white cursor-pointer">✕</button>
+          </div>
+          <div className="w-full text-[8px] font-mono text-amber-300 px-1 truncate max-w-[130px]">
+            L: {leftGestureStatus}
+          </div>
+          <div className="w-full text-[8px] font-mono text-cyan-300 px-1 truncate max-w-[130px]">
+            R: {rightGestureStatus}
+          </div>
+        </div>
+      )}
+
+      {/* ── FULL PAGE Mobile Virtual On-Screen Touch Controls ───────────── */}
+      {matchState === 'PLAYING' && (
+        <div className="fixed bottom-2 sm:bottom-3 left-2 sm:left-4 right-2 sm:right-4 z-40 pointer-events-none flex justify-between items-end">
+          
+          {/* Left Touch Pad (Move Left, Move Right, Jump) */}
+          <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto select-none">
+            <button
+              onTouchStart={() => handleTouchMoveStart(-1)}
+              onTouchEnd={handleTouchMoveEnd}
+              onMouseDown={() => handleTouchMoveStart(-1)}
+              onMouseUp={handleTouchMoveEnd}
+              className="w-12 h-12 sm:w-14 sm:h-14 bg-black/85 hover:bg-black text-white border-2 sm:border-3 border-black font-display font-black text-xl flex items-center justify-center rounded shadow-neo active:scale-95 cursor-pointer touch-none"
+            >
+              ◀
+            </button>
+            <button
+              onTouchStart={() => handleTouchMoveStart(1)}
+              onTouchEnd={handleTouchMoveEnd}
+              onMouseDown={() => handleTouchMoveStart(1)}
+              onMouseUp={handleTouchMoveEnd}
+              className="w-12 h-12 sm:w-14 sm:h-14 bg-black/85 hover:bg-black text-white border-2 sm:border-3 border-black font-display font-black text-xl flex items-center justify-center rounded shadow-neo active:scale-95 cursor-pointer touch-none"
+            >
+              ▶
+            </button>
+            <button
+              onTouchStart={handleTouchJump}
+              onMouseDown={handleTouchJump}
+              className="w-12 h-12 sm:w-14 sm:h-14 bg-amber-500 hover:bg-amber-400 text-black border-2 sm:border-3 border-black font-display font-black text-xl flex items-center justify-center rounded shadow-neo active:scale-95 cursor-pointer touch-none ml-1"
+              title="Jump"
+            >
+              ▲
+            </button>
+          </div>
+
+          {/* Right Touch Pad (Quick Arrow Selector & Hint) */}
+          <div className="flex flex-col items-end gap-1 pointer-events-auto select-none">
+            <div className="flex items-center gap-1 bg-black/80 border border-white/20 p-1 sm:p-1.5 rounded text-[8px] sm:text-[10px] font-mono text-zinc-300 shadow-neo-sm">
+              <span className="text-zinc-400 hidden sm:inline">TOUCH CANVAS TO AIM & SHOOT</span>
+              <span className="text-amber-400 font-black">🏹 {ARROW_TYPES[currentArrowIdx]?.name}</span>
+            </div>
+          </div>
+
+        </div>
+      )}
 
     </div>
   );
