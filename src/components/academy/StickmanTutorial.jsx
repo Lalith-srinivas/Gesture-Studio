@@ -143,6 +143,7 @@ export default function StickmanTutorial() {
 
   const currentStage = STAGES[stageIdx] || STAGES[0];
   const detectorRef = useRef(new DualHandDetector());
+  const advancingRef = useRef(false);
 
   // Game Engine Simulation State
   const simRef = useRef({
@@ -309,6 +310,7 @@ export default function StickmanTutorial() {
 
       // Physics Update
       p.x += p.vx;
+      p.vx *= 0.88; // horizontal friction damping
       p.y += p.vy;
       p.vy += 0.55; // gravity
 
@@ -494,11 +496,27 @@ export default function StickmanTutorial() {
   }, [stageIdx]);
 
   const advanceStage = (msg) => {
+    if (advancingRef.current) return;
+    advancingRef.current = true;
     setFeedback(msg);
     audio.playSuccess();
     setTimeout(() => {
       setFeedback('');
-      setStageIdx((prev) => Math.min(STAGES.length - 1, prev + 1));
+      setStageIdx((prev) => {
+        const next = Math.min(STAGES.length - 1, prev + 1);
+        // Reset player & arena state for clean stage transition
+        const sim = simRef.current;
+        sim.player.x = 120;
+        sim.player.y = 340;
+        sim.player.vx = 0;
+        sim.player.vy = 0;
+        sim.player.isGrounded = true;
+        sim.target.hp = 100;
+        sim.target.active = true;
+        sim.arrows = [];
+        advancingRef.current = false;
+        return next;
+      });
     }, 1200);
   };
 
