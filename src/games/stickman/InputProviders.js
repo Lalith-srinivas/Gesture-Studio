@@ -172,3 +172,4 @@ export class HandGestureInputProvider extends BaseInputProvider {
     return super.getState();
   }
 }
+

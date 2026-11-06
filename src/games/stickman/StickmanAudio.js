@@ -274,3 +274,4 @@ class StickmanAudioEngine {
 }
 
 export const stickmanAudio = new StickmanAudioEngine();
+

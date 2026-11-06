@@ -568,3 +568,4 @@ export class StickmanRenderer {
     }
   }
 }
+
