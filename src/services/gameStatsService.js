@@ -25,15 +25,17 @@ export const GAME_IDS = [
   'bird-hunter',
   'hill-climb',
   'space-shooter',
+  'stickman-showdown',
 ];
 
 export const GAME_LABELS = {
-  'fruit-ninja':   { label: 'Fruit Ninja', emoji: '🍉' },
-  'flappy-bird':   { label: 'Flappy Bird', emoji: '🐦' },
-  'archery':       { label: 'Archery Challenge', emoji: '🏹' },
-  'bird-hunter':   { label: 'Bird Hunter', emoji: '🦅' },
-  'hill-climb':    { label: 'Crazy Road', emoji: '🏎️' },
-  'space-shooter': { label: 'Space Shooter', emoji: '🚀' },
+  'fruit-ninja':       { label: 'Fruit Ninja', emoji: '🍉' },
+  'flappy-bird':       { label: 'Flappy Bird', emoji: '🐦' },
+  'archery':           { label: 'Archery Challenge', emoji: '🏹' },
+  'bird-hunter':       { label: 'Bird Hunter', emoji: '🦅' },
+  'hill-climb':        { label: 'Crazy Road', emoji: '🏎️' },
+  'space-shooter':     { label: 'Space Shooter', emoji: '🚀' },
+  'stickman-showdown': { label: 'Stickman Showdown', emoji: '⚔️' },
 };
 
 /**

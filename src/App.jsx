@@ -7,6 +7,7 @@ import FlappyBird from './pages/FlappyBird';
 import ArcheryChallenge from './pages/ArcheryChallenge';
 import BirdHunterChallenge from './pages/BirdHunterChallenge';
 import SpaceShooter from './pages/SpaceShooter';
+import StickmanShowdown from './pages/StickmanShowdown';
 import ProfilePage from './pages/ProfilePage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import AchievementsPage from './pages/AchievementsPage';
@@ -70,6 +71,7 @@ function ConditionalCursor() {
     '/archery',
     '/bird-hunter',
     '/space-shooter',
+    '/stickman-showdown',
     '/gesture-academy',
   ];
   const hasOwnCamera = pagesWithOwnCamera.some((p) => location.pathname.startsWith(p));
@@ -90,6 +92,7 @@ function ConditionalBottomNav() {
     '/archery',
     '/bird-hunter',
     '/space-shooter',
+    '/stickman-showdown',
   ];
   const isInActiveGame = activeGames.some((p) => location.pathname.startsWith(p));
   if (isInActiveGame) return null;
@@ -239,6 +242,10 @@ export default function App() {
                     <SpaceShooter />
                   </TutorialGate>
                 }
+              />
+              <Route
+                path="/stickman-showdown"
+                element={<StickmanShowdown />}
               />
             </Routes>
             </ErrorBoundary>

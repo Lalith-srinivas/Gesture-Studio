@@ -35,6 +35,7 @@ export default function AutoDailyRewardModal() {
       '/archery',
       '/bird-hunter',
       '/space-shooter',
+      '/stickman-showdown',
     ];
     const isInGame = activeGames.some((p) => location.pathname.startsWith(p));
     if (isInGame) {

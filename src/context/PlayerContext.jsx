@@ -259,6 +259,7 @@ export function PlayerProvider({ children }) {
           { gameId: 'archery', key: 'archery_high_score' },
           { gameId: 'bird-hunter', key: 'birdHunterHighScore' },
           { gameId: 'space-shooter', key: 'spaceShooterHighScore' },
+          { gameId: 'stickman-showdown', key: 'stickman_showdown_highscore' },
         ];
 
         for (const item of LEGACY_MAP) {

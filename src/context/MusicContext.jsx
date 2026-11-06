@@ -13,6 +13,7 @@ const GAME_ROUTES = [
   '/archery',
   '/bird-hunter',
   '/space-shooter',
+  '/stickman-showdown',
 ];
 
 // Atmospheric volume in menus / homepage, reduced volume in games so SFX remain clear

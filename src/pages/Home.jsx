@@ -86,6 +86,19 @@ const GAMES = [
     buttonBg: 'bg-[#7C3AED] hover:bg-[#6D28D9] text-white',
     badgeText: 'text-black',
   },
+  {
+    to: '/stickman-showdown',
+    id: 'stickman-showdown',
+    emoji: '⚔️',
+    tag: 'ACTION / FIGHTING',
+    title: 'Stickman Showdown',
+    desc: 'Master your bow, unleash elemental arrows, and conquer floating platforms against deadly stickman warriors & bosses!',
+    bg: 'bg-[#C7D2FE]',
+    accent: 'bg-[#818CF8]',
+    badgeBg: 'bg-[#A5B4FC]',
+    buttonBg: 'bg-[#4F46E5] hover:bg-[#4338CA] text-white',
+    badgeText: 'text-black',
+  },
 ];
 
 const COMING_SOON_GAMES = [
@@ -107,16 +120,6 @@ const COMING_SOON_GAMES = [
     desc: 'Cut rope — slice ropes with swift finger cuts to balance falling blocks and build towering physics stacks!',
     bg: 'bg-[#FED7AA]',
     badgeBg: 'bg-[#FDBA74]',
-    badgeText: 'text-black',
-  },
-  {
-    id: 'gesture-gravity',
-    emoji: '🌀',
-    tag: 'Puzzle / arcade',
-    title: 'Gesture Gravity',
-    desc: 'Control gravity — invert and bend gravitational fields with hand gestures to navigate mind-bending space puzzles!',
-    bg: 'bg-[#E0E7FF]',
-    badgeBg: 'bg-[#C7D2FE]',
     badgeText: 'text-black',
   },
 ];
@@ -169,9 +172,9 @@ export default function Home() {
             <span className="mx-4">🏹 ARCHERY CHALLENGE</span>
             <span className="mx-4">🦅 BIRD HUNTER</span>
             <span className="mx-4">🚀 SPACE SHOOTER</span>
+            <span className="mx-4">⚔️ STICKMAN SHOWDOWN</span>
             <span className="mx-4">🥊 GESTURE BOXING (COMING SOON)</span>
             <span className="mx-4">🧱 STACK CUT (COMING SOON)</span>
-            <span className="mx-4">🌀 GESTURE GRAVITY (COMING SOON)</span>
           </div>
         </div>
 
