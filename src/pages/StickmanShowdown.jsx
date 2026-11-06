@@ -292,7 +292,7 @@ export default function StickmanShowdown() {
   }, []);
 
   // ── 5. End Match / Submit Final Scores ─────────────────────────────────────
-  const finishMatch = useCallback((reason = 'knocked_out') => {
+  const finishMatch = useCallback((reason = 'defeat') => {
     if (matchFinishedRef.current) return;
     matchFinishedRef.current = true;
     const eng = engineRef.current;
@@ -307,13 +307,34 @@ export default function StickmanShowdown() {
       stickmanAudio.playDefeat();
     }
 
-    submitFinalScore(eng.score, reason);
+    // 1. Send final sync payload with finished flag so opponent client instantly transitions
+    const p = eng.player;
+    if (p) {
+      sendScore(eng.score, {
+        x: Math.round(p.x),
+        y: Math.round(p.y),
+        facingRight: p.facingRight,
+        hp: Math.max(0, p.hp),
+        finished: true,
+        arrowShot: null,
+      });
+    }
 
-    // Guaranteed fallback: If server MATCH_RESULT takes >1.8s, ensure client transitions to FINISHED
-    setTimeout(() => {
-      setMatchState((curr) => (curr === 'PLAYING' || curr === 'COUNTDOWN' ? 'FINISHED' : curr));
-    }, 1800);
-  }, [submitFinalScore, setMatchState]);
+    // 2. Submit with backend-supported keyword ('defeat' or 'game_over') so server settles immediately
+    const serverReason = reason === 'opponent_eliminated' || isWinner ? 'game_over' : 'defeat';
+    submitFinalScore(eng.score, serverReason);
+
+    // 3. Immediately transition client state so controls & result modal show instantly without lag
+    setMatchState('FINISHED');
+
+    // 4. Immediately exit fullscreen so mobile browser controls are restored
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      try {
+        if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      } catch {}
+    }
+  }, [submitFinalScore, sendScore, setMatchState]);
 
   // ── 6. Handle Match State Transitions & Fix Stuck "GO!" ────────────────────
   useEffect(() => {

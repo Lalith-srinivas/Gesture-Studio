@@ -939,8 +939,10 @@ class RoomManager:
             return
 
         # Settle match immediately upon any player game over
-        if reason in ("bomb", "miss", "defeat", "game_over", "crash"):
+        if reason in ("bomb", "miss", "defeat", "game_over", "crash", "knocked_out", "fell_off_arena"):
             await self.settle_match(room_id, default_winner_uid=other_uid)
+        elif reason == "opponent_eliminated":
+            await self.settle_match(room_id, default_winner_uid=uid)
         else:
             await self.settle_match(room_id)
 
