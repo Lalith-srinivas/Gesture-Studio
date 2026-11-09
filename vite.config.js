@@ -60,6 +60,12 @@ const ROUTES = [
     description: 'Survive endless waves of galactic invaders with your index finger and pinch EMP blasts.',
   },
   {
+    path: '/stickman-showdown',
+    canonical: 'https://www.gesturestudio.in/stickman-showdown',
+    title: 'Stickman Showdown - 1v1 Multiplayer Archery | Gesture Studio',
+    description: 'Duel friends and rivals in real-time 1v1 webcam motion archery combat across floating arenas!',
+  },
+  {
     path: '/leaderboard',
     canonical: 'https://www.gesturestudio.in/leaderboard',
     title: 'Leaderboard - Global Player Rankings | Gesture Studio',
@@ -76,6 +82,12 @@ const ROUTES = [
     canonical: 'https://www.gesturestudio.in/profile',
     title: 'Player Profile | Gesture Studio',
     description: 'Manage your Gesture Studio player profile, custom avatars, level progression, and stats.',
+  },
+  {
+    path: '/friends',
+    canonical: 'https://www.gesturestudio.in/friends',
+    title: 'Friends & Social - Connect & Challenge | Gesture Studio',
+    description: 'Connect with friends, send match invites, send coin gifts, and challenge rivals on Gesture Studio.',
   },
 ];
 
