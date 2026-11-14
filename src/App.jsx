@@ -118,45 +118,31 @@ function GlobalProgressionModals() {
 }
 
 /**
- * Ensures navigation to any page (such as /privacy-policy, /terms, etc.)
- * immediately scrolls to the beginning, resetting window, document, and #root.
+ * Ensures navigation to any page immediately scrolls to the beginning.
+ * Uses native instant scroll without main-thread locking or DOM thrashing.
  */
 function ScrollToTop() {
   const { pathname } = useLocation();
 
   useLayoutEffect(() => {
-    if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
-      window.history.scrollRestoration = 'manual';
-    }
+    // 1. Immediately reset window and document scroll
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
 
-    const resetScroll = () => {
+    // 2. Clear root scroll if present
+    const root = document.getElementById('root');
+    if (root && root.scrollTop > 0) root.scrollTop = 0;
+
+    // 3. Fallback on next animation frame
+    const rafId = requestAnimationFrame(() => {
       window.scrollTo(0, 0);
       if (document.documentElement) document.documentElement.scrollTop = 0;
       if (document.body) document.body.scrollTop = 0;
-      if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
-      const root = document.getElementById('root');
-      if (root) root.scrollTop = 0;
+      if (root && root.scrollTop > 0) root.scrollTop = 0;
+    });
 
-      const allScrollables = document.querySelectorAll('*');
-      for (let i = 0; i < allScrollables.length; i++) {
-        if (allScrollables[i].scrollTop > 0) {
-          allScrollables[i].scrollTop = 0;
-        }
-      }
-    };
-
-    resetScroll();
-    const rafId = requestAnimationFrame(resetScroll);
-    const t1 = setTimeout(resetScroll, 0);
-    const t2 = setTimeout(resetScroll, 60);
-    const t3 = setTimeout(resetScroll, 180);
-
-    return () => {
-      cancelAnimationFrame(rafId);
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-    };
+    return () => cancelAnimationFrame(rafId);
   }, [pathname]);
 
   return null;

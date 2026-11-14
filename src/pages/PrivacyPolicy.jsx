@@ -31,32 +31,7 @@ export default function PrivacyPolicy() {
     }
     canonical.setAttribute('href', 'https://www.gesturestudio.in/privacy-policy');
 
-    if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
-      window.history.scrollRestoration = 'manual';
-    }
-
-    const scrollToTop = () => {
-      window.scrollTo(0, 0);
-      if (document.documentElement) document.documentElement.scrollTop = 0;
-      if (document.body) document.body.scrollTop = 0;
-      if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
-      const root = document.getElementById('root');
-      if (root) root.scrollTop = 0;
-      topAnchorRef.current?.scrollIntoView({ behavior: 'instant', block: 'start' });
-    };
-
-    scrollToTop();
-    const raf = requestAnimationFrame(scrollToTop);
-    const t1 = setTimeout(scrollToTop, 0);
-    const t2 = setTimeout(scrollToTop, 60);
-    const t3 = setTimeout(scrollToTop, 180);
-
-    return () => {
-      cancelAnimationFrame(raf);
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-    };
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, []);
 
   const lastUpdated = 'September 18, 2026';
@@ -70,7 +45,7 @@ export default function PrivacyPolicy() {
       <header className="sticky top-0 z-30 w-full bg-neo-yellow border-b-3 border-black shadow-neo-sm flex items-center justify-between px-4 py-2.5">
         <Link
           to="/"
-          className="flex items-center gap-2 font-mono font-black text-xs uppercase hover:underline transition-transform active:translate-x-0.5"
+          className="flex items-center gap-2 font-mono font-black text-xs uppercase hover:underline transition-transform active:translate-x-0.5 cursor-pointer touch-manipulation"
           aria-label="Return to Gesture Studio home"
         >
           <img src="/gesturestudio.png" alt="Gesture Studio Logo" className="w-6 h-6 object-contain" />
@@ -505,11 +480,6 @@ export default function PrivacyPolicy() {
       <footer className="mt-12 text-center text-xs font-mono font-bold text-zinc-600 flex flex-wrap items-center justify-center gap-4 px-4 select-none">
         <Link
           to="/"
-          onClick={() => {
-            window.scrollTo(0, 0);
-            const r = document.getElementById('root');
-            if (r) r.scrollTop = 0;
-          }}
           className="flex items-center gap-2 hover:text-black transition-colors"
         >
           <img src="/gesturestudio.png" alt="Gesture Studio" className="w-5 h-5 object-contain" />
@@ -518,11 +488,6 @@ export default function PrivacyPolicy() {
         <span>•</span>
         <Link
           to="/privacy-policy"
-          onClick={() => {
-            window.scrollTo(0, 0);
-            const r = document.getElementById('root');
-            if (r) r.scrollTop = 0;
-          }}
           className="text-black underline font-extrabold"
         >
           PRIVACY POLICY

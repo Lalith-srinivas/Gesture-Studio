@@ -157,6 +157,7 @@ export default function StickmanShowdown() {
     }
     leaveRoom();
     resetMultiplayerState();
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     navigate('/');
   }, [leaveRoom, resetMultiplayerState, navigate]);
 
