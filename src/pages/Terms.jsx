@@ -430,6 +430,20 @@ export default function Terms() {
         </Link>
         <span>•</span>
         <Link
+          to="/about"
+          className="hover:text-black hover:underline transition-colors"
+        >
+          ABOUT US
+        </Link>
+        <span>•</span>
+        <Link
+          to="/contact"
+          className="hover:text-black hover:underline transition-colors"
+        >
+          CONTACT
+        </Link>
+        <span>•</span>
+        <Link
           to="/privacy-policy"
           onClick={() => {
             window.scrollTo(0, 0);

@@ -566,7 +566,7 @@ export default function FlappyBird({ onReady }) {
                 🐦
               </div>
               <h1 className="font-display font-black text-3xl uppercase tracking-tight text-black mb-1">
-                Flappy Bird
+                Flappy Wings
               </h1>
               <p className="font-mono text-xs font-bold text-zinc-700 mb-4 uppercase">
                 SPACE · TAP · PINCH TO FLAP

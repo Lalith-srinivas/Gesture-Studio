@@ -13,7 +13,7 @@ const GAMES = [
     id: 'fruit-ninja',
     emoji: '🍉',
     tag: '⚔️ 1v1 MULTIPLAYER & SOLO',
-    title: 'Fruit Ninja',
+    title: 'Fruit Slash (Arcade Blade)',
     desc: 'Slice juicy airborne fruits in real-time with finger swipes. Avoid bombs, trigger slow-motion combos, or duel live in 1v1 coin wager matches!',
     bg: 'bg-[#FECDD3]',
     accent: 'bg-[#FB7185]',
@@ -39,7 +39,7 @@ const GAMES = [
     id: 'flappy-bird',
     emoji: '🐦',
     tag: 'RETRO ARCADE',
-    title: 'Flappy Bird',
+    title: 'Flappy Wings (Retro Arcade)',
     desc: 'Flap through pipes with pinch gestures or keyboard taps. Aim for the highest high score record!',
     bg: 'bg-[#BBF7D0]',
     accent: 'bg-[#4ADE80]',
@@ -101,31 +101,8 @@ const GAMES = [
   },
 ];
 
-const COMING_SOON_GAMES = [
-  {
-    id: 'gesture-boxing',
-    emoji: '🥊',
-    tag: 'Action',
-    title: 'Gesture Boxing',
-    desc: 'Punch / dodge / block — duck, slip, and throw lightning jabs with real-time motion tracking in arcade boxing duels!',
-    bg: 'bg-[#FFE4E6]',
-    badgeBg: 'bg-[#FECDD3]',
-    badgeText: 'text-black',
-  },
-  {
-    id: 'stack-cut',
-    emoji: '🧱',
-    tag: 'Physics / skill',
-    title: 'Stack Cut',
-    desc: 'Cut rope — slice ropes with swift finger cuts to balance falling blocks and build towering physics stacks!',
-    bg: 'bg-[#FED7AA]',
-    badgeBg: 'bg-[#FDBA74]',
-    badgeText: 'text-black',
-  },
-];
-
 const GESTURE_GUIDES = [
-  { emoji: '☝️', name: 'Index Point', use: 'Fruit Ninja · Move Ship · Traffic' },
+  { emoji: '☝️', name: 'Index Point', use: 'Fruit Slash · Move Ship · Traffic' },
   { emoji: '✌️', name: 'Peace Sign', use: 'Traffic Lane 2 · Left' },
   { emoji: '🤟', name: 'Rock Sign', use: 'Traffic Lane 3 · Pause / Resume' },
   { emoji: '🤏', name: 'Pinch Finger', use: 'EMP Blast · Slingshot · Bow · Flap' },
@@ -166,15 +143,13 @@ export default function Home() {
             <span className="mx-4">✦ REAL-TIME AI HAND TRACKING ✦</span>
             <span className="mx-4">🎮 100% IN-BROWSER</span>
             <span className="mx-4">🚫 NO CONTROLLER REQUIRED</span>
-            <span className="mx-4">🍉 FRUIT NINJA</span>
+            <span className="mx-4">🍉 FRUIT SLASH</span>
             <span className="mx-4">🏎️ CRAZY ROAD</span>
-            <span className="mx-4">🐦 FLAPPY BIRD</span>
+            <span className="mx-4">🐦 FLAPPY WINGS</span>
             <span className="mx-4">🏹 ARCHERY CHALLENGE</span>
             <span className="mx-4">🦅 BIRD HUNTER</span>
             <span className="mx-4">🚀 SPACE SHOOTER</span>
             <span className="mx-4">⚔️ STICKMAN SHOWDOWN</span>
-            <span className="mx-4">🥊 GESTURE BOXING (COMING SOON)</span>
-            <span className="mx-4">🧱 STACK CUT (COMING SOON)</span>
           </div>
         </div>
 
@@ -421,73 +396,11 @@ export default function Home() {
                 </div>
               </Link>
             ))}
-
-            {/* ── Coming Soon Games ─────────────────────────────────────── */}
-            {COMING_SOON_GAMES.map((game) => (
-              <div
-                key={game.id}
-                className={`
-                  group relative flex flex-col justify-between p-6 md:p-7
-                  border-3 md:border-4 border-black ${game.bg} shadow-neo-lg
-                  transition-all duration-200
-                  hover:-translate-x-1 hover:-translate-y-1 hover:shadow-neo-xl
-                  overflow-hidden select-none
-                `}
-              >
-                {/* Coming Soon Corner Ribbon */}
-                <div className="absolute top-3 right-[-32px] w-28 bg-black text-neo-yellow border-y border-black text-[9px] font-mono font-black uppercase tracking-widest text-center py-0.5 rotate-45 pointer-events-none shadow-sm">
-                  SOON
-                </div>
-
-                {/* Top Row: Tag & Emoji Icon */}
-                <div>
-                  <div className="flex items-center justify-between mb-5">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className={`neo-tag ${game.badgeBg} ${game.badgeText}`}>
-                        {game.tag}
-                      </span>
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-mono font-black uppercase border-2 border-black bg-neo-yellow text-black shadow-[1.5px_1.5px_0px_#000]">
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
-                        COMING SOON
-                      </span>
-                    </div>
-                    <div className="w-12 h-12 rounded-xl bg-white border-2 border-black shadow-neo-sm flex items-center justify-center text-2xl group-hover:scale-110 group-hover:rotate-6 transition-transform">
-                      {game.emoji}
-                    </div>
-                  </div>
-
-                  {/* Title & Description */}
-                  <h2 className="font-display font-black text-2xl md:text-3xl text-black uppercase tracking-tight mb-2">
-                    {game.title}
-                  </h2>
-                  <p className="text-zinc-800 text-sm font-medium leading-normal mb-6">
-                    {game.desc}
-                  </p>
-                </div>
-
-                {/* Action Button: Disabled / Coming Soon */}
-                <div className="pt-2">
-                  <div className="
-                    w-full py-3 px-4 rounded-none font-display font-black text-sm uppercase tracking-wider
-                    border-2 border-black shadow-neo-sm flex items-center justify-between
-                    bg-zinc-900 text-zinc-300 cursor-not-allowed
-                  ">
-                    <span className="flex items-center gap-2">
-                      <span>🔒</span>
-                      <span>COMING SOON</span>
-                    </span>
-                    <span className="text-[11px] font-mono font-bold text-neo-yellow uppercase tracking-widest">
-                      IN LABS
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
         </nav>
 
         {/* ── Gesture Cheat-Sheet ─────────────────────────────────────────── */}
-        <div className="w-full max-w-5xl bg-white border-3 md:border-4 border-black shadow-neo-lg p-6 sm:p-8 relative">
+        <div className="w-full max-w-5xl bg-white border-3 md:border-4 border-black shadow-neo-lg p-6 sm:p-8 relative mb-12">
           
           {/* Header Accent */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b-3 border-black pb-4 mb-6">
@@ -532,40 +445,189 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ── Footer ──────────────────────────────────────────────────────── */}
-        <footer className="mt-12 text-center text-xs font-mono font-bold text-zinc-600 flex flex-wrap items-center justify-center gap-4 select-none">
-          <div className="flex items-center gap-2">
-            <img src="/gesturestudio.png" alt="Gesture Studio" className="w-5 h-5 object-contain" />
-            <span>GESTURE STUDIO</span>
+        {/* ── How Touchless Vision AI Works (High-Value Editorial Content) ──── */}
+        <section className="w-full max-w-5xl bg-white border-3 md:border-4 border-black shadow-neo-lg p-6 sm:p-8 mb-12 relative">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="neo-tag bg-neo-yellow text-black border-2 border-black font-mono text-[10px] font-black uppercase">
+              DEEP TECH EXPLAINED
+            </span>
+            <span className="neo-tag bg-[#BAE6FD] text-black border-2 border-black font-mono text-[10px] font-black uppercase">
+              100% CLIENT-SIDE AI
+            </span>
           </div>
-          <span>•</span>
-          <Link
-            to="/privacy-policy"
-            onClick={() => {
-              window.scrollTo(0, 0);
-              const r = document.getElementById('root');
-              if (r) r.scrollTop = 0;
-            }}
-            className="hover:text-black hover:underline transition-colors"
-          >
-            PRIVACY POLICY
-          </Link>
-          <span>•</span>
-          <Link
-            to="/terms"
-            onClick={() => {
-              window.scrollTo(0, 0);
-              const r = document.getElementById('root');
-              if (r) r.scrollTop = 0;
-            }}
-            className="hover:text-black hover:underline transition-colors"
-          >
-            TERMS OF USE
-          </Link>
-          <span>•</span>
-          <span>BUILT WITH REACT 19 & TAILWIND</span>
-          <span>•</span>
-          <span>POWERED BY MEDIAPIPE</span>
+
+          <h2 className="font-display font-black text-2xl sm:text-3xl uppercase tracking-tight mb-4">
+            How Gesture Studio Transforms Your Webcam Into a Controller
+          </h2>
+
+          <p className="font-mono text-xs sm:text-sm text-zinc-700 leading-relaxed mb-6 font-medium">
+            Gesture Studio is an innovative web entertainment platform built on top of state-of-the-art computer vision models. By combining Google MediaPipe’s high-precision neural networks with WebAssembly (WASM) and hardware-accelerated WebGL rendering, our engine captures, infers, and tracks 21 distinct three-dimensional skeletal coordinates on your hand in real time—all within standard web browsers without requiring external drivers, specialized depth cameras, or game downloads.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="bg-[#FEF08A] border-3 border-black p-5 shadow-neo-sm">
+              <span className="text-3xl block mb-2">⚡</span>
+              <h3 className="font-display font-black text-base uppercase mb-1.5">
+                Sub-16ms Latency
+              </h3>
+              <p className="font-mono text-xs text-zinc-800 leading-normal">
+                Inference loops execute directly on your local GPU or CPU shaders via WebGL canvas pipelines, achieving up to 60 frames per second response times for ultra-smooth responsiveness.
+              </p>
+            </div>
+
+            <div className="bg-[#86EFAC] border-3 border-black p-5 shadow-neo-sm">
+              <span className="text-3xl block mb-2">🔒</span>
+              <h3 className="font-display font-black text-base uppercase mb-1.5">
+                Zero Video Transmission
+              </h3>
+              <p className="font-mono text-xs text-zinc-800 leading-normal">
+                Your camera frames are processed on-the-fly entirely in temporary browser memory. No video, images, or biometric recordings are ever uploaded, transmitted, or stored on external servers.
+              </p>
+            </div>
+
+            <div className="bg-[#DDD6FE] border-3 border-black p-5 shadow-neo-sm">
+              <span className="text-3xl block mb-2">🎯</span>
+              <h3 className="font-display font-black text-base uppercase mb-1.5">
+                21 3D Landmark Tracking
+              </h3>
+              <p className="font-mono text-xs text-zinc-800 leading-normal">
+                From pinch gestures in archery and slingshots to open-palm swipes in Fruit Slash, coordinates are calculated geometrically to ensure intuitive, accessible touchless interaction.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Platform Architecture & Competitive Game Modes ─────────────── */}
+        <section className="w-full max-w-5xl bg-[#FFFDF5] border-3 md:border-4 border-black shadow-neo-lg p-6 sm:p-8 mb-12 relative">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="neo-tag bg-[#FDA4AF] text-black border-2 border-black font-mono text-[10px] font-black uppercase">
+              GAME MODES & COMMUNITY
+            </span>
+          </div>
+
+          <h2 className="font-display font-black text-2xl sm:text-3xl uppercase tracking-tight mb-4">
+            Competitive Hand-Tracking Gaming: Solo, Duels, & Leaderboards
+          </h2>
+
+          <div className="space-y-4 font-mono text-xs sm:text-sm text-zinc-700 leading-relaxed font-medium">
+            <p>
+              Whether you are practicing hand-eye coordination in single-player arcade sessions or competing against rivals across the globe, Gesture Studio delivers a full-featured competitive ecosystem:
+            </p>
+
+            <ul className="list-disc pl-5 space-y-2 text-zinc-800 font-semibold">
+              <li>
+                <strong className="text-black font-black uppercase">Solo Arcade Challenges:</strong> Sharpen your reflex speed in Fruit Slash, navigate high-density traffic in Crazy Road, or test your trajectory calculations in Archery Challenge and Bird Hunter.
+              </li>
+              <li>
+                <strong className="text-black font-black uppercase">Real-Time 1v1 Multiplayer:</strong> Challenge online players or direct friends to live aerial archery battles in Stickman Showdown, real-time slice duels in Fruit Slash, or drag races in Crazy Road powered by Firebase Realtime Database socket synchronization.
+              </li>
+              <li>
+                <strong className="text-black font-black uppercase">Daily Progression & Social:</strong> Earn XP, unlock milestone badges and avatar customizations, maintain play streaks, and wager friendly coins on match outcomes.
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        {/* ── Frequently Asked Questions (FAQ) ───────────────────────────── */}
+        <section className="w-full max-w-5xl bg-white border-3 md:border-4 border-black shadow-neo-lg p-6 sm:p-8 mb-12 relative">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="neo-tag bg-neo-yellow text-black border-2 border-black font-mono text-[10px] font-black uppercase">
+              HELP & FAQ
+            </span>
+          </div>
+
+          <h2 className="font-display font-black text-2xl sm:text-3xl uppercase tracking-tight mb-6">
+            Frequently Asked Questions
+          </h2>
+
+          <div className="space-y-4">
+            <div className="border-2 border-black p-4 bg-neo-cream shadow-neo-xs">
+              <h3 className="font-display font-black text-sm sm:text-base uppercase mb-1">
+                Do I need to buy special motion controllers or VR sensors?
+              </h3>
+              <p className="font-mono text-xs text-zinc-700 leading-relaxed font-medium">
+                No. Gesture Studio is 100% web-native. Any standard laptop webcam, USB desktop webcam, or built-in smartphone front-facing camera works instantly right inside your browser without any hardware peripherals.
+              </p>
+            </div>
+
+            <div className="border-2 border-black p-4 bg-neo-cream shadow-neo-xs">
+              <h3 className="font-display font-black text-sm sm:text-base uppercase mb-1">
+                Does Gesture Studio store or upload my webcam video?
+              </h3>
+              <p className="font-mono text-xs text-zinc-700 leading-relaxed font-medium">
+                Never. Video streams are analyzed frame-by-frame on your client device using MediaPipe WASM neural networks. Zero visual frames ever leave your computer or touch our servers.
+              </p>
+            </div>
+
+            <div className="border-2 border-black p-4 bg-neo-cream shadow-neo-xs">
+              <h3 className="font-display font-black text-sm sm:text-base uppercase mb-1">
+                How do I get the best gesture tracking accuracy?
+              </h3>
+              <p className="font-mono text-xs text-zinc-700 leading-relaxed font-medium">
+                Position yourself approximately 2 to 4 feet (60–120 cm) in front of the camera in a well-lit room. Ensure your hand contrasts well with your background and avoid intense light sources directly behind you.
+              </p>
+            </div>
+
+            <div className="border-2 border-black p-4 bg-neo-cream shadow-neo-xs">
+              <h3 className="font-display font-black text-sm sm:text-base uppercase mb-1">
+                Can I play on both desktop and mobile devices?
+              </h3>
+              <p className="font-mono text-xs text-zinc-700 leading-relaxed font-medium">
+                Yes. Gesture Studio is optimized for modern desktop browsers (Chrome, Edge, Firefox, Safari, Brave) and mobile browsers with WebGL hardware acceleration enabled.
+              </p>
+            </div>
+
+            <div className="border-2 border-black p-4 bg-neo-cream shadow-neo-xs">
+              <h3 className="font-display font-black text-sm sm:text-base uppercase mb-1">
+                Is Gesture Studio free to play?
+              </h3>
+              <p className="font-mono text-xs text-zinc-700 leading-relaxed font-medium">
+                Yes. All games, multiplayer lobbies, and progression achievements are free to play for everyone. We support platform maintenance and ongoing development through non-intrusive banner advertising.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Footer ──────────────────────────────────────────────────────── */}
+        <footer className="w-full max-w-5xl border-t-3 border-black pt-8 pb-4 text-center text-xs font-mono font-bold text-zinc-700 flex flex-col items-center gap-4 select-none">
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
+            <Link to="/about" className="hover:text-black hover:underline uppercase transition-colors">
+              About Us
+            </Link>
+            <span>•</span>
+            <Link to="/contact" className="hover:text-black hover:underline uppercase transition-colors">
+              Contact & Support
+            </Link>
+            <span>•</span>
+            <Link to="/gesture-academy" className="hover:text-black hover:underline uppercase transition-colors">
+              Gesture Academy
+            </Link>
+            <span>•</span>
+            <Link to="/leaderboard" className="hover:text-black hover:underline uppercase transition-colors">
+              Leaderboards
+            </Link>
+            <span>•</span>
+            <Link to="/achievements" className="hover:text-black hover:underline uppercase transition-colors">
+              Achievements
+            </Link>
+            <span>•</span>
+            <Link to="/friends" className="hover:text-black hover:underline uppercase transition-colors">
+              Friends & Social
+            </Link>
+            <span>•</span>
+            <Link to="/privacy-policy" className="hover:text-black hover:underline uppercase transition-colors">
+              Privacy Policy
+            </Link>
+            <span>•</span>
+            <Link to="/terms" className="hover:text-black hover:underline uppercase transition-colors">
+              Terms of Use
+            </Link>
+          </div>
+
+          <div className="flex items-center gap-2 text-zinc-600 text-[11px]">
+            <img src="/gesturestudio.png" alt="Gesture Studio" className="w-4 h-4 object-contain" />
+            <span>© 2026 GESTURE STUDIO · CREATED BY LALITH SRINIVAS · POWERED BY MEDIAPIPE & REACT</span>
+          </div>
         </footer>
 
       </div>

@@ -6,6 +6,18 @@ import process from 'node:process';
 
 const ROUTES = [
   {
+    path: '/about',
+    canonical: 'https://www.gesturestudio.in/about',
+    title: 'About Us | Gesture Studio - Vision AI Gaming Platform',
+    description: 'Learn about Gesture Studio: our mission, real-time MediaPipe hand tracking technology, privacy-first on-device AI vision, and creator Lalith Srinivas.',
+  },
+  {
+    path: '/contact',
+    canonical: 'https://www.gesturestudio.in/contact',
+    title: 'Contact Us | Gesture Studio Support & Feedback',
+    description: 'Contact Gesture Studio support, submit feedback, report bugs, or reach platform owner Lalith Srinivas.',
+  },
+  {
     path: '/privacy-policy',
     canonical: 'https://www.gesturestudio.in/privacy-policy',
     title: 'Privacy Policy | Gesture Studio',
@@ -26,7 +38,7 @@ const ROUTES = [
   {
     path: '/fruit-ninja',
     canonical: 'https://www.gesturestudio.in/fruit-ninja',
-    title: 'Fruit Ninja - Free Webcam Hand Gesture Game | Gesture Studio',
+    title: 'Fruit Slash - Free Webcam Hand Gesture Game | Gesture Studio',
     description: 'Slice juicy airborne fruits in real-time with finger swipes in your browser with zero downloads!',
   },
   {
@@ -38,7 +50,7 @@ const ROUTES = [
   {
     path: '/flappy-bird',
     canonical: 'https://www.gesturestudio.in/flappy-bird',
-    title: 'Flappy Bird - Hand Gesture Arcade Game | Gesture Studio',
+    title: 'Flappy Wings - Hand Gesture Arcade Game | Gesture Studio',
     description: 'Flap through pipes with pinch gestures or air taps in your browser at Gesture Studio.',
   },
   {

@@ -14,6 +14,9 @@ import AchievementsPage from './pages/AchievementsPage';
 import FriendsPage from './pages/FriendsPage';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Terms from './pages/Terms';
+import AboutPage from './pages/AboutPage';
+import ContactPage from './pages/ContactPage';
+import NotFoundPage from './pages/NotFoundPage';
 import GestureCursor from './components/GestureCursor';
 import TutorialGate from './components/TutorialGate';
 import BottomNav from './components/BottomNav';
@@ -181,6 +184,8 @@ export default function App() {
               <Route path="/achievements" element={<AchievementsPage />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<Terms />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/contact" element={<ContactPage />} />
               <Route
                 path="/gesture-academy"
                 element={
@@ -247,6 +252,7 @@ export default function App() {
                 path="/stickman-showdown"
                 element={<StickmanShowdown />}
               />
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
             </ErrorBoundary>
               <ConditionalBottomNav />

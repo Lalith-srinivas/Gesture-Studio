@@ -3,11 +3,9 @@
  * Renders inside/below existing game-over UI — does NOT replace it.
  */
 import React, { useState } from 'react';
-import { useAd } from '../context/AdContext';
 
 export default function PostGameProgression({ result, onClose }) {
   const [bonusClaimed, setBonusClaimed] = useState(false);
-  const { showRewardedAd } = useAd();
 
   if (!result || result.error === 'Duplicate session') return null;
 
@@ -16,14 +14,7 @@ export default function PostGameProgression({ result, onClose }) {
   if (xpEarned === 0 && !isPersonalBest && unlockedAchievements.length === 0) return null;
 
   const handleClaimBonus = () => {
-    showRewardedAd({
-      rewardTitle: 'Match Bonus XP',
-      rewardDescription: 'Watch a short sponsored message to earn bonus XP for this match!',
-      rewardAmount: '+25 XP',
-      onRewarded: () => {
-        setBonusClaimed(true);
-      },
-    });
+    setBonusClaimed(true);
   };
 
   return (
@@ -90,7 +81,7 @@ export default function PostGameProgression({ result, onClose }) {
             className="w-full py-1.5 sm:py-2 px-2.5 sm:px-3 bg-neo-yellow/20 hover:bg-neo-yellow/30 border border-neo-yellow/60 hover:border-neo-yellow text-neo-yellow font-mono font-bold text-[11px] sm:text-xs uppercase flex items-center justify-center gap-1.5 rounded-lg transition-all active:scale-[0.98]"
           >
             <span>🎁</span>
-            <span>Watch Short Ad for +25 XP</span>
+            <span>Claim Match Bonus (+25 XP)</span>
           </button>
         )}
       </div>

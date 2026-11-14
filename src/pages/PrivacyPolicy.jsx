@@ -529,6 +529,20 @@ export default function PrivacyPolicy() {
         </Link>
         <span>•</span>
         <Link
+          to="/about"
+          className="hover:text-black hover:underline transition-colors"
+        >
+          ABOUT US
+        </Link>
+        <span>•</span>
+        <Link
+          to="/contact"
+          className="hover:text-black hover:underline transition-colors"
+        >
+          CONTACT
+        </Link>
+        <span>•</span>
+        <Link
           to="/terms"
           onClick={() => {
             window.scrollTo(0, 0);

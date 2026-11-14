@@ -1006,7 +1006,7 @@ export default function FruitNinja() {
           setShowModeModal(false);
           setShowLobbyModal(true);
         }}
-        gameTitle="Fruit Ninja"
+        gameTitle="Fruit Slash"
       />
 
       {/* ── Multiplayer Lobby Modal (Random / Friends / Stakes) ─────── */}
@@ -1019,7 +1019,7 @@ export default function FruitNinja() {
           setGameState("idle");
         }}
         gameId="fruit-ninja"
-        gameTitle="Fruit Ninja"
+        gameTitle="Fruit Slash"
       />
 
       {/* ── Multiplayer Result Modal ─────────────────────────────────── */}
