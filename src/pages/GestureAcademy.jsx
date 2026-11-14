@@ -96,9 +96,9 @@ const sounds = new SoundPlayer();
 
 // ── Game Metadata Mapping ─────────────────────────────────────────────────
 const GAME_MAP = {
-  'fruit-ninja': { name: 'Fruit Ninja', path: '/fruit-ninja', emoji: '🍉' },
+  'fruit-ninja': { name: 'Fruit Slash', path: '/fruit-ninja', emoji: '🍉' },
   'hill-climb': { name: 'Crazy Road', path: '/hill-climb', emoji: '🏎️' },
-  'flappy-bird': { name: 'Flappy Bird', path: '/flappy-bird', emoji: '🐦' },
+  'flappy-bird': { name: 'Flappy Wings', path: '/flappy-bird', emoji: '🐦' },
   'archery': { name: 'Archery Challenge', path: '/archery', emoji: '🏹' },
   'bird-hunter': { name: 'Bird Hunter', path: '/bird-hunter', emoji: '🦅' },
   'space-shooter': { name: 'Space Shooter', path: '/space-shooter', emoji: '🚀' },
@@ -115,7 +115,7 @@ const ALL_LESSONS = {
     badge: 'POINT / SLICE',
     badgeBg: 'bg-neo-yellow',
     description: 'Extend your index finger upwards while curling your thumb and other fingers.',
-    usage: 'Fruit Ninja · Space Pilot · Move',
+    usage: 'Fruit Slash · Space Pilot · Move',
     hint: 'Point your index finger straight up. Steers your starship or slices fruits!',
     verify: (gesture) => gesture === GESTURES.DRAW,
   },
@@ -205,7 +205,7 @@ const ALL_LESSONS = {
     badge: 'SWIPE & SLICE',
     badgeBg: 'bg-neo-lime',
     description: 'Glide your hand across the screen to slice airborne fruits.',
-    usage: 'Fruit Ninja (Swipe to Slice)',
+    usage: 'Fruit Slash (Swipe to Slice)',
     hint: 'Move your hand left and right across the camera to slice fruits.',
     verify: (gesture, landmarks) => {
       if (!landmarks || landmarks.length < 21) return false;
@@ -551,7 +551,7 @@ export default function GestureAcademy() {
               : 'bg-white text-zinc-700 hover:bg-zinc-100'
           }`}
         >
-          <span>🐦 Flappy Bird Simulation</span>
+          <span>🐦 Flappy Wings Simulation</span>
           <span className="bg-neo-pink text-white text-[9px] px-1 py-0.2 border border-black font-black">
             PLAYABLE
           </span>
@@ -602,7 +602,7 @@ export default function GestureAcademy() {
               : 'bg-white text-zinc-700 hover:bg-zinc-100'
           }`}
         >
-          <span>🍉 Fruit Ninja Tutorial</span>
+          <span>🍉 Fruit Slash Tutorial</span>
           <span className="bg-neo-pink text-white text-[9px] px-1 py-0.2 border border-black font-black">
             PLAYABLE
           </span>

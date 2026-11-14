@@ -108,8 +108,8 @@ export default function PrivacyPolicy() {
             </h2>
             <p className="text-zinc-800 text-sm sm:text-base leading-relaxed">
               Gesture Studio is a browser-based gaming and interactive web application that enables players to enjoy
-              arcade games (including Fruit Ninja, Crazy Road, Flappy Bird, Archery Challenge, Bird Hunter, and Space
-              Shooter) using natural hand gestures via their webcam, as well as alternative keyboard and touch inputs.
+              arcade games (including Fruit Slash, Crazy Road, Flappy Wings, Archery Challenge, Bird Hunter, Space
+              Shooter, and Stickman Showdown) using natural hand gestures via their webcam, as well as alternative keyboard and touch inputs.
             </p>
           </article>
 

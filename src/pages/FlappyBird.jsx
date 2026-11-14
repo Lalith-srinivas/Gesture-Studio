@@ -80,7 +80,7 @@ export default function FlappyBird({ onReady }) {
   const lastPinchRef = useRef(0);
   const lastGestureRef = useRef(false);
   const [uiState, setUiState] = useState("idle"); // idle | playing | dead
-  useTrackSoloGame("Flappy Bird", uiState === "playing");
+  useTrackSoloGame("Flappy Wings", uiState === "playing");
   const [currentGesture, setCurrentGesture] = useState(GESTURES.NONE);
   const { recordGameResult, allGameStats } = usePlayer();
   const [lastProgressionResult, setLastProgressionResult] = useState(null);

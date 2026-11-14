@@ -834,7 +834,7 @@ export default function FriendsPage() {
                 <div className="flex items-center gap-2.5">
                   <span className="text-2xl">🍉</span>
                   <div>
-                    <div className="font-display font-black text-sm text-black">Fruit Ninja</div>
+                    <div className="font-display font-black text-sm text-black">Fruit Slash</div>
                     <div className="font-mono text-[10px] text-zinc-700">Blade slicing reflex duel</div>
                   </div>
                 </div>

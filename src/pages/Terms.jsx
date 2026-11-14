@@ -134,7 +134,7 @@ export default function Terms() {
             </h2>
             <p className="text-zinc-800 text-sm sm:text-base leading-relaxed">
               Gesture Studio provides an interactive web gaming hub featuring browser-based arcade titles including Fruit
-              Ninja, Crazy Road, Flappy Bird, Archery Challenge, Bird Hunter, and Space Shooter, along with the Gesture
+              Slash, Crazy Road, Flappy Wings, Archery Challenge, Bird Hunter, Space Shooter, and Stickman Showdown, along with the Gesture
               Academy tutorial experience. The platform supports interactive webcam-based hand tracking as well as
               standard keyboard and touch controls.
             </p>

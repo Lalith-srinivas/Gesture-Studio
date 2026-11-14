@@ -3,7 +3,7 @@ import { useGestureAcademy } from '../hooks/useGestureAcademy';
 
 const GAME_GESTURE_INFO = {
   'fruit-ninja': {
-    title: 'Fruit Ninja Controls',
+    title: 'Fruit Slash Controls',
     tips: [
       { emoji: '☝️', label: 'Index', desc: 'Slice airborne fruit' },
       { emoji: '✌️', label: 'Peace', desc: 'Dual blade slice' },
@@ -11,7 +11,7 @@ const GAME_GESTURE_INFO = {
     ],
   },
   'flappy-bird': {
-    title: 'Flappy Bird Controls',
+    title: 'Flappy Wings Controls',
     tips: [
       { emoji: '🤏', label: 'Pinch', desc: 'Flap wings & jump' },
       { emoji: '🤟', label: 'Rock', desc: 'Pause game' },

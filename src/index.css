@@ -13,19 +13,23 @@
 html {
   width: 100%;
   min-height: 100%;
-  overflow-x: hidden;
+  overflow-x: clip;
   scroll-behavior: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #000000 #FFFDF5;
 }
 
 body {
   width: 100%;
   min-height: 100%;
-  overflow-x: hidden;
+  overflow-x: clip;
   background: #FFFDF5;
   color: #121212;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   margin: 0;
   padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #root {
@@ -124,28 +128,31 @@ body {
   }
 }
 
-/* Custom Neo Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* Custom Neo Scrollbar for desktop mouse users */
+@media (hover: hover) and (pointer: fine) {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #FFFDF5;
+    border-left: 2px solid #000;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #000000;
+    border: 1px solid #FFFDF5;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #FFE600;
+    border: 1px solid #000;
+  }
 }
 
-::-webkit-scrollbar-track {
-  background: #FFFDF5;
-  border-left: 2px solid #000;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #000000;
-  border: 1px solid #FFFDF5;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #FFE600;
-  border: 1px solid #000;
-}
-
-/* Canvas cursor */
+/* Canvas cursor & touch action */
 canvas {
   cursor: crosshair;
+  touch-action: none;
 }

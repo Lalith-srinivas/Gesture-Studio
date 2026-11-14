@@ -175,7 +175,7 @@ export default function FruitNinja() {
   useEffect(() => { isMultiplayerRef.current = isMultiplayer; }, [isMultiplayer]);
 
   // Track active solo gameplay in presence engine (blocks incoming match invites while slicing)
-  useTrackSoloGame('Fruit Ninja', !isMultiplayer && gameState === 'running');
+  useTrackSoloGame('Fruit Slash', !isMultiplayer && gameState === 'running');
 
   // Automatically open lobby & hide mode selection whenever invited or in multiplayer
   useEffect(() => {
@@ -900,7 +900,7 @@ export default function FruitNinja() {
             </div>
             
             <h1 className="font-display font-black text-2xl sm:text-4xl text-black uppercase tracking-tight mb-1 shrink-0">
-              Fruit Ninja
+              Fruit Slash
             </h1>
             <p className="font-mono text-xs font-bold text-zinc-700 uppercase tracking-wider mb-3 sm:mb-5 shrink-0">
               SWIPE TO SLICE · AVOID BOMBS
