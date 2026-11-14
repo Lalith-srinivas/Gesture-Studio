@@ -47,6 +47,7 @@ body {
 }
 
 @layer components {
+
   /* Neo-Brutalist Containers */
   .neo-box {
     @apply border-2 md:border-3 border-black bg-white shadow-neo;
@@ -66,10 +67,7 @@ body {
 
   /* Neo-Brutalist Buttons */
   .neo-btn {
-    @apply inline-flex items-center justify-center font-display font-bold text-sm tracking-wide
-           border-2 md:border-3 border-black shadow-neo transition-all duration-150 cursor-pointer select-none
-           hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-neo-lg
-           active:translate-x-0.5 active:translate-y-0.5 active:shadow-neo-sm;
+    @apply inline-flex items-center justify-center font-display font-bold text-sm tracking-wide border-2 md:border-3 border-black shadow-neo transition-all duration-150 cursor-pointer select-none hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-neo-lg active:translate-x-0.5 active:translate-y-0.5 active:shadow-neo-sm;
   }
 
   .neo-btn-primary {
@@ -101,13 +99,11 @@ body {
   }
 
   .neo-badge {
-    @apply inline-flex items-center gap-1.5 px-3 py-1 text-xs font-mono font-bold
-           border-2 border-black shadow-neo-sm rounded-full;
+    @apply inline-flex items-center gap-1.5 px-3 py-1 text-xs font-mono font-bold border-2 border-black shadow-neo-sm rounded-full;
   }
 
   .neo-tag {
-    @apply inline-flex items-center px-2.5 py-0.5 text-[11px] font-mono font-bold uppercase
-           border-2 border-black shadow-[2px_2px_0px_#000];
+    @apply inline-flex items-center px-2.5 py-0.5 text-[11px] font-mono font-bold uppercase border-2 border-black shadow-[2px_2px_0px_#000];
   }
 
   /* Legacy utility compat with Neo-Brutalism style */
@@ -129,10 +125,27 @@ body {
 }
 
 /* Custom Neo Scrollbar */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: #FFFDF5; border-left: 2px solid #000; }
-::-webkit-scrollbar-thumb { background: #000000; border: 1px solid #FFFDF5; }
-::-webkit-scrollbar-thumb:hover { background: #FFE600; border: 1px solid #000; }
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FFFDF5;
+  border-left: 2px solid #000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #000000;
+  border: 1px solid #FFFDF5;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #FFE600;
+  border: 1px solid #000;
+}
 
 /* Canvas cursor */
-canvas { cursor: crosshair; }
+canvas {
+  cursor: crosshair;
+}
