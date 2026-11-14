@@ -38,9 +38,9 @@ export default function ContactPage() {
     e.preventDefault();
     if (!formData.name || !formData.email || !formData.message) return;
 
-    const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
-    const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
-    const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+    const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID || 'service_0s1393v';
+    const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || 'template_qeq70qi';
+    const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || 'NEpD3ujdTLO2yNDZZ';
 
     setStatus('sending');
     setErrorMessage('');
