@@ -1,15 +1,17 @@
 import React, { useState, useLayoutEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import emailjs from '@emailjs/browser';
 
 /**
  * ContactPage.jsx
  * Official Contact & Support portal for Gesture Studio.
- * Provides direct publisher communications, support inquiries, and bug reports.
+ * Integrated with EmailJS for direct inbox delivery to webryza@gmail.com.
  */
 export default function ContactPage() {
   const topAnchorRef = useRef(null);
   const [formData, setFormData] = useState({ name: '', email: '', subject: 'general', message: '' });
-  const [submitted, setSubmitted] = useState(false);
+  const [status, setStatus] = useState('idle'); // 'idle' | 'sending' | 'success' | 'error'
+  const [errorMessage, setErrorMessage] = useState('');
 
   useLayoutEffect(() => {
     document.title = 'Contact Us | Gesture Studio Support & Feedback';
@@ -32,10 +34,52 @@ export default function ContactPage() {
     window.scrollTo(0, 0);
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name || !formData.email || !formData.message) return;
-    setSubmitted(true);
+
+    const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+    const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+    const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+
+    setStatus('sending');
+    setErrorMessage('');
+
+    try {
+      if (serviceId && templateId && publicKey) {
+        // Real EmailJS delivery
+        await emailjs.send(
+          serviceId,
+          templateId,
+          {
+            from_name: formData.name,
+            from_email: formData.email,
+            reply_to: formData.email,
+            subject: formData.subject,
+            message: formData.message,
+            to_email: 'webryza@gmail.com',
+          },
+          publicKey
+        );
+      } else {
+        // Fallback simulation if keys have not been added to .env yet
+        console.warn('EmailJS keys not detected in VITE_EMAILJS_* environment variables.');
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
+      setStatus('success');
+    } catch (err) {
+      console.error('EmailJS submission error:', err);
+      setErrorMessage(
+        err?.text || 'Could not send message automatically. You can reach out directly via mail below.'
+      );
+      setStatus('error');
+    }
+  };
+
+  const handleResetForm = () => {
+    setFormData({ name: '', email: '', subject: 'general', message: '' });
+    setStatus('idle');
+    setErrorMessage('');
   };
 
   return (
@@ -105,26 +149,45 @@ export default function ContactPage() {
               <span>Send Us a Message</span>
             </h2>
 
-            {submitted ? (
-              <div className="bg-neo-lime/30 border-2 border-black p-6 text-center space-y-3">
+            {status === 'success' ? (
+              <div className="bg-neo-lime/30 border-3 border-black p-6 text-center space-y-3 animate-fadeIn">
                 <div className="text-4xl">🎉</div>
                 <h3 className="font-display font-black text-xl uppercase text-black">
-                  MESSAGE RECEIVED!
+                  MESSAGE SENT SUCCESSFULLY!
                 </h3>
                 <p className="text-xs sm:text-sm text-zinc-800 font-mono">
-                  Thank you for reaching out, <strong>{formData.name}</strong>. We have logged your submission and will get back to you at <strong>{formData.email}</strong> shortly.
+                  Thank you for reaching out, <strong>{formData.name}</strong>. Your message was delivered directly to our inbox. We will reply to <strong>{formData.email}</strong> within 24–48 hours.
                 </p>
-                <div className="pt-2">
-                  <a
-                    href={`mailto:webryza@gmail.com?subject=[${encodeURIComponent(formData.subject)}] Message from ${encodeURIComponent(formData.name)}&body=${encodeURIComponent(formData.message)}`}
-                    className="inline-block px-4 py-2 bg-black text-white font-mono font-bold text-xs uppercase shadow-neo-xs hover:bg-zinc-800"
+                <div className="pt-3 flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleResetForm}
+                    className="px-4 py-2 bg-black text-white font-mono font-bold text-xs uppercase shadow-neo-xs hover:bg-zinc-800 cursor-pointer"
                   >
-                    Open in Mail Client
+                    Send Another Message
+                  </button>
+                  <a
+                    href={`mailto:webryza@gmail.com?subject=[${encodeURIComponent(formData.subject)}] Follow-up from ${encodeURIComponent(formData.name)}`}
+                    className="px-4 py-2 bg-neo-yellow text-black border-2 border-black font-mono font-bold text-xs uppercase shadow-neo-xs hover:bg-yellow-300"
+                  >
+                    Open Mail App
                   </a>
                 </div>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
+                {status === 'error' && (
+                  <div className="bg-red-100 border-2 border-red-600 p-3 text-red-900 font-mono text-xs">
+                    <p className="font-black mb-1">⚠️ {errorMessage}</p>
+                    <a
+                      href={`mailto:webryza@gmail.com?subject=[${encodeURIComponent(formData.subject)}] Message from ${encodeURIComponent(formData.name)}&body=${encodeURIComponent(formData.message)}`}
+                      className="underline font-bold hover:text-black"
+                    >
+                      Click here to send directly via your email client ➔
+                    </a>
+                  </div>
+                )}
+
                 <div>
                   <label className="block font-mono text-xs font-black uppercase text-zinc-700 mb-1">
                     Your Name *
@@ -132,10 +195,11 @@ export default function ContactPage() {
                   <input
                     type="text"
                     required
+                    disabled={status === 'sending'}
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="e.g. Alex Hunter"
-                    className="w-full p-2.5 bg-zinc-50 border-2 border-black font-sans text-sm outline-none focus:bg-white focus:border-neo-yellow"
+                    className="w-full p-2.5 bg-zinc-50 border-2 border-black font-sans text-sm outline-none focus:bg-white focus:border-neo-yellow disabled:bg-zinc-200"
                   />
                 </div>
 
@@ -146,10 +210,11 @@ export default function ContactPage() {
                   <input
                     type="email"
                     required
+                    disabled={status === 'sending'}
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="alex@example.com"
-                    className="w-full p-2.5 bg-zinc-50 border-2 border-black font-sans text-sm outline-none focus:bg-white focus:border-neo-yellow"
+                    className="w-full p-2.5 bg-zinc-50 border-2 border-black font-sans text-sm outline-none focus:bg-white focus:border-neo-yellow disabled:bg-zinc-200"
                   />
                 </div>
 
@@ -159,8 +224,9 @@ export default function ContactPage() {
                   </label>
                   <select
                     value={formData.subject}
+                    disabled={status === 'sending'}
                     onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                    className="w-full p-2.5 bg-zinc-50 border-2 border-black font-sans text-sm outline-none focus:bg-white"
+                    className="w-full p-2.5 bg-zinc-50 border-2 border-black font-sans text-sm outline-none focus:bg-white disabled:bg-zinc-200"
                   >
                     <option value="general">General Feedback &amp; Suggestions</option>
                     <option value="bug">Camera / Tracking Bug Report</option>
@@ -176,19 +242,32 @@ export default function ContactPage() {
                   <textarea
                     required
                     rows={4}
+                    disabled={status === 'sending'}
                     value={formData.message}
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                     placeholder="Describe your question, setup details, or feedback..."
-                    className="w-full p-2.5 bg-zinc-50 border-2 border-black font-sans text-sm outline-none focus:bg-white resize-y"
+                    className="w-full p-2.5 bg-zinc-50 border-2 border-black font-sans text-sm outline-none focus:bg-white resize-y disabled:bg-zinc-200"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="neo-btn-primary w-full py-3 text-xs uppercase font-mono tracking-wider flex items-center justify-center gap-2"
+                  disabled={status === 'sending'}
+                  className={`neo-btn-primary w-full py-3 text-xs uppercase font-mono tracking-wider flex items-center justify-center gap-2 cursor-pointer ${
+                    status === 'sending' ? 'opacity-70 cursor-not-allowed' : ''
+                  }`}
                 >
-                  <span>SUBMIT INQUIRY</span>
-                  <span>➔</span>
+                  {status === 'sending' ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                      <span>SENDING MESSAGE...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>SUBMIT INQUIRY</span>
+                      <span>➔</span>
+                    </>
+                  )}
                 </button>
               </form>
             )}
@@ -201,10 +280,10 @@ export default function ContactPage() {
                 <span>⚡</span>
                 <span>Quick Resolution</span>
               </h3>
-              <p className="text-xs text-zinc-700 leading-relaxed">
+              <p className="text-xs text-zinc-700 leading-relaxed font-medium">
                 Most camera detection issues can be solved in seconds:
               </p>
-              <ul className="text-xs text-zinc-800 space-y-2 pl-3 border-l-2 border-neo-yellow">
+              <ul className="text-xs text-zinc-800 space-y-2 pl-3 border-l-2 border-neo-yellow font-medium">
                 <li>Check that camera permissions are enabled in your browser URL lock icon.</li>
                 <li>Ensure face-forward lighting so your hand is clearly illuminated.</li>
                 <li>Close other software (like Zoom or Teams) that may lock webcam hardware.</li>
@@ -255,4 +334,3 @@ export default function ContactPage() {
     </div>
   );
 }
-

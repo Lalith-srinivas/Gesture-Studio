@@ -11,6 +11,7 @@
     "clean:guests": "node scripts/deleteGuestUsers.mjs"
   },
   "dependencies": {
+    "@emailjs/browser": "^5.0.3",
     "@mediapipe/camera_utils": "^0.3.1675466862",
     "@mediapipe/drawing_utils": "^0.3.1675466124",
     "@mediapipe/hands": "^0.4.1675469240",

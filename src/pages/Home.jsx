@@ -109,11 +109,39 @@ const GESTURE_GUIDES = [
   { emoji: '✊', name: 'Closed Fist', use: 'Cancel Aim · Nitro Boost' },
 ];
 
+const FAQS = [
+  {
+    q: 'Do I need to buy special motion controllers or VR sensors?',
+    a: 'No. Gesture Studio is 100% web-native. Any standard laptop webcam, USB desktop webcam, or built-in smartphone front-facing camera works instantly right inside your browser without any hardware peripherals.',
+  },
+  {
+    q: 'Does Gesture Studio store or upload my webcam video?',
+    a: 'Never. Video streams are analyzed frame-by-frame on your client device using MediaPipe WASM neural networks. Zero visual frames ever leave your computer or touch our servers.',
+  },
+  {
+    q: 'How do I get the best gesture tracking accuracy?',
+    a: 'Position yourself approximately 2 to 4 feet (60–120 cm) in front of the camera in a well-lit room. Ensure your hand contrasts well with your background and avoid intense light sources directly behind you.',
+  },
+  {
+    q: 'Can I play on both desktop and mobile devices?',
+    a: 'Yes. Gesture Studio is optimized for modern desktop browsers (Chrome, Edge, Firefox, Safari, Brave) and mobile browsers with WebGL hardware acceleration enabled.',
+  },
+  {
+    q: 'Is Gesture Studio free to play?',
+    a: 'Yes. All games, multiplayer lobbies, and progression achievements are free to play for everyone. We support platform maintenance and ongoing development through non-intrusive banner advertising.',
+  },
+];
+
 export default function Home() {
   const { playerData, unseenAchievementsCount, incomingFriendRequests, coins } = usePlayer();
   const { isGlobalDone } = useGestureAcademy();
   const { musicEnabled, toggleMusic } = useMusic();
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [openFaqIndex, setOpenFaqIndex] = useState(null);
+
+  const toggleFaq = (index) => {
+    setOpenFaqIndex((prev) => (prev === index ? null : index));
+  };
 
   // Academy is globally complete if either the hook says so OR playerData confirms it
   const academyCompleted = isGlobalDone || playerData?.tutorialCompleted === true;
@@ -528,63 +556,59 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ── Frequently Asked Questions (FAQ) ───────────────────────────── */}
+        {/* ── Frequently Asked Questions (FAQ Accordion) ─────────────────── */}
         <section className="w-full max-w-5xl bg-white border-3 md:border-4 border-black shadow-neo-lg p-6 sm:p-8 mb-12 relative">
           <div className="flex items-center gap-2 mb-3">
             <span className="neo-tag bg-neo-yellow text-black border-2 border-black font-mono text-[10px] font-black uppercase">
               HELP & FAQ
             </span>
+            <span className="neo-tag bg-neo-lime text-black border-2 border-black font-mono text-[10px] font-black uppercase">
+              CLICK TO EXPAND
+            </span>
           </div>
 
-          <h2 className="font-display font-black text-2xl sm:text-3xl uppercase tracking-tight mb-6">
+          <h2 className="font-display font-black text-2xl sm:text-3xl uppercase tracking-tight mb-2">
             Frequently Asked Questions
           </h2>
+          <p className="font-mono text-xs text-zinc-600 mb-6 font-semibold">
+            Click any question below to reveal the answer.
+          </p>
 
-          <div className="space-y-4">
-            <div className="border-2 border-black p-4 bg-neo-cream shadow-neo-xs">
-              <h3 className="font-display font-black text-sm sm:text-base uppercase mb-1">
-                Do I need to buy special motion controllers or VR sensors?
-              </h3>
-              <p className="font-mono text-xs text-zinc-700 leading-relaxed font-medium">
-                No. Gesture Studio is 100% web-native. Any standard laptop webcam, USB desktop webcam, or built-in smartphone front-facing camera works instantly right inside your browser without any hardware peripherals.
-              </p>
-            </div>
-
-            <div className="border-2 border-black p-4 bg-neo-cream shadow-neo-xs">
-              <h3 className="font-display font-black text-sm sm:text-base uppercase mb-1">
-                Does Gesture Studio store or upload my webcam video?
-              </h3>
-              <p className="font-mono text-xs text-zinc-700 leading-relaxed font-medium">
-                Never. Video streams are analyzed frame-by-frame on your client device using MediaPipe WASM neural networks. Zero visual frames ever leave your computer or touch our servers.
-              </p>
-            </div>
-
-            <div className="border-2 border-black p-4 bg-neo-cream shadow-neo-xs">
-              <h3 className="font-display font-black text-sm sm:text-base uppercase mb-1">
-                How do I get the best gesture tracking accuracy?
-              </h3>
-              <p className="font-mono text-xs text-zinc-700 leading-relaxed font-medium">
-                Position yourself approximately 2 to 4 feet (60–120 cm) in front of the camera in a well-lit room. Ensure your hand contrasts well with your background and avoid intense light sources directly behind you.
-              </p>
-            </div>
-
-            <div className="border-2 border-black p-4 bg-neo-cream shadow-neo-xs">
-              <h3 className="font-display font-black text-sm sm:text-base uppercase mb-1">
-                Can I play on both desktop and mobile devices?
-              </h3>
-              <p className="font-mono text-xs text-zinc-700 leading-relaxed font-medium">
-                Yes. Gesture Studio is optimized for modern desktop browsers (Chrome, Edge, Firefox, Safari, Brave) and mobile browsers with WebGL hardware acceleration enabled.
-              </p>
-            </div>
-
-            <div className="border-2 border-black p-4 bg-neo-cream shadow-neo-xs">
-              <h3 className="font-display font-black text-sm sm:text-base uppercase mb-1">
-                Is Gesture Studio free to play?
-              </h3>
-              <p className="font-mono text-xs text-zinc-700 leading-relaxed font-medium">
-                Yes. All games, multiplayer lobbies, and progression achievements are free to play for everyone. We support platform maintenance and ongoing development through non-intrusive banner advertising.
-              </p>
-            </div>
+          <div className="space-y-3">
+            {FAQS.map((faq, index) => {
+              const isOpen = openFaqIndex === index;
+              return (
+                <div
+                  key={index}
+                  className="border-2 sm:border-3 border-black bg-white shadow-neo-sm overflow-hidden transition-all"
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleFaq(index)}
+                    className={`w-full p-4 sm:p-4.5 flex items-center justify-between gap-3 text-left transition-colors cursor-pointer select-none ${
+                      isOpen ? 'bg-[#FEF08A]' : 'bg-white hover:bg-zinc-50'
+                    }`}
+                    aria-expanded={isOpen}
+                  >
+                    <span className="font-display font-black text-sm sm:text-base uppercase tracking-tight text-black">
+                      {faq.q}
+                    </span>
+                    <span
+                      className={`w-7 h-7 shrink-0 border-2 border-black flex items-center justify-center font-mono font-black text-xs shadow-neo-xs transition-transform duration-200 ${
+                        isOpen ? 'bg-neo-yellow rotate-180' : 'bg-neo-lime'
+                      }`}
+                    >
+                      {isOpen ? '▲' : '▼'}
+                    </span>
+                  </button>
+                  {isOpen && (
+                    <div className="p-4 sm:p-5 border-t-2 border-black bg-neo-cream font-mono text-xs sm:text-sm text-zinc-800 leading-relaxed font-medium animate-fadeIn">
+                      {faq.a}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </section>
 
